@@ -30,7 +30,7 @@ Macro.add("newmap", {
         // parse args to argsObj
         const template_newmap = {
             mapname: {
-                type: 'string',
+                type: ["string", "object", {exact:4}, {exact:8}],
                 required: true,
                 omittable: true,
             },
@@ -43,7 +43,7 @@ Macro.add("newmap", {
                 type: 'boolean',
             },
         };
-        const argsObj_newmap = args_to_argsObj.call(this,this.args,template_newmap);
+        const argsObj_newmap = to_argsObj.call(this,this.args,template_newmap);
         // get mapname
         const {mapname} = argsObj_newmap;
 
@@ -99,10 +99,8 @@ Macro.add("newmap", {
                     omittable: true,
                 },
             };
-            console.log(args_maptiles);
             const args_maptiles     = this.payload.filter( p => p.name === 'maptiles' )[0].args;
             const argsObj_maptiles  = args_to_argsObj.call(this,args_maptiles,template_maptiles);
-            console.log(argsObj_maptiles);
             // overwrite default values
             for (const a in argsObj_maptiles.tiles) {
                 Object.assign(this_map.tiles[a],argsObj_maptiles.tiles[a])

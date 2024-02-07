@@ -1,0 +1,75 @@
+
+
+
+// ┬ ┬┌─┐┌─┐┌─┐┬ ┬┬
+// │ │└─┐├┤ ├┤ │ ││
+// └─┘└─┘└─┘└  └─┘┴─┘
+// USEFUL   :   returns type
+// usage    :
+//      getType(input,level) => type
+//
+// lvl0 => typeof
+// lvl1 => {...lvl0, []:"array", null:"null"}
+// lvl2 => {...lvl1, "$var":"story variable", "_var":"temp variable"}
+// function getType(t_in,lvl) {
+//     lvl ??= 2;
+
+//     let t_out;
+//     t_out   = typeof t_in;
+
+//     if (lvl < 1) { return t_out }
+//     t_out   = Object.prototype.toString.call(t_in).slice(8, -1).toLowerCase();
+
+//     if (lvl < 2) { return t_out }
+//     t_out   = (t_out === "string") && (t_in.first() === "$")
+//                 ? "story variable"
+//             : (t_out === "string") && (t_in.first() === "_")
+//                 ? "temp variable"
+//             : t_out;
+//     return t_out
+// }
+// function to_typeObj(t_template) {
+    
+//     const tObj  = {};
+
+//     tObj.arr    = typeof t_template === 'array'
+//                     ? t_template
+//                 : [t_template];
+
+//     const quote = [];
+//     for (const t of tObj.arr) {
+//         if ((typeof t === 'object')) {
+//             quote.push(`exactly "${Object.values(t)}"`);
+//         }
+//         else {
+//             quote.push(`"${t}"`);
+//         }
+//     }
+//     tObj.quote = quote.join(" or ");
+//     setup.test = tObj;
+//     tObj.check = function(t_in,lvl) {
+//         lvl ??= 2;
+//         console.log('---');
+//         console.log(this);
+//         console.log('xxx');
+//         let pass = false;
+//         for (const t of this.arr) {
+//             if (
+//                 ((typeof t === "object") && (t_in == Object.values(t)[0]))  ||
+//                 (t === "any")                                               ||
+//                 (t === getType(t_in))
+//             ) {
+//                 pass = true;
+//                 break;
+//             }
+    
+//         }
+//         return pass
+
+//     };
+
+//     return tObj
+// }
+// function checkType(tObj,t_in,lvl) {
+//     lvl ??= 2;
+// }

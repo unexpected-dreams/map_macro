@@ -1,97 +1,190 @@
-// ┬ ┬┌─┐┌─┐┌─┐┬ ┬┬
-// │ │└─┐├┤ ├┤ │ ││
-// └─┘└─┘└─┘└  └─┘┴─┘
-// USEFUL   :   returns type
-// usage    :
-//      getType(input,level) => type
-//
-// lvl0 => typeof
-// lvl1 => {...lvl0, []:"array", null:"null"}
-// lvl2 => {...lvl1, "$var":"story variable", "_var":"temp variable"}
-function getType(t_in,lvl) {
-    lvl ??= 2;
-
-    let t_out;
-    t_out   = typeof t_in;
-
-    if (lvl < 1) { return t_out }
-    t_out   = Object.prototype.toString.call(t_in).slice(8, -1).toLowerCase();
-
-    if (lvl < 2) { return t_out }
-    t_out   = (t_out === "string") && (t_in.first() === "$")
-                ? "story variable"
-            : (t_out === "string") && (t_in.first() === "_")
-                ? "temp variable"
-            : t_out;
-    return t_out
-}
-function checkType(t_in,t_list,lvl) {
-    lvl ??= 2;
-
-    const t_valid   = getType(t_list) === "array"
-                        ? getType(t_list[0]) === "object"
-                            ? t_list // if array of objects, set
-                        : t_list.map(function(t) { return {type:t,exact:false} }) // if array of strings, create object
-                    : [{type:t_list,exact:false}]; // otherwise create standalone array object wrapper
-
-    let pass = false;
-    for (const t of t_valid) {
-        pass    = t.type === "any"
-                    ? true // if type is any, auto pass
-                : t.exact && (t.type === t_in)
-                    ? true // if exact flag and type string matches input exactly
-                : getType(t_in,lvl) === t.type
-                    ? true // otherwise if type matches type input
-                : false;
-        // stop checking as soon as one true is found
-        if (pass) { break }
+// create type object
+class TypeSet {
+    constructor(...types) {
+        this.set = [];
+        // ERROR, no input
+        if (types.length === 0) {
+            throw new Error(`TypeSet input missing`)
+        }
+        for (const t of types) {
+            this.push(t);
+        }
     }
-    const group = t_valid.map(t => `"${t.type}"`).join(" or ");
+    // return the string description
+    get print() {
+        const arr = [];
+        for (const ti of this.set) {
+            const txt   = ti.any
+                            ? `any "${ti.exact}"`
+                        : `exactly "${ti.any}"`;
+            arr.push(txt);
+        }
+        return arr.join(" or ")
+    }
 
-    return pass
-}
-function quoteType(t_list) {
-    const quote = getType(t_list) === "array"
-                    ? getType(t_list[0]) === "object"
-                        ? t_list.map( t => `"${t.type}"`).join(" or ")
-                    : t_list.map( t => `"${t}"`).join(" or ")
-                : `"${t_list}"`;
-    return quote
+    push(type) {
+        if (this.has(type)) {
+            return
+        }
+        if (Array.isArray(type)) {
+            this.#push_array(type);
+        }
+        else if (typeof type === 'string') {
+            this.#push_string(type);
+        }
+        else if (typeof type === 'object') {
+            this.#push_object(type);
+        }
+        // ERROR: input not string or object or array
+        else {
+            throw new Error(`invalid TypeSet input, input must be "string" or "object" or "array"`)
+        }
+    }
+    // disects array and plugs it back into push
+    #push_array(type_arr) {
+        if (type_arr.length === 0) {
+            throw new Error(`invalid TypeSet input, array cannot be empty`)
+        }
+        for (const t of type_arr) {
+            this.push(t);
+        }
+    }
+    // add type to TypeSet from object
+    #push_object(type_obj) {
+        // ERROR: input object larger than 1:1
+        if (Object.keys(type_obj).length !== 1) {
+            throw new Error(`invalid TypeSet input, object must have one key only"`)
+        }
+        // ERROR: input object has some key other than "any" or "exact" as key
+        const keys_invalid = Object.keys(type_obj).filter( k => k !== "any" && k !== "exact" ); 
+        if (keys_invalid.length > 0) {
+            throw new Error(`invalid TypeSet input, object contains invalid key "${keys_invalid[0]}"`)
+        }
+        if (type_obj.any) {
+            TypeSet.validate(type_obj.any);
+        }
+        this.set.push(type_obj);
+        return
+    }
+    // add type to TypeSet from string
+    #push_string(type_str) {
+        TypeSet.validate(type_str);
+        this.set.push({any: type_str});
+        return
+    }
+    // validate that string is a valid type
+    static validate(input) {
+        const valid = TypeSet.valid();
+        if (! valid.includes(input)) {
+            throw new Error(`invalid TypeSet input, "${input}" is not a valid type`)
+        }
+        return
+    }
+
+    // list valid types
+    static valid() {
+        const valid = [
+            "any",
+            "string", "number", "object", "boolean", "undefined",
+            "array", "null",
+            "story variable", "temp variable",
+        ];
+        return valid
+    }
+    static id(input) {
+        let type;
+        type    = Object.prototype.toString.call(input).slice(8, -1).toLowerCase();
+        type    = (type === "string") && (Array.from(type)[0] === "$")
+                    ? "story variable"
+                : (type === "string") && (Array.from(type)[0] === "_")
+                    ? "temp variable"
+                : type;
+        return type
+    }
+    // checks if the type object instance has provided type
+    has(type) {
+        let pass = false;
+        for (const t of this.set) {
+            const key = Object.keys(t)[0];
+            const val = Object.values(t)[0];
+            if (
+                (val === type)                          ||
+                (key === "exact" && val === type.exact) ||
+                (key === "any"   && val === type.any)
+            ){
+                pass = true;
+                break;
+            }
+        }
+        return pass
+    }
+    // checks whether the type object passes/accepts the input
+    accepts(input) {
+        let pass = false;
+        for (const t of this.set) {
+            const key = Object.keys(t)[0];
+            const val = Object.values(t)[0];
+            if (
+                (val === "any")                                     ||
+                (key === "exact" && input === val)                  ||
+                (key === "exact" && input.exact === val)            ||
+                (key === "any"   && TypeSet.id(input) === val)      ||
+                (key === "any"   && TypeSet.id(input.any) === val)
+            ){
+                pass = true;
+                break;
+            }
+        }
+        return pass
+    }
 }
 
+class ArgsObj {
+    constructor(args) {
+        // ERROR: no args or template
+        if (! args) {
+            throw new Error(`ArgsObj input cannot be empty`)
+        }
+    }
+}
 
 // ┬ ┬┌─┐┌─┐┌─┐┬ ┬┬
 // │ │└─┐├┤ ├┤ │ ││
 // └─┘└─┘└─┘└  └─┘┴─┘
 // USEFUL   :   macro argument parser
-// usage    :  
-//      const template = {
-//          key1: {
-//              type: "string",
-//              required: true,
-//              key_omittable: true,
-//          },
-//          key2: {
-//              type: ["number", "story variable"],
-//          },
-//      };
-//      const argsObj = args_to_argsObj.call(this, args, template);
-//
-// valid keys   :   passage, linkText, [string]; DO NOT USE NUMBERS OR SYMBOLS
-// valid types  :   any returnable from getType(*,2) + exact
-function args_to_argsObj(args,template) {
-    const keys  = Object.keys(template);
+function to_argsObj(args,template) {
+
+    // ERROR: no args or template
+    if (! args || ! template) {
+        throw new Error(`invalid args or template to to_argsObj`)
+    }
+    const keys      = Object.keys(template);
     const argsObj   = {};
+
+    // ERROR: empty template
+    if (keys.length) {
+        throw new Error("no keys found in to_argsObj template")
+    }
+    // ERROR: missing type in template
+    for (const a in template) {
+        if (! template[a].type) {
+            throw new Error(`missing type for ${a}`)
+        }
+    }
 
     // flags for omittable keys
     const keys_omittable = keys.filter( k => template[k].omittable );
     let skip = keys_omittable.length === 0;
 
     for (let i = 0; i < args.length; i++) {
-        console.log(i);
-        const arg_i = args[i];
-        const key_i = keys[i];
-        const arg_n = args[i+1];
+
+        // shortcuts
+        const arg_i         = args[i];
+        const key_i         = keys[i];
+        const template_i    = template[key_i];
+        const TypeSet_i     = to_TypeSet(template_i.type);
+
+        const arg_n         = args[i+1];
         
         // return error if given passage link object macro & does not call for it, exit
         if (
@@ -104,18 +197,18 @@ function args_to_argsObj(args,template) {
         // check omittable
         skip    = skip
                     ? true  // if skipping, keep skipping
-                : keys.includes(arg_i)
-                    ? true  // if this arg is key name, start skipping
-                : (getType(arg_i) === 'object') && (! checkType(arg_i,template[key_i].type))
-                    ? true  // if object and omittable at this index does not take objects, start skipping
-                : ! template[key_i].omittable
+                : keys.includes(arg_i) && (arg_i !== arg_n)
+                    ? true  // if arg_i is key, and not identical to arg_n
+                : (getType(arg_i,1) === 'object') && (! TypeSet_i.has('object'))
+                    ? true  // if object and omittable key does not take objects
+                : ! template_i.omittable
                     ? true // at index past omittable keys
                 : false;
 
         if (! skip) {
             // if wrong type, throw error
-            if (! checkType(arg_i,template[key_i].type)) {
-                return this.error(`wrong type for "${key_i}", expected ${quoteType(template[key_i].type)}, received "${getType(arg_i)}"`)
+            if (! checkType(arg_i,template_i.type)) {
+                return this.error(`wrong type for name omitted "${key_i}", expected ${tObj_i.quote}, received "${getType(arg_i)}"`)
             }
             // otherwise write and skip to next loop
             else {
@@ -131,20 +224,22 @@ function args_to_argsObj(args,template) {
             continue;
         }
 
-        console.log(arg_i);
         // if generic object, parse and skip to next loop
         if ((getType(arg_i) === 'object')) {
             for (const k in arg_i) {
-                console.log(k);
                 // if no this k in keys, skip
                 if (! keys.includes(k)) {
                     continue;
                 }
+
+                const arg = arg_i[k];
+                const tObj = to_tObj(template[k].type)
                 // if wrong type, throw error
-                if (! checkType(arg_i[k],template[k].type)) {
-                    return this.error(`wrong type for "${k}", expected ${quoteType(template[k].type)}, received "${getType(arg_i[k])}"`)
+                if (! checkType(arg,tObj)) {
+                    return this.error(`wrong type for "${k}", expected ${tObj.quote}, received "${getType(arg)}"`)
                 }
-                argsObj[k] = arg_i[k];
+
+                argsObj[k] = arg;
             }
             continue;
         }
@@ -159,8 +254,9 @@ function args_to_argsObj(args,template) {
             return this.error(`missing expected value for "${arg_i}"`)
         }
         // if wrong type, error
-        if (! checkType(arg_n,template[arg_i].type)) {
-            return this.error(`wrong type for "${arg_i}", expected ${quoteType(template[arg_i].type)}, received "${getType(arg_i)}"`)
+        const tObj = to_tObj(template[arg_i].type);
+        if (! checkType(arg_n,tObj)) {
+            return this.error(`wrong type for "${arg_i}", expected ${tObj.quote}, received "${getType(arg_i)}"`)
         }
         
         // write then hop one

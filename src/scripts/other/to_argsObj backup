@@ -1,0 +1,265 @@
+// create type object
+// class TypeObj {
+//     constructor(type_in) {
+//         const list  = [];
+//         // ERROR, no input
+//         if (! type_in) {
+//             throw new Error(`TypeObj input missing`)
+//         }
+//         else if (Array.isArray(type_in)) {
+//             // ERROR, empty array
+//             if (! type_in.length) {
+//                 throw new Error(`invalid TypeObj input, cannot be empty array`)
+//             }
+//             for (const i of type_in) {
+//                 if (typeof i === 'string') {
+//                     list.push(TypeObj.#from_string(i));
+//                 }
+//                 else if (typeof i === 'object') {
+//                     list.push(TypeObj.#from_object(i));
+//                 }
+//                 // ERROR: array input has a not-string and not-object thing
+//                 else {
+//                     throw new Error(`invalid TypeObj input, array input contains something other than "string" or "object"`)
+//                 }
+//             }
+//         }
+//         else if (typeof type_in === 'string') {
+//             list.push(TypeObj.#from_string(type_in));
+//         }
+//         else if (typeof type_in === 'object') {
+//             list.push(TypeObj.#from_object(type_in));
+//         }
+//         // ERROR: input not string or object or array
+//         else {
+//             throw new Error(`invalid TypeObj input, raw input is not "string" or "object" or "array"`)
+//         }
+//         this.list = list;
+//     }
+//     // return the string description
+//     get print() {
+//         const arr = [];
+//         for (const ti of this.list) {
+//             if (ti.exact) {
+//                 arr.push(`exactly "${ti.exact}"`);
+//             }
+//             else {
+//                 arr.push(`any "${ti.any}"`);
+//             }
+//         }
+//         return arr.join(" or ")
+//     }
+
+//     // add type to typeObj from object
+//     static #from_object(type_in) {
+//         // ERROR: input object larger than 1:1
+//         if (Object.keys(type_in).length !== 1) {
+//             throw new Error(`invalid TypeObj input, object must have one key only"`)
+//         }
+//         // ERROR: input object has some key other than "any" or "exact" as key
+//         const keys_invalid = Object.keys(type_in).filter( k => k !== "any" && k !== "exact" ); 
+//         if (keys_invalid.length > 0) {
+//             throw new Error(`invalid TypeObj input, object contains invalid key "${keys_invalid[0]}"`)
+//         }
+//         if (type_in.any) {
+//             TypeObj.validate(type_in.any);
+//         }
+//         return type_in
+//     }
+//     // add type to typeObj from string
+//     static #from_string(type_in) {
+//         TypeObj.validate(type_in);
+//         return {any: type_in}
+//     }
+//     // validate that string is a valid type
+//     static validate(input) {
+//         const valid = TypeObj.valid();
+//         if (! valid.includes(input)) {
+//             throw new Error(`invalid TypeObj input, "${input}" is not a valid type`)
+//         }
+//         return
+//     }
+
+//     // list valid types
+//     static valid() {
+//         const valid = [
+//             "any",
+//             "string", "number", "object", "boolean", "undefined",
+//             "array", "null",
+//             "story variable", "temp variable",
+//         ];
+//         return valid
+//     }
+//     static id(input) {
+//         const valid = TypeObj.valid();
+
+//         let type;
+//         type    = Object.prototype.toString.call(input).slice(8, -1).toLowerCase();
+//         type    = (type === "string") && (type.first() === "$")
+//                     ? "story variable"
+//                 : (type === "string") && (type.first() === "_")
+//                     ? "temp variable"
+//                 : type;
+//         return type
+//     }
+//     // checks if the type object instance has provided type, only works on "any" types
+//     has(type) {
+//         let pass = false;
+//         console.log(this);
+//         console.log(this.list);
+//         for (const t of this.list) {
+//             console.log(t.any);
+//             if (t.any === type) {
+//                 pass = true;
+//                 break;
+//             }
+//         }
+//         return pass
+//     }
+// }
+
+
+
+// ┬ ┬┌─┐┌─┐┌─┐┬ ┬┬
+// │ │└─┐├┤ ├┤ │ ││
+// └─┘└─┘└─┘└  └─┘┴─┘
+// USEFUL   :   macro argument parser
+// usage    :  
+//      const template = {
+//          key1: {
+//              type: "string",
+//              required: true,
+//              key_omittable: true,
+//          },
+//          key2: {
+//              type: ["number", "story variable"],
+//          },
+//      };
+//      const argsObj = args_to_argsObj.call(this, args, template);
+//
+// valid keys   :   passage, linkText, [string]; DO NOT USE NUMBERS OR SYMBOLS
+// valid types  :   any returnable from getType(*,2) + exact
+function to_argsObj(args,template) {
+
+    // ERROR: no args or template
+    if (! args || ! template) {
+        throw new Error(`invalid args or template to to_argsObj`)
+    }
+    const keys      = Object.keys(template);
+    const argsObj   = {};
+
+    // ERROR: empty template
+    if (keys.length) {
+        throw new Error("no keys found in to_argsObj template")
+    }
+    // ERROR: missing type in template
+    for (const a in template) {
+        if (! template[a].type) {
+            throw new Error(`missing type for ${a}`)
+        }
+    }
+
+    // flags for omittable keys
+    const keys_omittable = keys.filter( k => template[k].omittable );
+    let skip = keys_omittable.length === 0;
+
+    for (let i = 0; i < args.length; i++) {
+
+        // shortcuts
+        const arg_i         = args[i];
+        const key_i         = keys[i];
+        const template_i    = template[key_i];
+        const typeObj_i     = to_typeObj(template_i.type);
+
+        const arg_n         = args[i+1];
+        
+        // return error if given passage link object macro & does not call for it, exit
+        if (
+            (arg_i.isLink) && 
+            (! keys.includes('passage'))
+        ) {
+            return this.error("macro does not accept [[markup]]");
+        }
+
+        // check omittable
+        skip    = skip
+                    ? true  // if skipping, keep skipping
+                : keys.includes(arg_i) && (arg_i !== arg_n)
+                    ? true  // if arg_i is key, and not identical to arg_n
+                : (getType(arg_i,1) === 'object') && (! typeObj_i.has('object'))
+                    ? true  // if object and omittable key does not take objects
+                : ! template_i.omittable
+                    ? true // at index past omittable keys
+                : false;
+
+        if (! skip) {
+            // if wrong type, throw error
+            if (! checkType(arg_i,template_i.type)) {
+                return this.error(`wrong type for name omitted "${key_i}", expected ${tObj_i.quote}, received "${getType(arg_i)}"`)
+            }
+            // otherwise write and skip to next loop
+            else {
+                argsObj[key_i] = arg_i;
+                continue;
+            }
+        }
+
+        // if [[markup]], write and skip to next loop
+        if (arg_i.isLink) {
+            argsObj.linkText = arg_i.text;
+            argsObj.passage  = arg_i.link;
+            continue;
+        }
+
+        // if generic object, parse and skip to next loop
+        if ((getType(arg_i) === 'object')) {
+            for (const k in arg_i) {
+                // if no this k in keys, skip
+                if (! keys.includes(k)) {
+                    continue;
+                }
+
+                const arg = arg_i[k];
+                const tObj = to_tObj(template[k].type)
+                // if wrong type, throw error
+                if (! checkType(arg,tObj)) {
+                    return this.error(`wrong type for "${k}", expected ${tObj.quote}, received "${getType(arg)}"`)
+                }
+
+                argsObj[k] = arg;
+            }
+            continue;
+        }
+
+        // if anything else, then this + next should be KVP
+        // return error if not key name
+        if (! keys.includes(arg_i)) {
+            return this.error(`argument name expected, but received "${arg_i}"`)
+        }
+        // if no value for argument
+        if (getType(arg_n) === 'undefined') {
+            return this.error(`missing expected value for "${arg_i}"`)
+        }
+        // if wrong type, error
+        const tObj = to_tObj(template[arg_i].type);
+        if (! checkType(arg_n,tObj)) {
+            return this.error(`wrong type for "${arg_i}", expected ${tObj.quote}, received "${getType(arg_i)}"`)
+        }
+        
+        // write then hop one
+        argsObj[arg_i] = arg_n;
+        i++;
+    };
+
+
+    // check if final object has required keys
+    const keys_required = keys.filter(k => template[k].required);
+    for (const k of keys_required) {
+        if (! Object.keys(argsObj).includes(k)) {
+            return this.error(`missing required key, "${k}"`)
+        }
+    } 
+
+    return argsObj
+
+}
