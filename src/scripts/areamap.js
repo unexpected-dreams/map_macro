@@ -4,19 +4,32 @@
 Macro.add("newmap", {
 
     config: {
-        safemode    :   true,
 
-        diagonals   :   false,
-        walls       :   ".",
+        // default values
+        diagonal    : false,    // diagonal off
+        wall: {
+            id      : ".",      // wall map identifier
+            name    : "wall",   // wall name
+            type    : "wall",   // wall tile type identifier, gets applied as a class
+        },
+        floor: {
+            id      : "#",      // floor identifier
+            name    : "floor",  // floor name
+            type    : "floor",  // floor tile type identifier, gets added as a class
+        },
 
-        disable     :   false,
-        abort       :   false,
-        hide        :   false,
+        disabled    : false,    // no tiles are disabled
+        hidden      : false,    // no tiles are hidden
+        prevented   : false,    // movement onto any tile is not prevented
+
+        // turning off will suppress type errors, do so at your own risk
+        safemode    : true,
     },
 
 
-    tags    :    ["mapvars","maptiles"],
+    tags    :    ["mapstart","mapvars","maptiles"],
     maps    :    {},
+
 
     handler() {
 
@@ -27,44 +40,104 @@ Macro.add("newmap", {
 //     █   ██ █████  █   █  █    █ █   █ █
 //      SECTION: newmap
 
-        // parse args to argsObj
-        const template_newmap = {
-            mapname: {
-                type: ["string", "object", {exact:4}, {exact:8}],
-                required: true,
-                omittable: true,
-            },
-            columns: {
-                type: 'number',
-                required: true,
-                omittable: true,
-            },
-            diagonals: {
-                type: 'boolean',
-            },
-        };
-        const argsObj_newmap = to_argsObj.call(this,this.args,template_newmap);
-        // get mapname
-        const {mapname} = argsObj_newmap;
-
-        // ERROR: map already exists => exit macro
-        if (this.self.maps[mapname]) {
-            return this.error(`map "${mapname}" already exists!`)
+        // create reference
+        let mapname;
+        try {
+            // parse args
+            const template = {
+                id: 'newmap',
+                mapname: {
+                    type        : 'string',
+                    required    : true,
+                },
+                columns: {
+                    type        : 'number',
+                    required    : true,
+                },
+                diagonal: {
+                    type        : 'boolean',
+                },
+            };
+            const argObj    = ArgObj.call(this,this.args,template);
+            // get mapname
+            mapname         = argObj.mapname;
+            // ERROR: map already exists
+            if (this.self.maps[mapname]) {
+                return this.error(`newmap - map "${mapname}" already exists`)
+            }
+            const arr       = this.payload[0].contents.trim().split(/\s+/g);
+            const columns   = argObj.columns;
+            // ERROR: map not not rectangular
+            if (arr.length % columns) {
+                return this.error(`newmap - input map is not rectangular`)
+            }
+            // create map object
+            this.self.maps[mapname] = {
+                // default values
+                diagonal: this.self.config.diagonal, 
+                // overwrite from input
+                ...argObj,
+                // create map array
+                arr: arr,
+            };
+        }
+        catch (error) {
+            console.error(`failed to create newmap map object`);
+            console.error(error);
         }
 
-        // create map object
-        this.self.maps[mapname] = {
-            // default values
-            diagonals: this.self.config.diagonals, 
-            // write from argsObj
-            ...argsObj_newmap,
-            // create map array
-            arr: this.payload[0].contents.trim().split(/\s+/g),
-        };
 
-        // shortcut
-        const this_map = this.self.maps[mapname];
-        
+//     █    █  ███  ████   ████ █████  ███  ████  █████
+//     ██  ██ █   █ █   █ █       █   █   █ █   █   █
+//     █ ██ █ █████ ████   ███    █   █████ ████    █
+//     █    █ █   █ █         █   █   █   █ █   █   █
+//     █    █ █   █ █     ████    █   █   █ █   █   █
+//      SECTION: mapstart
+
+        try {
+            // get reference
+            const map = this.self.maps[mapname];
+            const { arr, columns } = map;
+            const template = {
+                id: 'mapstart',
+                x: {
+                    type        : 'number',
+                    required    : true,
+                },
+                y: {
+                    type        : 'number',
+                    required    : true,
+                },
+            };
+            const mapstart  = this.payload.filter( p => p.name === 'mapstart' )[0];
+            // ERROR: no mapstart found
+            if (typeof mapstart === 'undefined') {
+                return this.error(`mapstart - required to define start position`);
+            }
+            const args      = mapstart.args;
+            const argObj    = ArgObj.call(this,args,template);
+            // ERROR: x is not an integer
+            if (! Number.isInteger(argObj.x)) {
+                return this.error(`mapstart - x must be a positive integer`)
+            }
+            // ERROR: y is not an integer
+            if (! Number.isInteger(argObj.y)) {
+                return this.error(`mapstart - y must be a positive integer`)
+            }
+            // ERROR: x out of bounds
+            if (argObj.x > columns) {
+                return this.error(`mapstart - x position is out of bounds`)
+            }
+            // ERROR: y out of bounds
+            if (argObj.y > (arr.length / columns)) {
+                return this.error(`mapstart - y position is out of bounds`)
+            }
+            map.position    = argObj;
+        }
+        catch (error) {
+            console.error(`failed to initialize newmap start position`);
+            console.error(error);
+        }
 
 
 //     █    █  ███  ████  █████ ███ █     █████  ████
@@ -74,37 +147,69 @@ Macro.add("newmap", {
 //     █    █ █   █ █       █   ███ █████ █████ ████
 //      SECTION: maptiles
 
-        // create default tiles
-        this_map.tiles = {};
-        this_map.arr.forEach( function(tile) {
-            this_map.tiles[tile] ??= {
-                id      : tile,
-                name    : tile,
-                type    : 'floor',
-            };
-        });
-        this_map.tiles[this.self.config.walls] = {
-            id      : this.self.config.walls,
-            name    : this.self.config.walls,
-            type    : 'wall',
-        };
-
-        // if <<maptiles>> exists
-        if (this.payload.filter( p => p.name === 'maptiles' ).length) {
-            // parse args
-            const template_maptiles = {
-                tiles: {
-                    type: ['object','string'],
-                    required: true,
-                    omittable: true,
-                },
-            };
-            const args_maptiles     = this.payload.filter( p => p.name === 'maptiles' )[0].args;
-            const argsObj_maptiles  = args_to_argsObj.call(this,args_maptiles,template_maptiles);
-            // overwrite default values
-            for (const a in argsObj_maptiles.tiles) {
-                Object.assign(this_map.tiles[a],argsObj_maptiles.tiles[a])
+        try {
+            // get reference
+            const map = this.self.maps[mapname];
+            // create default tiles
+            // write floor to everything found first
+            map.tiles = {};
+            const tile_list = new Set(map.arr);
+            for (const t of tile_list) {
+                map.tiles[t] = {
+                    id      : t,
+                    name    : t,
+                    type    : this.self.config.floor.type,
+                };
             }
+            // then write from config
+            const wall_config           = this.self.config.wall;
+            const floor_config          = this.self.config.floor;
+            map.tiles[wall_config.id]   = clone(wall_config);
+            map.tiles[floor_config.id]  = clone(floor_config);
+            // if <<maptiles>> exists
+            if (this.payload.filter( p => p.name === 'maptiles' ).length) {
+                // parse args
+                const template = {
+                    id: 'maptiles',
+                    tiles: {
+                        type        : ['object','story variable'],
+                        required    : true,
+                    },
+                };
+                const args      = this.payload.filter( p => p.name === 'maptiles' )[0].args;
+                const argObj    = ArgObj.call(this,args,template);
+                // overwrite default tile property values
+                const tiles_input   = TypeSet.id(argObj.tiles) === 'object'
+                                        ? argObj.tiles
+                                    : State.getVar(argObj.tiles);
+                // ERROR: story variable value isn't object
+                if (TypeSet.id(tiles_input) !== 'object') {
+                    return this.error(`maptiles - invalid input, must be any "object" or any "story variable" containing an "object"`)
+                }
+                // define valid tile properties
+                const tile_props = ['id','name','type','element'];
+                for (const a in tiles_input) {
+                    Object.assign(map.tiles[a],tiles_input[a]);
+                    for (const p in map.tiles[a]) {
+                        // ERROR: invalid property for tile object input
+                        if (! tile_props.includes(p)) {
+                            return this.error(`maptiles - invalid input, "${p}" is not a valid tile property`)
+                        }
+                        // ERROR: tiles is both a wall and a floor
+                        if (
+                            p === "type" && 
+                            map.tiles[a][p].split(/\s+/g).includesAny(wall_config.type.split(/\s+/g)) &&
+                            map.tiles[a][p].split(/\s+/g).includesAny(floor_config.type.split(/\s+/g))
+                        ) {
+                            return this.error(`tiles cannot be both a wall and a floor`)
+                        }
+                    }
+                }
+            }
+        }
+        catch (error) {
+            console.error(`failed to create map tile object`);
+            console.error(error);
         }
 
 
@@ -115,233 +220,481 @@ Macro.add("newmap", {
 //     █    █ █   █ █       █   █   █ █   █ ████
 //      SECTION: mapvars
 
-        // parse arguments
-        const argsTemplate_mapvars = {
-            position: {
-                type: 'story variable',
-                required: true,
-                key_omittable: true,
-            },
-            entering: {
-                type: 'story variable',
-            },
-            leaving: {
-                type: 'story variable',
-            },
-            disable: {
-                type: 'story variable',
-            },
-            hide: {
-                type: 'story variable',
-            },
-            abort: {
-                type: 'story variable',
-            },
-        };
-        const args_mapvars      = this.payload.filter( p => p.name === 'mapvars')[0].args;
-        const argsObj_mapvars   = args_to_argsObj.call(this,args_mapvars,argsTemplate_mapvars);
-
-        // store variables;
-        this_map.vars = argsObj_mapvars;
-
-        for (const v of ["disable","hide","abort"]) {
-            if (this_map.vars[v]) {
-                let $v = State.getVar(this_map.vars[v]);
-                if (getType($v) !== 'object') {
-                    $v = {};
-                }
-                for (const t of this_map.tiles) {
+        try {
+            // get reference
+            const map = this.self.maps[mapname];
+            // parse arguments
+            const template = {
+                id: 'mapvars',
+                position: {
+                    type        : 'story variable',
+                },
+                disabled: {
+                    type        : 'story variable',
+                },
+                hidden: {
+                    type        : 'story variable',
+                },
+                prevented: {
+                    type        : 'story variable',
+                },
+                entering: {
+                    type        : 'story variable',
+                },
+                leaving: {
+                    type        : 'story variable',
+                },
+            };
+            const args      = this.payload.filter( p => p.name === 'mapvars')[0].args;
+            const argObj    = ArgObj.call(this,args,template);
+            // store variables;
+            map.vars = argObj;
+            // create default disable, hide, abort values
+            for (const v of ["disabled","hidden","prevented"]) {
+                // create empty object if doesn't exist
+                const $v = {};
+                for (const t in map.tiles) {
                     $v[t] ??= this.self.config[v];
                 }
-                State.setVar(this_map.vars[v],$v);
+                State.setVar(map.vars[v],$v);
             }
         }
-
-        /* set default values */
-        // for (const v of ['disable','hide','abort']) {
-        //     const defaultObj = {};
-        //     if (argsObj_mapvars[v]) {
-        //         tiles.forEach( (a) => defaultObj[a] = this.self.config[v] );
-        //     }
-        //     State.setVar(argsObj_mapvars[v],defaultObj);
-        // }
-
-
-    },
+        catch (error) {
+            console.error(`failed to create mapvars`);
+            console.error(error);
+        }
+    }
 });
+
+
 
 
 Macro.add("newnav", {
 
     config: {
-        mergetiles  :   true,
+
+        // default values
+        reach       : "tile",  // only accepts "tile" or "all"
+
+        // turning off will suppress type errors, do so at your own risk
+        safemode    : true
+
     },
+
 
     tags    :   ["onattempt","onabort","onleave","onenter"],
     navs   :   {},
 
+
     handler() {
 
-        const argsTemplate = {
-            mapname: {
-                type: 'string',
-                required: true,
-                key_omittable: true,
-            },
-            mergetiles: {
-                type: 'boolean',
-                key_omittable: true,
-            }
-        };
-        const argsObj = args_to_argsObj.call(this,this.args,argsTemplate);
+//     █    █ █████ █     █ █    █  ███  █   █
+//     ██   █ █     █     █ ██   █ █   █ █   █
+//     █ █  █ ███   █  █  █ █ █  █ █████ █   █
+//     █  █ █ █     █ █ █ █ █  █ █ █   █  █ █
+//     █   ██ █████  █   █  █   ██ █   █   █
+//      SECTION: newnav
 
-        //
-        
-        const {mapname} = argsObj;
-
-        this.self.navs[mapname] = {mergetiles: this.self.config.mergetiles, ...argsObj};
-        const this_nav = this.self.navs[mapname];
-        this_nav.payload = clone(this.payload);
-    },
-
-    navObj_merged(navname) {
-
-        
-
-        
-        // create region object
-        this_map.tilesObj = {};
-        tiles.forEach( function(tile) {
-            this_map.tilesObj[tile] = {};
-            Object.assign(this_map.tilesObj[tile]),{
-                N: [],
-                E: [],
-                W: [],
-                S: [],
+        // create references
+        let navname;
+        let reach;
+        try {
+            // parse args
+            const template = {
+                id: 'newnav',
+                mapname: {
+                    type        : 'string',
+                    required    : true,
+                },
+                reach: {
+                    type        : [
+                                    {exact:'--tile'},       {exact:'tile'},
+                                    {exact:'--all'},        {exact:'all'},
+                                ],
+                },
+                navname: {
+                    type        : 'string',
+                },
             };
-            if (diagonals ?? this.self.config.diagonals) {
-                Object.assign(this_map.tilesObj[tile]),{
-                    NW: [],
-                    NE: [],
-                    SE: [],
-                    SW: [],
-                };
+            const argObj = ArgObj.call(this,this.args,template);
+            const { mapname } = argObj;
+            // ERROR: map doesn't exist
+            if (! Macro.get('newmap').maps[mapname]) {
+                return this.error(`newnav - map with "${mapname}" does not exist`);
             }
-        });
-
-
-        // populate regions object
-        for (let i = 0; i < this_map.arr.length; i++) {
-
-            const this_tile = this_map.arr[i];
-
-            // if this node is a wall, skip
-            if (this_tile === (walls ?? this.self.config.walls)) {
-                continue
+            // set navname to mapname if not provided
+            argObj.navname ??= mapname;
+            navname = argObj.navname;
+            // ERROR: nav already exists
+            if (this.self.navs[navname]) {
+                return this.error(`newnav - nav "${navname}" already exists`)
             }
+            //clean reach, store nav
+            const reach_config = this.self.config.reach;
+            this.self.navs[navname] = {
+                // default values
+                reach  : reach_config,
+                // overwrite from input
+                ...argObj,
+            };
+            this.self.navs[navname].reach = this.self.navs[navname].reach.replace("--","");
+            reach = this.self.navs[navname].reach;
+        }
+        catch (error) {
+            console.error('failed to create newnav nav object');
+            console.error(error);
+        }
 
-            // if not first row, check north
-            if (i >= columns) {
-                const N_tile = this_map.arr[i-columns];
-                if (
-                    (this_tile !== N_tile)  &&
-                    (N_tile !== (walls ?? this.self.config.walls))
-                ) {
-                    this_map.tilesObj[this_tile].N.pushUnique(N_tile);
-                }
-            }
-            // if not last column, check east
-            if ((i+1) % columns) {
-                const E_tile = this_map.arr[i+1];
-                if (
-                    (this_tile !== E_tile)  &&
-                    (E_tile !== (walls ?? this.self.config.walls))
-                ) {
-                    this_map.tilesObj[this_tile].E.pushUnique(E_tile);
-                }
-            }
-            // if not last row, check south
-            if (i < (this_map.arr.length - columns)) {
-                const S_tile = this_map.arr[i+columns];
-                if (
-                    (this_tile !== S_tile)  &&
-                    (S_tile !== (walls ?? this.self.config.walls))
-                ) {
-                    this_map.tilesObj[this_tile].S.pushUnique(S_tile);
-                }
-            }
-            //if not first column, check west
-            if (i % columns) {
-                const W_tile = this_map.arr[i-1];
-                if (
-                    (this_tile !== W_tile)  &&
-                    (W_tile !== (walls ?? this.self.config.walls))
-                ) {
-                    this_map.tilesObj[this_tile].W.pushUnique(W_tile);
-                }
-            }
+        // get references
+        const nav = this.self.navs[navname];
+        const map = Macro.get('newmap').maps[nav.mapname];
+        const { columns, diagonal, arr } = map;
+        const wall_config   = Macro.get("newmap").config.wall;
+        const isWall = function(t) {
+            const tile = map.tiles[t];
+            return tile.type.split(/\s+/g).includesAny(wall_config.type.split(/\s+/g))
+        };
 
-            // extra handling for diagonals
-            if (diagonals ?? this.self.config.diagonals) {
 
-                
-                // if not first row and not first column, check northwest
-                if (
-                    (i >= columns) && 
-                    (i % columns)
-                ) {
-                    const NW_tile = this_map.arr[i-columns-1];
-                    if (
-                        (this_tile !== NW_tile) &&
-                        (NW_tile !== (walls ?? this.self.config.walls))
-                    ) {
-                        this_map.arr[this_tile].NW.pushUnique(NW_tile);
+//     █████ ███ █     █████
+//       █    █  █     █
+//       █    █  █     ███
+//       █    █  █     █
+//       █   ███ █████ █████
+//      SECTION: reach tile
+        if (reach === "tile") {
+            try {
+                nav.roads = {};
+            }
+            catch (error) {
+                console.error('failed to create newnav reach-tile roads object');
+                console.error(error);
+            }
+        }
+
+
+//      ███  █     █
+//     █   █ █     █
+//     █████ █     █
+//     █   █ █     █
+//     █   █ █████ █████
+//      SECTION: reach all
+
+        if (reach === "all") {
+            try {
+                nav.roads = {};
+                for (const t in map.tiles) {
+                    // if wall, skip
+                    if (isWall(t)) {
+                        continue;
+                    }
+                    // create roads for each tile
+                    nav.roads[t] = {};
+                    nav.roads[t].N = [];
+                    nav.roads[t].E = [];
+                    nav.roads[t].W = [];
+                    nav.roads[t].S = [];
+                    if (diagonal) {
+                        nav.roads[t].NW = [];
+                        nav.roads[t].NE = [];
+                        nav.roads[t].SE = [];
+                        nav.roads[t].SW = [];
                     }
                 }
+                // populate
+                for (let i = 0; i < arr.length; i++) {
+                    const t = arr[i];
+                    // if wall, skip
+                    if (isWall(t)) {
+                        continue;
+                    }
+                    // if not first row, check north
+                    if (i >= columns) {
+                        const t_N = arr[i-columns];
+                        if (
+                            (t !== t_N)     &&
+                            (! isWall(t_N))
+                        ) {
+                            nav.roads[t].N.pushUnique(t_N);
+                        }
+                    }
+                    // if not last column, check east
+                    if ((i+1) % columns) {
+                        const t_E = arr[i+1];
+                        if (
+                            (t !== t_E)     &&
+                            (! isWall(t_E))
+                        ) {
+                            nav.roads[t].E.pushUnique(t_E);
+                        }
+                    }
+                    // if not last row, check south
+                    if (i < (arr.length - columns)) {
+                        const t_S = arr[i+columns];
+                        if (
+                            (t !== t_S)     &&
+                            (! isWall(t_S))
+                        ) {
+                            nav.roads[t].S.pushUnique(t_S);
+                        }
+                    }
+                    //if not first column, check west
+                    if (i % columns) {
+                        const t_W = arr[i-1];
+                        if (
+                            (t !== t_W)  &&
+                            (! isWall(t_W))
+                        ) {
+                            nav.roads[t].W.pushUnique(t_W);
+                        }
+                    }
+                    // extra handling for diagonal
+                    if (diagonal) {
+                        // if not first row and not first column, check northwest
+                        if (
+                            (i >= columns) && 
+                            (i % columns)
+                        ) {
+                            const t_NW = arr[i-columns-1];
+                            if (
+                                (t !== t_NW) &&
+                                (! isWall(t_NW))
+                            ) {
+                                nav.roads[t].NW.pushUnique(t_NW);
+                            }
+                        }
+                        // if not first row and not last column, check northeast
+                        if (
+                            (i >= columns) && 
+                            ((i+1) % columns)
+                        ) {
+                            const t_NE = arr[i-columns+1];
+                            if (
+                                (t !== t_NE) &&
+                                (! isWall(t_NE))
+                            ) {
+                                nav.roads[t].NE.pushUnique(t_NE);
+                            }
+                        }
+                        // if not last row and not last column, check southeast
+                        if (
+                            (i < (arr.length - columns)) && 
+                            ((i+1) % columns)
+                        ) {
+                            const t_SE = arr[i+columns+1];
+                            if (
+                                (t !== t_SE) &&
+                                (! isWall(t_SE))
+                            ) {
+                                nav.roads[t].SE.pushUnique(t_SE);
+                            }
+                        }
+                        // if not last row and not first column, check southwest
+                        if (
+                            (i < (arr.length - columns)) && 
+                            (i % columns)
+                        ) {
+                            const t_SW = arr[i+columns-1];
+                            if (
+                                (t !== t_SW) &&
+                                (! isWall(t_SW))
+                            ) {
+                                nav.roads[t].SW.pushUnique(t_SW);
+                            }
+                        }
+                    }
+                }
+            }
+            catch (error) {
+                console.error("failed to create newnav reach-all roads object");
+                console.error(error);
+            }
+        }
 
-                // if not first row and not last column, check northeast
-                if (
-                    (i >= columns) && 
-                    ((i+1) % columns)
-                ) {
-                    const NE_tile = this_map.arr[i-columns+1];
-                    if (
-                        (this_tile !== NE_tile) &&
-                        (NE_tile !== (walls ?? this.self.config.walls))
-                    ) {
-                        this_map.tilesObj[this_tile].NE.pushUnique(NE_tile);
+
+//      ████  █    █     ████   ███  █   █ █      ████   ███  ████   ████
+//     █    █ ██   █     █   █ █   █  █ █  █     █    █ █   █ █   █ █
+//     █    █ █ █  █     ████  █████   █   █     █    █ █████ █   █  ███
+//     █    █ █  █ █     █     █   █   █   █     █    █ █   █ █   █     █
+//      ████  █   ██     █     █   █   █   █████  ████  █   █ ████  ████
+//      SECTION: onattempt, onleave, onenter, onabort
+
+        try {
+            // for each "on" payload
+            const children = ["onattempt","onleave","onenter","onabort"];
+            for (const child of children) {
+                // grab payloads & generate nav object container
+                const p_child = this.payload.filter( p => p.name === child );
+                nav[child] = [];
+                // go through each
+                for (const p of p_child) {
+                    // if no input, then payload runs every time, set position null and skip to next
+                    if (p.args.length === 0) {
+                        nav[child].push({
+                            position: null,
+                            payload: p.contents,
+                        });
+                        continue;
                     }
-                }
-                // if not last row and not last column, check southeast
-                if (
-                    (i < (this_map.arr.length - columns)) && 
-                    ((i+1) % columns)
-                ) {
-                    const SE_tile = this_map.arr[i+columns+1];
-                    if (
-                        (this_tile !== SE_tile) &&
-                        (SE_tile !== (walls ?? this.self.config.walls))
-                    ) {
-                        this_map.tilesObj[this_tile].SE.pushUnique(SE_tile);
+                    let argObj;
+                    // validate position for each reach type
+                    if (reach === "tile") {
+                        // ERROR: inputs don't contain a number
+                        if (p.args.filter( a => typeof a === "number" ).length === 0) {
+                            return this.error(`${child} - position must be an x y coordinate`)
+                        }
+                        const template = {
+                            id: child,
+                            x: {
+                                type        : "number",
+                                required    : true,
+                            },
+                            y: {
+                                type        : "number",
+                                required    : true,
+                            },
+                        };
+                        argObj = ArgObj.call(this,p.args,template);
+                        // ERROR: x is not an integer
+                        if (! Number.isInteger(argObj.x)) {
+                            return this.error(`${child} - x must be a positive integer`)
+                        }
+                        // ERROR: y is not an integer
+                        if (! Number.isInteger(argObj.y)) {
+                            return this.error(`${child} - y must be a positive integer`)
+                        }
+                        // ERROR: x out of bounds
+                        if (argObj.x > columns) {
+                            return this.error(`${child} - x position is out of bounds`)
+                        }
+                        // ERROR: y out of bounds
+                        if (argObj.y > (arr.length / columns)) {
+                            return this.error(`${child} - y position is out of bounds`)
+                        }
                     }
-                }
-                // if not last row and not first column, check southwest
-                if (
-                    (i < (this_map.arr.length - columns)) && 
-                    (i % columns)
-                ) {
-                    const SW_tile = this_map.arr[i+columns-1];
-                    if (
-                        (this_tile !== SW_tile) &&
-                        (SW_tile !== (walls ?? this.self.config.walls))
-                    ) {
-                        this_map.tilesObj[this_tile].SE.pushUnique(SE_tile);
+                    else {
+                        // ERROR: input tile doesn't exist
+                        if (p.args.filter( a => Object.keys(map.tiles).includes(a) ).length === 0) {
+                            return this.error(`${child} - input tile doesn't exist`)
+                        }
+                        const template = {
+                            id: child,
+                            tile: {
+                                type        : "string",
+                                required    : true,
+                            },
+                        };
+                        argObj = ArgObj.call(this,p.args,template);
                     }
+                    // add to nav object container
+                    nav[child].push({
+                        position: argObj,
+                        payload: p.contents,
+                    });
                 }
             }
         }
-    }
+        catch (error) {
+            console.error("failed to store on newnav onattempt, onleave, onenter, onabort payloads");
+            console.error(error);
+        }
+    },
 });
+
+
+
+
+Macro.add("showmap", {
+
+    config: {
+
+        // default values
+        tilesize    : "2rem",
+        
+    },
+
+    id: 0,
+
+    handler() {
+        
+
+//      ████ █   █  ████  █     █ █    █  ███  ████
+//     █     █   █ █    █ █     █ ██  ██ █   █ █   █
+//      ███  █████ █    █ █  █  █ █ ██ █ █████ ████
+//         █ █   █ █    █ █ █ █ █ █    █ █   █ █
+//     ████  █   █  ████   █   █  █    █ █   █ █
+//      SECTION: showmap
+
+        // create reference
+        let mapname;
+        let id;
+        try {
+            // parse arguments
+            const template = {
+                id: 'showmap',
+                mapname: {
+                    type        : 'string',
+                    required    : true,
+                },
+                tilesize: {
+                    type        : 'string',
+                },
+                class: {
+                    type        : 'string',
+                }
+            } 
+            const argObj    = ArgObj.call(this,this.args,template);
+            // retrieve references
+            mapname = argObj.mapname;
+            const tilesize = argObj.tilesize ?? this.self.config.tilesize;
+            const map       = Macro.get('newmap').maps[mapname];
+            const { columns, arr } = map;
+            // create map container
+            id = this.self.config.id;
+            this.self.config.id++;
+            const $map = $(document.createElement('div'))
+                                .addClass('macroset-mapnav-map')
+                                .addClass(argObj.class)
+                                .attr('data-mapname',mapname)
+                                .attr('data-columns',columns)
+                                .attr('id',`showmap-macro-${id}`)
+                                .css({
+                                    "--tilesize": tilesize,
+                                    "grid-template-columns": `repeat(${columns},${tilesize})`,
+                                });
+            // create tiles
+            for (const t of arr) {
+                const $t = $(document.createElement('div'))
+                $t
+                    .addClass('macroset-mapnav-tile')
+                    .addClass(map.tiles[t].type)
+                    .html(map.tiles[t].element
+                            ? map.tiles[t].element
+                            : map.tiles[t].id
+                    )
+                    .appendTo($map);
+            }
+            $map
+                    .appendTo(this.output);
+
+    
+        }
+        catch (error) {
+            console.error(`failed to create showmap map`);
+            console.error(error);
+        }
+    },
+});
+
+
+
+
+
+
+
+
+
+
 
 Macro.add("showrose", {
     config: {

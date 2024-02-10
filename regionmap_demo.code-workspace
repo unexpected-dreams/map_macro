@@ -5,6 +5,13 @@
 		}
 	],
 	"settings": {
-		"twee3LanguageTools.storyformat.current": "sugarcube-2"
+		"twee3LanguageTools.storyformat.current": "sugarcube-2",
+		"workbench.colorCustomizations": {
+			"commandCenter.border": "#e7e7e799",
+			"titleBar.activeBackground": "#43a62f",
+			"titleBar.activeForeground": "#e7e7e7",
+			"titleBar.inactiveBackground": "#43a62f99",
+			"titleBar.inactiveForeground": "#e7e7e799"
+		}
 	}
 }

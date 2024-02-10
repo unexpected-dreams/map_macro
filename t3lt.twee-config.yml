@@ -44,3 +44,8 @@ sugarcube-2:
       name: showrose
     maptiles:
       name: maptiles
+    newnav:
+      name: newnav
+      container: true
+    mapstart:
+      name: mapstart

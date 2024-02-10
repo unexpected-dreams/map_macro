@@ -50,11 +50,9 @@ class TypeSet {
     }
 
     add(type) {
-        // do nothing if duplicate
         if (this.has(type)) {
             return
         }
-        // routing
         if (Array.isArray(type)) {
             this.#add_array(type);
         }
@@ -175,23 +173,15 @@ class TypeSet {
     }
 }
 
-function ArgObj(args_in,template_in,options) {
+function ArgObj(args_in,template,options) {
     // ERROR: no args input
     if (! args_in) {
-        throw new Error(`ArgObj input missing, arguments`)
+        throw new Error(`ArgObj input cannot be empty`)
     }
-    const args      = clone(args_in);
     // ERROR: no template input
-    if (! template_in) {
-        throw new Error(`ArgObj input missing, template`)
+    if (! template) {
+        throw new Error(`ArgObj template missing`)
     }
-    const template  = clone(template_in);
-    // ERROR: template id missing
-    const id        = template.id;
-    if (! id) {
-        throw new Error(`ArgObj template id missing`)
-    }
-    delete template.id;
     // ERROR: empty template
     const keys      = Object.keys(template);
     if (! keys.length) {
@@ -200,12 +190,10 @@ function ArgObj(args_in,template_in,options) {
     // init variables
     const argObj    = {};
     const active    = {
-        id          : id,
-        args        : args,
+        args        : clone(args_in),
         template    : template,
         keys        : keys,
         argObj      : argObj,
-        splice      : 0,
         options     : options,
     };
     // go through every arg, deleting them as it reads
@@ -226,7 +214,7 @@ function ArgObj(args_in,template_in,options) {
             if (! active.splice && (TypeSet.id(arg_this) === 'object')) {
                 ArgObj_obj.call(this,active);
             }
-            // lazy matcher, to turn off: options.strict = true
+            // lazy matcher, to turn off: strict = true
             const { strict } = {strict: false, ...active.options};
             if (! active.splice && ! strict) {
                 ArgObj_lazy.call(this,active);
@@ -237,7 +225,7 @@ function ArgObj(args_in,template_in,options) {
             }
             else {
                 // ERROR: anything after this is mystery
-                return this.error(`${id} - unexpected input "${arg_this}" did not match any valid types`)
+                return this.error(`unexpected input "${arg_this}" did not match any valid types`)
             }
         }
         catch (error) {
@@ -250,7 +238,7 @@ function ArgObj(args_in,template_in,options) {
     const keys_supplied = Object.keys(argObj);
     for (const k of keys_required) {
         if (! keys_supplied.includes(k)) {
-            return this.error(`${id} - missing required key "${k}"`)
+            return this.error(`missing required key "${k}"`)
         }
     }
 
@@ -261,11 +249,11 @@ function ArgObj(args_in,template_in,options) {
 function ArgObj_markup(active) {
     debug.log('ArgObj','entered markup');
     debug.log('ArgObj',active);
-    const { id, args, template, keys, argObj, options } = active;
+    const { args, template, keys, argObj, options } = active;
     const arg_this = args[0];
     // ERROR: [[markup]] when no passage input
     if (! keys.includes('passage')) {
-        return this.error(`${id} - macro does not accept [[markup]]`)
+        return this.error("macro does not accept [[markup]]")
     }
     else {
         argObj.linktext = arg_this.text;
@@ -277,13 +265,13 @@ function ArgObj_markup(active) {
 function ArgObj_kvp(active) {
     debug.log('ArgObj','entered kvp');
     debug.log('ArgObj',active);
-    const { id, args, template, keys, argObj, options } = active;
+    const { args, template, keys, argObj, options } = active;
     const arg_this = args[0];
     const arg_next = args[1];
     const typeSet = new TypeSet(template[arg_this].type);
     // ERROR: wrong type input
-    if (! typeSet.accepts(arg_next)) {
-        return this.error(`${id} - "${arg_next}" is an invalid type for "${arg_this}", expected ${typeSet.print}`)
+    if (! typeSet.has(TypeSet.id(arg_next))) {
+        return this.error(`invalid type, expected ${typeSet.print} for "${arg_this}", received "${TypeSet.id(arg_next)}"`)
     }
     argObj[arg_this] = arg_next;
     active.splice = 2;
@@ -292,7 +280,7 @@ function ArgObj_kvp(active) {
 function ArgObj_lazy(active) {
     debug.log('ArgObj','entered lazy matcher');
     debug.log('ArgObj',active);
-    const { id, args, template, keys, argObj, options } = active;
+    const { args, template, keys, argObj, options } = active;
     const arg_this = args[0];
     const keys_left = keys.filter( k => ! Object.keys(argObj).includes(k) );
     // if no unwritten keys, exit lazy matcher
@@ -302,7 +290,7 @@ function ArgObj_lazy(active) {
     // write to the first key that matches type
     for (const k of keys_left) {
         const typeSet = new TypeSet(template[k].type);
-        if (typeSet.accepts(arg_this)) {
+        if (typeSet.has(TypeSet.id(arg_this))) {
             argObj[k] = arg_this;
             active.splice = 1;
             break;
@@ -313,15 +301,15 @@ function ArgObj_lazy(active) {
 function ArgObj_obj(active) {
     debug.log('ArgObj','entered object parser');
     debug.log('ArgObj',active);
-    const { id, args, template, keys, argObj, options } = active;
+    const { args, template, keys, argObj, options } = active;
     const arg_this = args[0];
     for (const a in arg_this) {
         // do something if template has arg object key
         if (keys.includes(a)) {
             const typeSet = new TypeSet(template[a].type);
             // ERROR: wrong type input
-            if (! typeSet.accepts(arg_this[a])) {
-                return this.error(`${id} - "${arg_next}" is an invalid type for "${arg_this[a]}", expected ${typeSet.print}`)
+            if (! typeSet.has(TypeSet.id(arg_this[a]))) {
+                return this.error(`invalid type, expected ${typeSet.print} for "${arg_this[a]}", received "${TypeSet.id(arg_next)}"`)
             }
             argObj[a] = arg_this[a];
             active.splice = 1;

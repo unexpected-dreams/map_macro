@@ -4,23 +4,27 @@ Walach Home - regionmap demo
 
 :: StoryInit [nobr]
  <<set 
-    setup.areas = {
+    $stst = {
         Y: {name: 'Yard'},
         F: {name: 'Front door'},
         L: {name: 'Living room'},
         B: {name: 'Bedroom'},
         W: {name: 'Washroom'},
-        H: {name: 'Hall'},
+        H: {
+            name: 'Hall',
+            element: `<img src="./assets/favicon.png">`
+        },
         K: {name: 'Kitchen'},
         G: {name: 'Garage'},
         D: {name: 'Dungeon'},
         C: {name: 'Courtyard'},
+        '-': {type:'wall'},
     };
 >>
 <<newmap 
     mapname     'demo'
     columns     6
-    diagonals   false
+    diagonal    true
 >>
     -   -   -   -   -   -
     G   G   H   K   C   -
@@ -29,30 +33,58 @@ Walach Home - regionmap demo
     Y   -   H   -   C   -
     -   W   H   B   D   -
     -   -   -   -   -   -
-<<maptiles setup.areas>>
+<<maptiles "$stst">>
 <<mapvars
     position    '$position'
-    entering    '$entering'
-    leaving     '$leaving'
-    abort       '$abort'
-    disable     '$disable'
+    prevented   '$prevented'
+    hidden      '$hidden'
+    disabled    '$disabled'
+
+>>
+<<mapstart 
+    y 7
+    x 6
 >>
 <</newmap>>
 
-/* <<newrose
-    mapname     'walach_home'
-    rosename    'default'
-    diagonals   false
+<<newnav
+    'demo'
+    --all
 >>
-<<onabort 'K'>>
+<<onabort "D">>
+    <<run console.log('aborted!')>>
 <<onattempt>>
     <<run console.log('attempted!')>>
-<</newrose>> */
+<<onenter "H">>
+    <<run console.log('entered hallway!')>>
+<</newnav>>
 
 <<set $position to 'Y'>>
 
 :: Start
-<<showrose 'default'>>
+<<showmap 'demo'>>
+<style>
+    .macroset-mapnav-map {
+        display: grid;
+    }
+    .macroset-mapnav-tile {
+        width: var(--tilesize);
+        height: var(--tilesize);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        border: 1px dashed #80808087;
+    }
+        .macroset-mapnav-tile img {
+            width: 100%;
+            height: 100%;
+        }
+</style>
+
+
+:: Start3
+/* <<showrose 'default'>> */
 <style>
     .macro-showrose-rose {
         display: grid;
