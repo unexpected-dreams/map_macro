@@ -49,3 +49,8 @@ sugarcube-2:
       container: true
     mapstart:
       name: mapstart
+    showmap:
+      name: showmap
+    maptile:
+      name: maptile
+      container: true

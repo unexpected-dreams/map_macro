@@ -12,6 +12,7 @@
 			"titleBar.activeForeground": "#e7e7e7",
 			"titleBar.inactiveBackground": "#43a62f99",
 			"titleBar.inactiveForeground": "#e7e7e799"
-		}
+		},
+		"workbench.preferredDarkColorTheme": "Default Dark Modern"
 	}
 }

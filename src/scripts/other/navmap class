@@ -1,0 +1,22 @@
+class NavMap {
+    constructor(obj) {
+        this.this_is_a_NavMap = true;
+        this.props = {};
+        Object.assign(this.props,obj);
+    }
+    static isNavMap(input) {
+        return !! input.this_is_a_NavMap
+    }
+    get diagonal() {
+        return this.props.diagonal
+    }
+    get columns() {
+        return this.props.columns
+    }
+    get arr() {
+        return this.arr
+    }
+    teleport(position) {
+        this.position = position;
+    }
+}

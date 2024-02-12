@@ -25,6 +25,8 @@ Walach Home - regionmap demo
     mapname     'demo'
     columns     6
     diagonal    true
+    x           6
+    y           7
 >>
     -   -   -   -   -   -
     G   G   H   K   C   -
@@ -33,21 +35,23 @@ Walach Home - regionmap demo
     Y   -   H   -   C   -
     -   W   H   B   D   -
     -   -   -   -   -   -
-<<maptiles "$stst">>
-<<mapvars
-    position    '$position'
-    prevented   '$prevented'
-    hidden      '$hidden'
-    disabled    '$disabled'
 
->>
-<<mapstart 
-    y 7
-    x 6
->>
 <</newmap>>
-
-<<newnav
+/* <<for _t range ["K","D"]>>
+    <<maptile 'demo' _t>>
+        <<tiletype 'test'>>
+        <<tileelement>>
+            <img src="./assets/favicon.png">
+    <</maptile>>
+<</for>> */
+<<addresident 'demo' 2 6 3 1 "3x1">>
+    <img src="./assets/favicon.png">
+<</addresident>>
+<<addresident 'demo' 6 1 1 1 "1x1">>
+    <img src="./assets/favicon.png">
+<</addresident>>
+<<removeresident "demo" "1x1" "3x1">>
+/* <<newnav
     'demo'
     --all
 >>
@@ -59,15 +63,16 @@ Walach Home - regionmap demo
     <<run console.log('entered hallway!')>>
 <</newnav>>
 
-<<set $position to 'Y'>>
+<<set $position to 'Y'>> */
 
 :: Start
 <<showmap 'demo'>>
 <style>
-    .macroset-mapnav-map {
+    .macro-showmap-map {
         display: grid;
+        position: relative;
     }
-    .macroset-mapnav-tile {
+    .macro-showmap-tile {
         width: var(--tilesize);
         height: var(--tilesize);
         display: flex;
@@ -75,11 +80,23 @@ Walach Home - regionmap demo
         justify-content: center;
         text-align: center;
         border: 1px dashed #80808087;
+        color:
     }
-        .macroset-mapnav-tile img {
+        .macro-showmap-tile img {
             width: 100%;
             height: 100%;
         }
+    .macro-showmap-resident {
+        position: absolute;
+        height: 100%;
+        width: 100%;
+        z-index: 2;
+    }
+        .macro-showmap-resident img {
+            width: 100%;
+            height: 100%;
+        }
+    
 </style>
 
 

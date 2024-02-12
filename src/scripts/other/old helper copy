@@ -264,7 +264,7 @@ function ArgObj(args_in,template,options) {
         try {
             const arg_this = active.args[0];
             if (! active.splice && arg_this.islink) {
-                ArgObj_markup.call(this,active,
+                ArgObj_markup.call(this,active)
             }
             if (active.splice) {
                 active.args.splice(0,active.splice);
