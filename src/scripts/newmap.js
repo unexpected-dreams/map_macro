@@ -499,7 +499,7 @@ Macro.add("addresident", {
     },
     handlerJS(argObj) {
         try {
-            const { mapname, residentname, x, y, width, height, wall, payload} = {
+            const { mapname, residentname, x, y, width, height, wall, payload } = {
                 width       : Macro.get('newmap').config.residents.width,
                 height      : Macro.get('newmap').config.residents.height,
                 wall        : Macro.get('newmap').config.residents.wall,
@@ -511,32 +511,35 @@ Macro.add("addresident", {
                     ? this.error(`${this.name} - no map with mapname "${mapname}" found`)
                     : new Error(`addtomap - no map with mapname "${mapname}" found`)
             }
-            const { arr, columns } = map;
-            // ERROR: x is not an integer
-            if (! Number.isInteger(x)) {
+            const { arr, columns, residents } = map;
+            // ERROR: resident already exists
+            if (map.residents.filter( r => r.name === residentname ).length) {
                 return this.error
-                    ? this.error(`${this.name} - x must be a positive integer`)
-                    : new Error(`addtomap - x must be a positive integer`)
+                    ? this.error(`${this.name} - resident with name "${residentname}" already exists in map "${mapname}"`)
+                    : new Error(`addresident - resident with name "${residentname}" already exists in map "${mapname}"`)
             }
-            // ERROR: y is not an integer
-            if (! Number.isInteger(y)) {
-                return this.error
-                    ? this.error(`${this.name} - y must be a positive integer`)
-                    : new Error(`addtomap - y must be a positive integer`)
+            // ERROR: x, y, width, height must all be integers
+            const nums = {x,y,width,height};
+            for (const n in nums) {
+                if (! Number.isInteger(nums[n])) {
+                    return this.error
+                        ? this.error(`${this.name} - ${n} must be a positive integer`)
+                        : new Error(`addresident - ${n} must be a positive integer`)
+                }
             }
             // ERROR: x out of bounds
             if ((x + width - 1) > columns) {
                 return this.error
                     ? this.error(`${this.name} - x position plus width is out of bounds`)
-                    : new Error(`addtomap - x position plus width is out of bounds`)
+                    : new Error(`addresident - x position plus width is out of bounds`)
             }
             // ERROR: y out of bounds
             if ((y + height - 1) > (arr.length / columns)) {
                 return this.error
                     ? this.error(`${this.name} - y position plus height is out of bounds`)
-                    : new Error(`addtomap - y position plus height is out of bounds`)
+                    : new Error(`addresident - y position plus height is out of bounds`)
             }
-            map.residents.push({
+            residents.push({
                 id      : window.crypto.randomUUID(),
                 name    : residentname,
                 x       : x,

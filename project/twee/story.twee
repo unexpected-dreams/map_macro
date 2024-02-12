@@ -44,7 +44,7 @@ Walach Home - regionmap demo
             <img src="./assets/favicon.png">
     <</maptile>>
 <</for>> */
-<<addresident 'demo' 2 6 3 1 "3x1">>
+<<addresident 'demo' 2 6 3.2 1 "3x1">>
     <img src="./assets/favicon.png">
 <</addresident>>
 <<addresident 'demo' 6 1 1 1 "1x1">>
