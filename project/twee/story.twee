@@ -22,7 +22,7 @@ Walach Home - regionmap demo
     };
 >>
 <<newmap 
-    mapname     'demo'
+    name     'demo'
     columns     6
     diagonal    true
     x           6
@@ -44,13 +44,13 @@ Walach Home - regionmap demo
             <img src="./assets/favicon.png">
     <</maptile>>
 <</for>> */
-<<addresident 'demo' 2 6 3.2 1 "3x1">>
+<<addnpc 'demo' 2 6 3 1 "3x1">>
     <img src="./assets/favicon.png">
-<</addresident>>
-<<addresident 'demo' 6 1 1 1 "1x1">>
+<</addnpc>>
+<<addnpc 'demo' 6 1 1 1 "1x1">>
     <img src="./assets/favicon.png">
-<</addresident>>
-<<removeresident "demo" "1x1" "3x1">>
+<</addnpc>>
+/* <<removeresident "demo" "1x1" "3x1">> */
 /* <<newnav
     'demo'
     --all
@@ -71,7 +71,11 @@ Walach Home - regionmap demo
     .macro-showmap-map {
         display: grid;
         position: relative;
+        box-sizing: border-box;
     }
+        .macro-showmap-map > * {
+            box-sizing: border-box;
+        }
     .macro-showmap-tile {
         width: var(--tilesize);
         height: var(--tilesize);

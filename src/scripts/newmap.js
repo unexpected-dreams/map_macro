@@ -55,9 +55,9 @@ Macro.add("newmap", {
     handler() {
         // parse args
         const template = {
-            id: 'newmap',
+            id: this.name,
             // map identifier
-            mapname: {
+            name: {
                 type        : 'string',
                 required    : true,
             },
@@ -80,29 +80,33 @@ Macro.add("newmap", {
                 type        : 'number',
             },
         };
-        const argObj    = ArgObj.call(this,this.args,template);
-        this.self.handlerJS.call(this,argObj);
+        const argObj = ArgObj.call(this, this.args, template);
+        this.self.handlerJS.call(this, argObj);
     },
     handlerJS(argObj) {
         try {
-            // get mapname
-            const { mapname, columns, diagonal, reach } = {
+            const macroname = this.name ?? "newmap";
+            // extract vars from argObj, with default values set
+            const { name, columns, diagonal, reach, x, y } = {
                 diagonal    : this.self.config.diagonal,
                 reach       : this.self.config.reach,
+                x           : this.self.config.start.x,
+                y           : this.self.config.start.y,
                 ...argObj,
             };
             // ERROR: map already exists
-            if (this.self.maps[mapname]) {
+            if (this.self.maps[name]) {
                 return this.error
-                    ? this.error(`${this.name} - map "${mapname}" already exists`)
-                    : new Error(`newmap - map "${mapname}" already exists`)
+                    ? this.error(`${macroname} - map "${name}" already exists`)
+                    : new Error(`${macroname} - map "${name}" already exists`)
             }
-            const arr       = this.payload[0].contents.trim().split(/\s+/g);
-            // ERROR: map not not rectangular
+            // parse pay input into array
+            const arr = this.payload[0].contents.trim().split(/\s+/g);
+            // ERROR: map not rectangular
             if (arr.length % columns) {
                 return this.error
-                    ? this.error(`${this.name} - input map is not rectangular`)
-                    : new Error(`newmap - input map is not rectangular`)
+                    ? this.error(`${macroname} - input map is not rectangular`)
+                    : new Error(`${macroname} - input map is not rectangular`)
             }
             // create default tiles
             // write floor to everything found first
@@ -116,13 +120,13 @@ Macro.add("newmap", {
                 };
             }
             // then write from config
-            const wall_config       = this.self.config.wall;
-            const floor_config      = this.self.config.floor;
-            tiles[wall_config.id]   = clone(wall_config);
-            tiles[floor_config.id]  = clone(floor_config);
+            const config            = this.self.config;
+            tiles[config.wall.id]   = clone(config.wall);
+            tiles[config.floor.id]  = clone(config.floor);
             // create navmap object
-            this.self.maps[mapname] = {
-                mapname     : mapname,
+            this.self.maps[name] = {
+                id          : window.crypto.randomUUID(),
+                name        : name,
                 columns     : columns,
                 diagonal    : diagonal,
                 reach       : reach,
@@ -131,17 +135,27 @@ Macro.add("newmap", {
                 residents   : [],
             };
             // call mapteleport macro to set start position
-            const argObj_teleport = {
-                mapname : mapname,
-                x       : argObj.x ?? this.self.config.start.x,
-                y       : argObj.y ?? this.self.config.start.y,
-            }
-            Macro.get('mapteleport').handlerJS.call(this,argObj_teleport);
+            Macro.get('mapteleport').handlerJS.call(this, {
+                mapname : name,
+                x       : x,
+                y       : y,
+            });
         }
         catch (error) {
-            console.error(`failed to create "${mapname}" newmap map object for "${this.name}"`);
+            console.error(`failed to create "${name}" newmap map object for "${macroname}"`);
             console.error(error);
         }
+    },
+    // helper functions
+    i2xy: function(i,columns) {
+        const x = (i % columns) + 1;
+        const y = (i - x + 1) / columns + 1;
+        return {x, y}
+    },
+    xy2i: function(xy, columns) {
+        const {x,y} = xy;
+        const i = (y - 1) * columns + x - 1;
+        return i
     },
 });
 
@@ -159,6 +173,7 @@ Macro.add(['mapteleport','mapstart','mapsetposition'], {
 //      SECTION: mapteleport
 
     handler() {
+        // parse args
         const template = {
             id: this.name,
             // map identifier
@@ -176,50 +191,53 @@ Macro.add(['mapteleport','mapstart','mapsetposition'], {
                 required    : true,
             },
         }
-        const argObj = ArgObj.call(this,this.args,template);
-        this.self.handlerJS.call(this,argObj);
+        const argObj = ArgObj.call(this, this.args, template);
+        this.self.handlerJS.call(this, argObj);
     },
     handlerJS(argObj) {
         try {
+            const macroname = this.name ?? "mapteleport";
+            // extract vars from argObj
             const { mapname, x, y } = argObj;
             const map = Macro.get('newmap').maps[mapname];
             // ERROR: no map found
             if (! map) {
                 return this.error 
-                    ? this.error(`${this.name} - no map with mapname "${mapname}" found`)
-                    : new Error(`mapteleport - no map with mapname "${mapname}" found`)
+                    ? this.error(`${macroname} - no map with mapname "${mapname}" found`) 
+                    : new Error(`${macroname} - no map with mapname "${mapname}" found`)
             }
-            const columns = map.columns;
-            const arr = map.arr;
+            // extract vars from map
+            const { columns, arr } = map;
+            const nums = {x,y};
             // ERROR: x is not an integer
-            if (! Number.isInteger(x)) {
-                return this.error
-                    ? this.error(`${this.name} - x must be a positive integer`)
-                    : new Error(`mapteleport - x must be a positive integer`)
-                
-            }
-            // ERROR: y is not an integer
-            if (! Number.isInteger(y)) {
-                return this.error
-                    ? this.error(`${this.name} - y must be a positive integer`)
-                    : new Error(`mapteleport - y must be a positive integer`)
+            for (const n in nums) {
+                if (! Number.isInteger(nums[n]) || (n <= 0)) {
+                    return this.error 
+                        ? this.error(`${macroname} - ${n} must be a positive integer`) 
+                        : new Error(`${macroname} - ${n} must be a positive integer`)
+                }
             }
             // ERROR: x out of bounds
             if (x > columns) {
                 return this.error
-                    ? this.error(`${this.name} - x position is out of bounds`)
-                    : new Error(`mapteleport - x position is out of bounds`)
+                    ? this.error(`${macroname} - x position is out of bounds`)
+                    : new Error(`${macroname} - x position is out of bounds`)
             }
             // ERROR: y out of bounds
             if (y > (arr.length / columns)) {
                 return this.error
-                    ? this.error(`${this.name} - y position is out of bounds`)
-                    : new Error(`mapteleprot - y position is out of bounds`)
+                    ? this.error(`${macroname} - y position is out of bounds`)
+                    : new Error(`${macroname} - y position is out of bounds`)
             }
-            map.position = {x,y};
+            // set map position
+            map.position = {
+                x: x,
+                y: y,
+                i: Macro.get('newmap').xy2i({x,y},columns)
+            };
         }
         catch (error) {
-            console.error(`failed to set "${mapname}" map position for "${this.name}"`);
+            console.error(`failed to set "${mapname}" map position for "${macroname}"`);
             console.error(error);
         }
     },
@@ -241,7 +259,8 @@ Macro.add('maptile', {
 //      SECTION: maptile
 
     handler() {
-        // validate input tags for uniquness
+        const macroname = this.name ?? "maptile";
+        // validate input child tags for uniqueness
         const tags = {
             tilename: {
                 unique: true,
@@ -253,10 +272,10 @@ Macro.add('maptile', {
                 unique: true,
             },
         };
-        validate_tags.call(this,tags);
+        validate_tags.call(this, tags);
         // parse args
         const template = {
-            id: this.name,
+            id: macroname,
             mapname: {
                 type        : 'string',
                 required    : true,
@@ -267,27 +286,32 @@ Macro.add('maptile', {
                 infinite    : true,
             },
         };
-        const argObj = ArgObj.call(this,this.args,template);
+        const argObj = ArgObj.call(this, this.args, template);
+        // extra vars from argObj
         const { mapname, tileid } = argObj;
         const map = Macro.get('newmap').maps[mapname];
         // bulk
         try {
             // ERROR: no map found
             if (! map) {
-                return this.error(`${this.name} - no map with mapname "${mapname}" found`)
+                return this.error(`${macroname} - no map with mapname "${mapname}" found`)
             }
+            // extract vars from map
+            const { tiles } = map;
             // ERROR: no tile found
             for (const t of tileid) {
-                if (! map.tiles[t]) {
-                    return this.error(`${this.name} - no tile with id "${t}" found in map "${mapname}"`)
+                if (! tiles[t]) {
+                    return this.error(`${macroname} - no tile with id "${t}" found in map "${mapname}"`)
                 }
             }
             // process tilename & tiletype
             for (const tag of ["tilename","tiletype"]) {
                 const payloads = this.payload.filter( p => p.name === tag );
+                // if no payload, skip
                 if (payloads.length === 0) {
                     continue;
                 }
+                // parse args
                 const keyname = tag.replace("tile","");
                 const template = {
                     id: tag,
@@ -296,49 +320,60 @@ Macro.add('maptile', {
                         required    : true,
                     },
                 };
-                const argObj = ArgObj.call(this,payloads[0].args,template);
+                const argObj = ArgObj.call(this, payloads[0].args, template);
+                // ERROR: must only be one word
+                if (argObj[keyname].includes(" ")) {
+                    return this.error(`${tag} - ${keyname} must only be one word, no spaces`)
+                }
+                // set value
                 for (const t of tileid) {
-                    map.tiles[t][keyname] = argObj[keyname];
+                    tiles[t][keyname] = argObj[keyname];
                 }
             }
             // process tileelement
             const p_element = this.payload.filter( p => p.name === "tileelement" );
-            if (p_element.length > 0) {
-                // ERROR: tileelement doesn't take arguments
-                if (p_element[0].args.length > 0) {
-                    return this.error(`tileelement - tag does not take arguments`)
-                }
-                for (const t of tileid) {
-                    map.tiles[t].element = p_element[0].contents.trim();
-                }
+            // if no tileelement, fin & exit
+            if (p_element.length === 0) {
+                return
+            }
+            // ERROR: tileelement doesn't take arguments
+            if (p_element[0].args.length > 0) {
+                return this.error(`tileelement - tag does not take arguments`)
+            }
+            // ERROR: empty payload
+            const payload = p_element[0].contents.trim();
+            if (! payload) {
+                return this.error(`tileelement - macro payload required`)
+            }
+            // write trimmed payload contents
+            for (const t of tileid) {
+                map.tiles[t].element = payload;
             }
         }
         catch (error) {
-            console.error(`failed to process "${mapname}" maptile definition for "${this.name}"`);
+            console.error(`failed to process "${mapname}" maptile definition for "${macroname}"`);
             console.error(error);
         }
     },
-    handlerJS(argObj) {
-        const { mapname, tiles } = argObj;
-        const map = Macro.get('newmap').maps[mapname];
-        if (! map) {
-            return new Error(`${this.name} - no map with mapname "${mapname}" found`)
-        }
-        for (const t in tiles) {
-            if (! map.tiles[t]) {
-                return new Error(`maptile - no tile with id "${t}" found in map "${mapname}"`)
-            }
-            Object.assign(map.tiles[t],tiles[t]);
-        }
-    },
+    // handlerJS(argObj) {
+    //     const { mapname, tiles } = argObj;
+    //     const map = Macro.get('newmap').maps[mapname];
+    //     if (! map) {
+    //         return new Error(`${this.name} - no map with mapname "${mapname}" found`)
+    //     }
+    //     for (const t in tiles) {
+    //         if (! map.tiles[t]) {
+    //             return new Error(`maptile - no tile with id "${t}" found in map "${mapname}"`)
+    //         }
+    //         Object.assign(map.tiles[t],tiles[t]);
+    //     }
+    // },
 });
 
 
 
 
 Macro.add("showmap", {
-
-    handler() {
         
 
 //      ████ █   █  ████  █     █ █    █  ███  ████
@@ -348,112 +383,137 @@ Macro.add("showmap", {
 //     ████  █   █  ████   █   █  █    █ █   █ █
 //      SECTION: showmap
 
+    handler() {
+        const macroname = this.name ?? "showmap";
         // parse arguments
         const template = {
-            id: 'showmap',
-            mapname: {
+            id: macroname,
+            name: {
                 type        : 'string',
                 required    : true,
             },
             tilesize: {
                 type        : 'string',
             },
-            css_class: {
+            mapclass: {
                 type        : 'string',
-            }
+            },
         } 
-        const argObj = ArgObj.call(this,this.args,template);
-        // retrieve references
-        const { mapname, tilesize, css_class } = {
+        const argObj = ArgObj.call(this, this.args, template);
+        // extract vars from argObj, default values from config
+        const { name, tilesize, mapclass } = {
             tilesize: Macro.get('newmap').config.tilesize,
             ...argObj,
         };
-        const map = Macro.get('newmap').maps[mapname];
-        const { columns, arr, position, tiles, residents } = map;
-        // helper functions to convert between xy and i
-        function i2xy(i,columns) {
-            const x = (i % columns) + 1;
-            const y = (i - x + 1) / columns + 1;
-            return {x, y}
+        const map = Macro.get('newmap').maps[name];
+        // ERROR: no map found
+        if (! map) {
+            return this.error(`${macroname} - no map with mapname "${name}" found`)
         }
-        function xy2i(xy,columns) {
-            const {x,y} = xy;
-            const i = (y - 1) * columns + x - 1;
-            return i
-        }
+        // extract vars from map
+        const { id, columns, arr, position, tiles, residents } = map;
         // bulk
         try {
             // create map container
-            const id = window.crypto.randomUUID();
-            position.i = xy2i(position,columns);
             const $map = $(document.createElement('div'))
-                                .addClass(`macro-${this.name}-map`)
-                                .addClass(css_class)
+                                .addClass(`macro-${macroname}-map`)
+                                .addClass(mapclass)
                                 .attr('data-mapid',id)
-                                .attr('data-mapname',mapname)
+                                .attr('data-mapname',name)
                                 .attr('data-columns',columns)
                                 .attr('data-position-i',position.i)
                                 .attr('data-position-x',position.x)
                                 .attr('data-position-y',position.y)
+                                .attr('data-tilesize',tilesize)
                                 // define grid size as per config or input
                                 .css({
                                     "--tilesize"            : tilesize,
-                                    "grid-template-columns" : `repeat(${columns},${tilesize})`,
+                                    "grid-template-columns" : `repeat(${columns}, var(--tilesize))`,
                                 });
             // create tiles
             for (let i = 0; i < arr.length; i++) {
-                const t = arr[i];
-                const {x,y} = i2xy(i,columns);
-                const $t = $(document.createElement('div'))
-                $t
-                    .addClass(`macro-${this.name}-tile`)
-                    .addClass(tiles[t].type)
-                    // if current position, add here class
-                    .addClass(i === position.i
-                            ? `macro-${this.name}-here`
-                            : ''
-                    )
-                    .attr('data-tileid',tiles[t].id)
-                    .attr('data-i',i)
-                    .attr('data-x',x)
-                    .attr('data-y',y)
-                    // all tiles should have element initialized, but use id as fallback
-                    .wiki(tiles[t].element
-                            ? tiles[t].element.replace(/_id/g,tiles[t].id).replace(/_type/g,tiles[t].type).replace(/_name/g,tiles[t].name)
-                            : tiles[t].id
-                    )
-                    .appendTo($map);
+                const { x, y } = Macro.get('newmap').i2xy(i, columns);
+                const $t = this.self.createTile({
+                    mapname     : name,
+                    tile        : tiles[arr[i]],
+                    i           : i,
+                    x           : x,
+                    y           : y,
+                });
+                $t.appendTo($map);
             }
+            // add here class to current position
+            $
             // create residents
             for (const r of residents) {
-                const { id, name, x, y, width, height, wall, payload } = r;
-                const $r = $(document.createElement('div'));
-                $r
-                    .addClass(`macro-${this.name}-resident`)
-                    .addClass(name)
-                    .attr('data-name',name)
-                    .attr('data-id',id)
-                    .wiki(payload)
-                    .css({
-                        "grid-column"   : `${x} / span ${width}`,
-                        "grid-row"      : `${y} / span ${height}`,
-                    })
-                    .appendTo($map);
+                const $r = this.self.createResident({
+                    mapname     : name,
+                    resident    : r,
+                });
+                $r.appendTo($map);
             }
             // output
             $map.appendTo(this.output);
         }
         catch (error) {
-            console.error(`failed to create showmap map`);
+            console.error(`failed to create map for ${macroname}`);
             console.error(error);
         }
+    },
+    createTile(argObj) {
+        const { mapname, tile, i, x, y } = argObj;
+        const { id, name, type, element } = tile;
+        const $t = $(document.createElement('div'))
+        $t
+            .addClass(`macro-showmap-tile`)
+            .addClass(type)
+            .attr('data-tileid', id)
+            .attr('data-tilename', name)
+            .attr('data-i', i)
+            .attr('data-x', x)
+            .attr('data-y', y)
+            .css({
+                "grid-column"   : x,
+                "grid-row"      : y,
+            })
+            // all tiles should have element initialized, but use id as fallback
+            .wiki(element
+                ? element
+                    .replace(/_id/g, id)
+                    .replace(/_type/g, type)
+                    .replace(/_name/g, name)
+                : id
+            );
+        return $t
+    },
+    createResident(argObj) {
+        const { mapname, resident } = argObj;
+        const { id, type, name, x, y, width, height, wall, payload } = resident;
+        const $r = $(document.createElement('div'));
+        $r
+            .addClass(`macro-showmap-resident macro-showmap-${type}`)
+            .addClass(type)
+            .attr('data-residentname',name)
+            .attr('data-residentid',id)
+            .css({
+                top     : `calc(var(--tilesize) * ${y-1})`,
+                left    : `calc(var(--tilesize) * ${x-1})`,
+                height  : `calc(var(--tilesize) * ${height})`,
+                width   : `calc(var(--tilesize) * ${width})`,
+            })
+            // use name as fallback if no payload
+            .wiki(payload       
+                ? payload
+                : name  
+            );
+        return $r
     },
 });
 
 
 
 
-Macro.add("addresident", {
+Macro.add(["addplayer","addnpc","addbuilding","addobject"], {
 
     tags: null,
 
@@ -472,7 +532,7 @@ Macro.add("addresident", {
                 type        : 'string',
                 required    : true,
             },
-            residentname: {
+            name: {
                 type        : 'string',
             },
             x: {
@@ -494,61 +554,91 @@ Macro.add("addresident", {
             },
         };
         const argObj    = ArgObj.call(this,this.args,template);
-        argObj.payload  = this.payload[0].contents.trim();
+        // assign payload
+        argObj.payload  = this.payload[0]?.contents?.trim();
         this.self.handlerJS.call(this,argObj);
     },
     handlerJS(argObj) {
         try {
-            const { mapname, residentname, x, y, width, height, wall, payload } = {
+            const macroname = this.name ?? "addresident";
+            // extract vars from argObj
+            const { mapname, name, type, x, y, width, height, wall, payload } = {
                 width       : Macro.get('newmap').config.residents.width,
                 height      : Macro.get('newmap').config.residents.height,
                 wall        : Macro.get('newmap').config.residents.wall,
+                type        : macroname.replace("add","") ?? null,
                 ...argObj
             };
+            // ERROR: no payload
+            if (! payload) {
+                return this.error
+                    ? this.error(`${macroname} - macro payload required`)
+                    : new Error(`${macroname} - macro payload required`)
+            }
+            // ERROR: type has space in it
+            if (type.includes(" ")) {
+                return this.error
+                    ? this.error(`${macroname} - type must only be one word, no spaces`)
+                    : new Error(`${macroname} - type must only be one word, no spaces`)
+            }
             const map = Macro.get("newmap").maps[mapname];
+            // ERROR: no map found
             if (! map) {
                 return this.error
-                    ? this.error(`${this.name} - no map with mapname "${mapname}" found`)
-                    : new Error(`addtomap - no map with mapname "${mapname}" found`)
+                    ? this.error(`${macroname} - no map with mapname "${mapname}" found`)
+                    : new Error(`${macroname} - no map with mapname "${mapname}" found`)
             }
+            // extract vars from map
             const { arr, columns, residents } = map;
+            const mapid = map.id;
             // ERROR: resident already exists
-            if (map.residents.filter( r => r.name === residentname ).length) {
+            if (map.residents.filter( r => (r.name === name) && (r.type === type) ).length ) {
                 return this.error
-                    ? this.error(`${this.name} - resident with name "${residentname}" already exists in map "${mapname}"`)
-                    : new Error(`addresident - resident with name "${residentname}" already exists in map "${mapname}"`)
+                    ? this.error(`${macroname} - ${type} with name "${name}" already exists in map "${mapname}"`)
+                    : new Error(`${macroname} - ${type} with name "${name}" already exists in map "${mapname}"`)
             }
             // ERROR: x, y, width, height must all be integers
             const nums = {x,y,width,height};
             for (const n in nums) {
-                if (! Number.isInteger(nums[n])) {
+                if (! Number.isInteger(nums[n]) || (n <= 0)) {
                     return this.error
-                        ? this.error(`${this.name} - ${n} must be a positive integer`)
-                        : new Error(`addresident - ${n} must be a positive integer`)
+                        ? this.error(`${macroname} - ${n} must be a positive integer`)
+                        : new Error(`${macroname} - ${n} must be a positive integer`)
                 }
             }
             // ERROR: x out of bounds
             if ((x + width - 1) > columns) {
                 return this.error
-                    ? this.error(`${this.name} - x position plus width is out of bounds`)
-                    : new Error(`addresident - x position plus width is out of bounds`)
+                    ? this.error(`${macroname} - x position plus width is out of bounds`)
+                    : new Error(`${macroname} - x position plus width is out of bounds`)
             }
             // ERROR: y out of bounds
             if ((y + height - 1) > (arr.length / columns)) {
                 return this.error
-                    ? this.error(`${this.name} - y position plus height is out of bounds`)
-                    : new Error(`addresident - y position plus height is out of bounds`)
+                    ? this.error(`${macroname} - y position plus height is out of bounds`)
+                    : new Error(`${macroname} - y position plus height is out of bounds`)
             }
-            residents.push({
+            // add to map object
+            const resident = {
                 id      : window.crypto.randomUUID(),
-                name    : residentname,
+                mapname : mapname,
+                name    : name,
+                type    : type,
                 x       : x,
                 y       : y,
                 width   : width,
                 height  : height,
                 wall    : wall,
                 payload : payload,
-            });
+            }
+            console.log(resident);
+            residents.push(resident);
+            // if map current displayed, add to display
+            const $map = $(`.macro-showmap-map[data-mapid="${mapid}"]`).first();
+            if ($map.length > 0) {
+                const $r = Macro.get('showmap').createResident(resident);
+                $r.appendTo($map);
+            }
         }
         catch (error) {
             console.error(`failed to add resident to ${mapname}`);
@@ -560,15 +650,16 @@ Macro.add("addresident", {
 
 
 
-Macro.add("removeresident", {
+Macro.add(["deleteplayer","deletenpc","deletebuilding","deleteobject"], {
 
 
-//     ████  █████ █    █  ████  █   █ █████ ████  █████  ████
-//     █   █ █     ██  ██ █    █ █   █ █     █   █ █     █
-//     ████  ███   █ ██ █ █    █ █   █ ███   ████  ███    ███
-//     █   █ █     █    █ █    █  █ █  █     █   █ █         █
-//     █   █ █████ █    █  ████    █   █████ █   █ █████ ████
-//      SECTION: remove resident
+//     ████  █████ █     █████ █████ █████ ████  █████  ████
+//     █   █ █     █     █       █   █     █   █ █     █
+//     █   █ ███   █     ███     █   ███   ████  ███    ███
+//     █   █ █     █     █       █   █     █   █ █         █
+//     ████  █████ █████ █████   █   █████ █   █ █████ ████
+//      SECTION: delete resident
+
 
     handler() {
         const template = {
@@ -577,31 +668,47 @@ Macro.add("removeresident", {
                 type        : 'string',
                 required    : true,
             },
-            resident: {
-                type        : 'string',
+            name: {
+                type        : ['string','array'],
                 required    : true,
                 infinite    : true,
             },
         };
-        const argObj = ArgObj.call(this,this.args,template);
+        const argObj = ArgObj.call(this, this.args, template);
         this.self.handlerJS(argObj);
     },
     handlerJS(argObj) {
-        const { mapname, resident } = argObj;
+        const macroname = this.name ?? "deleteresident";
+        // extract vars from argObj
+        const { mapname, name, type } = {
+            type:   macroname.replace("delete",""),
+            ...argObj
+        };
         const map = Macro.get('newmap').maps[mapname];
+        // ERROR: no map found
         if (! map) {
             return this.error
-                ? this.error(`${this.name} - no map with mapname "${mapname}" found`)
-                : new Error(`removeresident - no map with mapname "${mapname}" found`)
+                ? this.error(`${macroname} - no map with mapname "${mapname}" found`)
+                : new Error(`${macroname} - no map with mapname "${mapname}" found`)
         }
-        for (const r of resident) {
-            const i = map.residents.findIndex( e => e.name === r );
+        // extra vars from map
+        const { residents } = map;
+        for (const n of name) {
+            const i = residents.findIndex( r => (r.name === n) && (e.type === type) );
+            // ERROR: no resident with name found
             if (i < 0) {
                 return this.error
-                    ? this.error(`${this.name} - no resident with name "${r} found in map "${mapname}"`)
-                    : new Error(`removeresident - no resident with name "${r} found in map "${mapname}"`)
+                    ? this.error(`${macroname} - no ${type} with name "${r}" found in map "${mapname}"`)
+                    : new Error(`${macroname} - no ${type} with name "${r}" found in map "${mapname}"`)
             }
-            map.residents.splice(i,1);
+            const id = residents[i].id;
+            // remove from map object
+            residents.splice(i,1);
+            // if map displayed, remove
+            const $r = $(`.macro-showmap-resident[data-residentid="${id}"]`);
+            if ($r) {
+                $r.remove();
+            }
         }
     },
 });
@@ -609,7 +716,16 @@ Macro.add("removeresident", {
 
 
 
-Macro.add("mapupdate", {
+
+Macro.add(["moveplayer","movenpc","movebuilding","moveobject"], {
+
+
+//     █    █  ████  █   █ █████ ████  █████  ████
+//     ██  ██ █    █ █   █ █     █   █ █     █
+//     █ ██ █ █    █ █   █ ███   ████  ███    ███
+//     █    █ █    █  █ █  █     █   █ █         █
+//     █    █  ████    █   █████ █   █ █████ ████
+//      SECTION: move resident
 
     handler() {
         const template = {
@@ -618,20 +734,62 @@ Macro.add("mapupdate", {
                 type        : 'string',
                 required    : true,
             },
-        }
-        const argObj = ArgObj.call(this,this.args,template);
+            name: {
+                type        : 'string',
+                required    : true,
+            },
+            x: {
+                type        : 'number',
+                required    : true,
+            },
+            y: {
+                type        : 'number',
+                required    : true,
+            },
+        };
+        const argObj = ArgObj.call(this, this.args, template);
         this.self.handlerJS(argObj);
     },
     handlerJS(argObj) {
-        const { mapname } = argObj;
-        const map = Macro.get('newmap').maps[mapname];
+        const macroname = this.name ?? "moveresident";
+        // extract args from argObj
+        const { mapname, name, type, x, y } = {
+            type: macroname.replace("move",""),
+            ...argObj,
+        };
+        const map = Macro.get("newmap").maps[mapname];
+        // ERROR: no map found
         if (! map) {
             return this.error
-                ? this.error(`${this.name} - no map with mapname "${mapname}" found`)
-                : new Error(`removeresident - no map with mapname "${mapname}" found`)
+                ? this.error(`${macroname} - no map with name "${mapname}" found`)
+                : new Error(`${macroname} - no map with name "${mapname}" found`)
         }
+        // extract vars from map
+        const { columns, arr } = map;
+        const nums = {x,y};
+        // ERROR: x is not an integer
+        for (const n in nums) {
+            if (! Number.isInteger(nums[n])) {
+                return this.error 
+                    ? this.error(`${macroname} - ${n} must be a integer`) 
+                    : new Error(`${macroname} - ${n} must be a integer`)
+            }
+        }
+        const resident = map.residents.filter( r => (r.type === type) && (r.name === name) )[0];
+        // ERROR: no resident found
+        if (! resident) {
+            return this.error
+                ? this.error(`${macroname} - no ${type} with name "${name}" found`)
+                : new Error(`${macroname} - no ${type} with name "${name}" found`)
+        }
+
     },
 });
+
+
+
+
+
 // //     █    █  ███  ████  █   █  ███  ████   ████
 // //     ██  ██ █   █ █   █ █   █ █   █ █   █ █
 // //     █ ██ █ █████ ████  █   █ █████ ████   ███
