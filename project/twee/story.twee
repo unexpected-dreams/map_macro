@@ -22,7 +22,7 @@ Walach Home - regionmap demo
     };
 >>
 <<newmap 
-    name     'demo'
+         'demo'
     columns     6
     diagonal    true
     x           6

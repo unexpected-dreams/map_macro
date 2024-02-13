@@ -3,41 +3,41 @@ Macro.add("newmap", {
     config: {
 
         // default values
-        diagonal        : false,    // diagonal off
-        reach           : "tile",   // only accepts "tile" or "all"
+        diagonal      : false,    // diagonal off
+        reach         : "tile",   // only accepts "tile" or "all"
                                     // "all" merges ALL tiles with the same id into chunks
         wall: {
-            tileid      : ".",      // default wall input id
-            tilename    : "wall",   // default wall name
-            tiletype    : "wall",   // tile type identifier, used to identify what is wall
-            element     : null,     // generated element to be used in maps
-        },                              // tileid is used if left empty
+            tileid    : ".",      // default wall input id
+            tilename  : "wall",   // default wall name
+            tiletype  : "wall",   // tile type identifier, used to identify what is wall
+            element   : "_id",    // generated element to be used in maps
+        },                          // _id, _name, _type are valid replacers
         floor: {
-            tileid      : "#",      // default floor input id
-            tilename    : "floor",  // default floor name
-            tiletype    : "floor",  // tile type identifier, used to identify what is floor
-            element     : null,     // generated element to be used in maps
-        },                              // tileid is used if left empty
+            tileid    : "#",      // default floor input id
+            tilename  : "floor",  // default floor name
+            tiletype  : "floor",  // tile type identifier, used to identify what is floor
+            element   : "_id",    // generated element to be used in maps
+        },                          // _id, _name, _type are valid replacers
 
         start: {
-            x           : 1,        // start x position
-            y           : 1,        // start y position
+            x         : 1,        // start x position
+            y         : 1,        // start y position
         },                          // used as a fallback if no specified xy in macro input
 
-        tilesize        : "2rem",   // default tile square width / height
+        tilesize      : "2rem",   // default tile square width / height
 
         residents: {
-            width       : 1,        // default width of map residents
-            height      : 1,        // default height of map residents
-            wall        : true,     // whether residents act as walls or not
+            width     : 1,        // default width of map residents
+            height    : 1,        // default height of map residents
+            wall      : true,     // whether residents act as walls or not
         },
 
-        disabled        : false,    // no tiles are disabled
-        hidden          : false,    // no tiles are hidden
-        prevented       : false,    // movement onto any tile is not prevented
+        disabled      : false,    // no tiles are disabled
+        hidden        : false,    // no tiles are hidden
+        prevented     : false,    // movement onto any tile is not prevented
 
         // turning off will suppress type errors, do so at your own risk
-        safemode        : true,
+        safemode      : true,
     },
 
 
@@ -156,8 +156,6 @@ Macro.add("newmap", {
                 y       : y,
             });
         }
-
-        //////////////////////////////////////////////////
         catch (error) {
             console.error(`failed to create "${mapname}" newmap map object for ${macroname}`);
             console.error(error);
@@ -257,8 +255,6 @@ Macro.add(['mapteleport','mapstart','mapsetposition'], {
                 i: Macro.get('newmap').xy2i({x,y},columns)
             };
         }
-
-        //////////////////////////////////////////////////
         catch (error) {
             console.error(`failed to set "${mapname}" map position for "${macroname}"`);
             console.error(error);
@@ -283,8 +279,6 @@ Macro.add('maptile', {
 
     handler() {
         const macroname = this.name ?? "maptile";
-
-        //////////////////////////////////////////////////
         // validate input child tags for uniqueness
         const tags = {
             tilename: {
@@ -298,8 +292,6 @@ Macro.add('maptile', {
             },
         };
         validate_tags.call(this, tags);
-
-        //////////////////////////////////////////////////
         // parse args
         const template = {
             id: macroname,
@@ -315,13 +307,11 @@ Macro.add('maptile', {
             },
         };
         const argObj = ArgObj.call(this, this.args, template);
-
+        // extra vars from argObj
+        const { mapname, tileid } = argObj;
+        const map = Macro.get('newmap').maps[mapname];
         // bulk
         try {
-            //////////////////////////////////////////////////
-            // extra vars from argObj
-            const { mapname, tileid } = argObj;
-            const map = Macro.get('newmap').maps[mapname];
             // extract vars from map
             const { tiles } = map;
             // ERROR: no tile found
@@ -330,19 +320,13 @@ Macro.add('maptile', {
                     return this.error(`${macroname} - no tile with id "${t}" found in map "${mapname}"`)
                 }
             }
-
-            //////////////////////////////////////////////////
             // process tilename & tiletype
             for (const tag of ["tilename","tiletype"]) {
-
-                //////////////////////////////////////////////////
                 const payloads = this.payload.filter( p => p.name === tag );
                 // if no payload, skip
                 if (payloads.length === 0) {
                     continue;
                 }
-
-                //////////////////////////////////////////////////
                 // parse args
                 const keyname = tag.replace("tile","");
                 const template = {
@@ -362,16 +346,12 @@ Macro.add('maptile', {
                     tiles[t][keyname] = argObj[keyname];
                 }
             }
-
-            //////////////////////////////////////////////////
             // process tileelement
             const p_element = this.payload.filter( p => p.name === "tileelement" );
             // if no tileelement, fin & exit
             if (p_element.length === 0) {
                 return
             }
-
-            //////////////////////////////////////////////////
             // ERROR: tileelement doesn't take arguments
             if (p_element[0].args.length > 0) {
                 return this.error(`tileelement - tag does not take arguments`)
@@ -386,13 +366,24 @@ Macro.add('maptile', {
                 map.tiles[t].element = payload;
             }
         }
-
-        //////////////////////////////////////////////////
         catch (error) {
             console.error(`failed to process "${mapname}" maptile definition for "${macroname}"`);
             console.error(error);
         }
     },
+    // handlerJS(argObj) {
+    //     const { mapname, tiles } = argObj;
+    //     const map = Macro.get('newmap').maps[mapname];
+    //     if (! map) {
+    //         return new Error(`${this.name} - no map with mapname "${mapname}" found`)
+    //     }
+    //     for (const t in tiles) {
+    //         if (! map.tiles[t]) {
+    //             return new Error(`maptile - no tile with id "${t}" found in map "${mapname}"`)
+    //         }
+    //         Object.assign(map.tiles[t],tiles[t]);
+    //     }
+    // },
 });
 
 
@@ -434,14 +425,14 @@ Macro.add("showmap", {
         };
         const map = Macro.get('newmap').maps[mapname];
         // extract vars from map
-        const { mapid, columns, arr, position, tiles, residents } = map;
+        const { id, columns, arr, position, tiles, residents } = map;
         // bulk
         try {
             // create map container
             const $map = $(document.createElement('div'))
                                 .addClass(`macro-${macroname}-map`)
                                 .addClass(mapclass)
-                                .attr('data-mapid',mapid)
+                                .attr('data-mapid',id)
                                 .attr('data-mapname',mapname)
                                 .attr('data-columns',columns)
                                 .attr('data-position-i',position.i)
@@ -487,7 +478,7 @@ Macro.add("showmap", {
         const $t = $(document.createElement('div'))
         $t
             .addClass(`macro-showmap-tile`)
-            .addClass(tiletype)
+            .addClass(type)
             .attr('data-tileid', tileid)
             .attr('data-tilename', tilename)
             .attr('data-i', i)
@@ -500,6 +491,9 @@ Macro.add("showmap", {
             // all tiles should have element initialized, but use id as fallback
             .wiki(element
                 ? element
+                    .replace(/_id/g, tileid)
+                    .replace(/_type/g, tiletype)
+                    .replace(/_name/g, name)
                 : id
             );
         return $t
