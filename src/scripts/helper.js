@@ -1,65 +1,216 @@
+
+// █   █  ███  █     ███ ████   ███  █████ █████     █████  ███   ███   ████
+// █   █ █   █ █      █  █   █ █   █   █   █           █   █   █ █     █
+// █   █ █████ █      █  █   █ █████   █   ███         █   █████ █  ██  ███
+//  █ █  █   █ █      █  █   █ █   █   █   █           █   █   █ █   █     █
+//   █   █   █ █████ ███ ████  █   █   █   █████       █   █   █  ███  ████
+// SECTION: validate tags
 // validates macro child tags for unique / required
-function validate_tags(tags) {
+function validate_tags(template) {
+
+    //////////////////////////////////////////////////
+    // ERROR: missing argument
+    if (! template) {
+        const error = `validate_tags missing required template`;
+        return this.error(error)
+    }
+    const id = template.id;
+    if (! id) {
+        const error = `validate_tags missing required id`;
+        return this.error(error)
+    }
+
     try {
-        for (const tag in tags) {
+        //////////////////////////////////////////////////
+        const tags = Object.keys(template).filter( k => k !== "id" );
+        for (const tag of tags) {
             // ERROR: missing tag in macro def
             if (! this.self.tags.includes(tag)) {
-                throw new Error(`missing tag ${tag} in macro definition for ${this.name}`)
+                const error = `${id} tag validation failed, missing tag "${tag}" in macro definition`;
+                return this.error(error)
             }
-            if (tags[tag].unique) {
+            if (template[tag].unique) {
                 if (this.payload.filter( p => p.name === tag ).length > 1) {
-                    return this.error(`${tag} - macro only accepts one ${tag} tag`)
+                    const error = `${tag} - macro only accepts one ${tag} tag`;
+                    return this.error(error)
                 }
             }
-            if (tags[tag].required) {
+            if (template[tag].required) {
                 if (this.payload.filter( p => p.name === tag ).length === 0) {
-                    return this.error(`${this.name} - ${tag} tag is required for macro`)
+                    const error = `${this.name} - ${tag} tag is required for macro`;
+                    return this.error(error)
                 }
             }
         }
     }
+
+    //////////////////////////////////////////////////
     catch (error) {
-        console.error(`failed to validate macro child tags for ${this.name}`);
+        console.error(`failed to validate macro child tags for "${id}"`);
         console.error(error);
     }
 }
+
+
+
+
 // █   █  ███  █     ███ ████   ███  █████ █████      ███  ████   ███   ████
 // █   █ █   █ █      █  █   █ █   █   █   █         █   █ █   █ █     █
 // █   █ █████ █      █  █   █ █████   █   ███       █████ ████  █  ██  ███
 //  █ █  █   █ █      █  █   █ █   █   █   █         █   █ █   █ █   █     █
 //   █   █   █ █████ ███ ████  █   █   █   █████     █   █ █   █  ███  ████
 // SECTION: validate args
-function validate_args(argObj,template) {
+function validate_args(template) {
+    console.log(template);
+    
+    //////////////////////////////////////////////////
+    // ERROR: missing argument
+    if (! template) {
+        const error = `validate_args missing required template argument`;
+        return this.error(error)
+    }
+    // ERROR: missing id
+    const id = template.id;
+    console.log(id);
+    if (! id) {
+        const error = `validate_args missing required id`;
+        return this.error(error)
+    }
+
     try {
-        const id = template.id;
-        delete template.id;
-        for (const a in argObj) {
-            // if not asked to validate, skip
-            if (! template[a].validate) {
-                continue;
-            }
-            if (a === "mapname") {
-                const map = Macro.get('newmap').maps[argObj[a]];
-                if (! map) {
-                    return this.error
-                        ? this.error(`${id} - no map with name "${argObj[a]}" found`)
-                        : new Error(`${id} - no map with name "${argObj[a]}" found`)
+        //////////////////////////////////////////////////
+        const keys = Object.keys(template).filter( k => k !== "id" );
+        for (const key of keys) {
+            if (TypeSet.id(template[key].val) === "array") {
+                for (const val of template[key].val) {
+                    validatation_errors.call(this, {
+                        key         : key, 
+                        val         : val, 
+                        template    : template,
+                    });
                 }
             }
-            if (["x","y","width","height"].includes(a)) {
-                if (! Number.isInteger(argObj[a])) {
-                    return this.error
-                        ? this.error(`${id} - ${a} must be an integer`)
-                        : new Error(`${id} - ${a} must be an integer`)
-                }
+            else {
+                validatation_errors.call(this, {
+                    key         : key, 
+                    val         : template[key].val, 
+                    template    : template,
+                });
+            }
+        }
+    }
+
+    //////////////////////////////////////////////////
+    catch (error) {
+        console.error(`failed to validate macro arguments for "${id}"`);
+        console.error(error);
+    }
+}
+
+//////////////////////////////////////////////////
+function validatation_errors(argObj) {
+    const { key, val, template } = argObj;
+    const id = template.id;
+
+    try {
+        if (template[key].extant) {
+            // ERROR: map doesn't exist
+            if (
+                (key === "mapid")   && 
+                (! get_map(val))
+            ) {
+                const error = `${id} - no map with id "${val}" found`;
+                return this.error(error)
+            }
+            // ERROR: tile doesn't exist in map
+            if (
+                (key === "tileid")  &&
+                (! get_tile(template.mapid.val,val))
+            ) {
+                const error = `${id} - no tile with id "${val}" in map ${template.mapid.val} found`;
+                return this.error(error)
+            }
+            // ERROR: resident doesn't exist in map
+            if (
+                (key === "residentid")  &&
+                (! get_resident(template.mapid.val,template.residenttype.val,val))
+            ) {
+                const error = val === "player"
+                                ? `${id} - no player found residing on map "${template.mapid.val}", use <<addplayer>> to add one`
+                                : `${id} - no "${val}" was found residing on map "${template.mapid.val}"`;
+                return this.error(error)
+            }
+        }
+        // ERROR: non-integer number
+        if (template[key].integer) {
+            if (! Number.isInteger(val)) {
+                const error = `${id} - input "${key}" must be an integer`;
+                return this.error(error)
+            }
+        }
+        // ERROR: zero or negative number
+        if (template[key].positive) {
+            if (val <= 0) {
+                const error = `${id} - input "${key}" must be greater than zero`;
+                return this.error(error)
+            }
+        }
+        // ERROR: word contains spaces
+        if (template[key].oneword) {
+            if (val.includes(" ")) {
+                const error = `${id} - input "${key}" must be one word, no spaces`;
+                return this.error(error)
             }
         }
     }
     catch (error) {
-        console.error(`failed to validate macro arguments for ${this.name}`);
+        console.error(`failed to validate macro arguments on key "${key}" with value "${val}" for "${id}"`);
         console.error(error);
     }
 }
+
+
+// █   █  ███  █     ███ ████   ███  █████ █████     █   █ █   █
+// █   █ █   █ █      █  █   █ █   █   █   █          █ █   █ █
+// █   █ █████ █      █  █   █ █████   █   ███         █     █
+//  █ █  █   █ █      █  █   █ █   █   █   █          █ █    █
+//   █   █   █ █████ ███ ████  █   █   █   █████     █   █   █
+// SECTION: validate xy
+function validate_xy(template) {
+    //////////////////////////////////////////////////
+    // ERROR: missing argument
+    if (! template) {
+        const error = `validate_xy missing required template argument`;
+        return this.error(error)
+    }
+    // ERROR: missing id
+    const { id, mapid, x, y } = template;
+    if (! id) {
+        const error = `validate_xy missing required id`;
+        return this.error(error)
+    }
+
+    try {
+        const map = get_map(mapid);
+        const { arr, columns } = map;
+        if ((x.val > columns) || (x.val < 1)) {
+            const error = `${id} - ${x.label} exceeds map boundaries for "${mapid}"`;
+            return this.error(error)
+        }
+        if ((y.val > (arr.length / columns)) || (y.val < 1)) {
+            const error = `${id} - ${y.label} exceeds map boundaries for "${mapid}"`;
+            return this.error(error)
+        }
+    }
+
+    //////////////////////////////////////////////////
+    catch (error) {
+        console.error(`failed to validate coordinates { "${x.label}" : "${x.val}", "${y.label}" : "${y.val}" } on "${mapid}" for "${id}"`);
+        console.error(error);
+    }
+}
+
+
 
 //  ███  ████   ███       ████  ████      █ █████  ████ █████
 // █   █ █   █ █         █    █ █   █     █ █     █       █
@@ -68,7 +219,7 @@ function validate_args(argObj,template) {
 // █   █ █   █  ███       ████  ████   ███  █████  ████   █
 // SECTION: ArgObj parser
 // parses macro arguments into an arg object
-function ArgObj(args_in,template_in,options) {
+function create_argObj(args_in,template_in,options) {
     try {
 
         //////////////////////////////////////////////////
@@ -76,25 +227,35 @@ function ArgObj(args_in,template_in,options) {
         if (! args_in) {
             throw new Error(`ArgObj input missing, arguments`)
         }
-        const args      = clone(args_in);
+        const args = clone(args_in);
         // ERROR: no template input
         if (! template_in) {
             throw new Error(`ArgObj input missing, template`)
         }
-        const template  = clone(template_in);
+        const template = clone(template_in);
         // ERROR: template id missing
-        const id        = template.id;
+        const id = template.id;
         if (! id) {
             throw new Error(`ArgObj template id missing`)
         }
-        delete template.id;
         // ERROR: empty template
-        const keys      = Object.keys(template);
+        const keys = Object.keys(template).filter( k => k !== "id" );
         if (! keys.length) {
             throw new Error("ArgObj template cannot be empty")
         }
+        const keys_infinite = keys.filter( k => template[k].infinite );
+        // ERROR: more than one infinite key
+        if (keys_infinite.length > 1) {
+            throw new Error("ArgObj template cannot have more than one infinite key")
+        }
+        // ERROR: infinite key not last
+        if (keys_infinite[0] && (keys_infinite[0] !== keys[keys.length - 1])) {
+            throw new Error("ArgObj template infinite key must be last")
+        }
+
+        //////////////////////////////////////////////////
         const alias = {};
-        for (const k in template) {
+        for (const k of keys) {
             alias[k] = k;
             if (template[k].alias) {
                 if (TypeSet.id(template[k].alias) === "array") {
@@ -106,18 +267,6 @@ function ArgObj(args_in,template_in,options) {
                     alias[template[k].alias] = k;
                 }
             }
-        }
-        console.log(alias);
-
-        //////////////////////////////////////////////////
-        const keys_infinite = keys.filter( k => template[k].infinite );
-        // ERROR: more than one infinite key
-        if (keys_infinite.length > 1) {
-            throw new Error("ArgObj template cannot have more than one infinite key")
-        }
-        // ERROR: infinite key not last
-        if (keys_infinite[0] && (keys_infinite[0] !== keys[keys.length - 1])) {
-            throw new Error("ArgObj template infinite key must be last")
         }
 
         //////////////////////////////////////////////////
@@ -134,13 +283,14 @@ function ArgObj(args_in,template_in,options) {
             splice      : 0,
         };
         
-        //////////////////////////////////////////////////
         // go through every arg, deleting them as it reads
         while (active.args.length > 0) {
             debug.log('ArgObj',`entered loop`);
             active.splice = 0;
             const arg_this  = active.args[0];
             try {
+                
+                //////////////////////////////////////////////////
                 // always check infinite first
                 if (keys_infinite[0] && argObj[keys_infinite[0]]) {
                     ArgObj_infinite.call(this,active);
@@ -162,6 +312,8 @@ function ArgObj(args_in,template_in,options) {
                 if (! active.splice && ! strict) {
                     ArgObj_lazy.call(this,active);
                 }
+
+                //////////////////////////////////////////////////
                 // update args
                 if (active.splice) {
                     active.args.splice(0,active.splice);
@@ -171,6 +323,8 @@ function ArgObj(args_in,template_in,options) {
                     return this.error(`${id} - unexpected input "${arg_this}" did not match any valid types`)
                 }
             }
+
+            //////////////////////////////////////////////////
             catch (error) {
                 console.error(`ArgObj failed at "${arg_this}"`);
                 console.error(error);
@@ -195,17 +349,14 @@ function ArgObj(args_in,template_in,options) {
             }
         }
 
-        //////////////////////////////////////////////////
-        // validate args against common errors
-        // validate_args.call(this, argObj, {id, ...template});
-
         return argObj
     }
+
+    //////////////////////////////////////////////////
     catch (error) {
         console.error(`failed to parse macro arguments for "${this.name}"`);
         console.error(error);
     }
-
 }
 
 // ███ █    █ █████ ███ █    █ ███ █████ █████
@@ -287,6 +438,33 @@ function ArgObj_kvp(active) {
     return active
 }
 
+//  ████  ████      █
+// █    █ █   █     █
+// █    █ ████      █
+// █    █ █   █ █   █
+//  ████  ████   ███
+// SECTION: object
+function ArgObj_obj(active) {
+    debug.log('ArgObj','entered object parser');
+    debug.log('ArgObj',active);
+    const { id, args, template, keys, argObj, alias, options } = active;
+    const arg_this = args[0];
+    for (const a in arg_this) {
+        // do something if template has arg_this key
+        if (keys.includes(alias[a])) {
+            const typeSet = new TypeSet(template[alias[a]].type);
+            // ERROR: wrong type input
+            if (! typeSet.accepts(arg_this[a])) {
+                return this.error(`${id} - "${arg_this[a]}" is an invalid type for "${a}", expected ${typeSet.print}`)
+            }
+            // write values
+            argObj[alias[a]] = arg_this[a];
+            active.splice = 1;
+        }
+    }
+    return active
+}
+
 // █      ███  █████ █   █
 // █     █   █    █   █ █
 // █     █████   █     █
@@ -310,33 +488,6 @@ function ArgObj_lazy(active) {
             argObj[k] = arg_this;
             active.splice = 1;
             break;
-        }
-    }
-    return active
-}
-
-//  ████  ████      █
-// █    █ █   █     █
-// █    █ ████      █
-// █    █ █   █ █   █
-//  ████  ████   ███
-// SECTION: object
-function ArgObj_obj(active) {
-    debug.log('ArgObj','entered object parser');
-    debug.log('ArgObj',active);
-    const { id, args, template, keys, argObj, alias, options } = active;
-    const arg_this = args[0];
-    for (const a in arg_this) {
-        // do something if template has arg_this key
-        if (keys.includes(alias[a])) {
-            const typeSet = new TypeSet(template[alias[a]].type);
-            // ERROR: wrong type input
-            if (! typeSet.accepts(arg_this[a])) {
-                return this.error(`${id} - "${arg_this[a]}" is an invalid type for "${a}", expected ${typeSet.print}`)
-            }
-            // write values
-            argObj[alias[a]] = arg_this[a];
-            active.splice = 1;
         }
     }
     return active

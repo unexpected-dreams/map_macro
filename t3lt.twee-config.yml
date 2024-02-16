@@ -54,3 +54,15 @@ sugarcube-2:
     maptile:
       name: maptile
       container: true
+    tiletype:
+      name: tiletype
+    tileelement:
+      name: tileelement
+    shownav:
+      name: shownav
+      container: true
+    deletenpc:
+      name: deletenpc
+    addplayer:
+      name: addplayer
+      container: true
