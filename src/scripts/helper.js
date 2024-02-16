@@ -61,7 +61,6 @@ function validate_tags(template) {
 //   █   █   █ █████ ███ ████  █   █   █   █████     █   █ █   █  ███  ████
 // SECTION: validate args
 function validate_args(template) {
-    console.log(template);
     
     //////////////////////////////////////////////////
     // ERROR: missing argument
@@ -71,7 +70,6 @@ function validate_args(template) {
     }
     // ERROR: missing id
     const id = template.id;
-    console.log(id);
     if (! id) {
         const error = `validate_args missing required id`;
         return this.error(error)
@@ -348,7 +346,7 @@ function create_argObj(args_in,template_in,options) {
                 argObj[keys_infinite[0]] = [argObj[keys_infinite[0]]];
             }
         }
-
+        console.log(keys_infinite);
         return argObj
     }
 

@@ -359,7 +359,7 @@
                     required    : true,
                     alias       : 'map',
                 },
-                tileid: {
+                tileid: {   // remember, this gets turned into an array
                     type        : ["string","array"],
                     required    : true,
                     infinite    : true,
@@ -822,7 +822,7 @@
                         required    : true,
                         alias       : 'map',
                     },
-                    residentid: {
+                    residentid: {   // remember, this gets turned into an array
                         type        : ['string','array'],
                         required    : true,
                         infinite    : true,
@@ -850,7 +850,7 @@
             this.error ??= function(error) { throw new Error(error) };
             // player handling
             if (macroname === "deleteplayer") {
-                argObj.residentid   = "player";
+                argObj.residentid   = ["player"];
                 argObj.residenttype = "player";
             }
             // extract from argObj
@@ -864,6 +864,9 @@
                         val     : mapid,
                         oneword : true,
                         extant  : true,
+                    },
+                    residenttype: {
+                        val     : residenttype,
                     },
                     residentid: {
                         val     : residentid,
@@ -903,7 +906,7 @@
     });
 
 
-
+// STOPPED HERE
 
 
     Macro.add(["moveresident","moveplayer","movenpc","movebuilding","moveobject"], {
@@ -1191,7 +1194,6 @@
                         deltay  : 0,
                     },
                 }
-                // console.log(directions);
                 for (const d in directions) {
                     const $dir = this.self.createDir.call(this, {
                         map     : map,
@@ -1209,7 +1211,6 @@
                     const dir = $(ev.target).attr('data-dir');
                     if (dir && (dir !== "C")) {
                         const disabled = $(ev.target).attr('data-disabled') === "true";
-                        // console.log(dir);
                         if (! disabled) {
                             Macro.get("moveresident").handlerJS.call(this, {
                                 mapid           : mapid,
