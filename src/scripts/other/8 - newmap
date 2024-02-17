@@ -1,5 +1,5 @@
 // (function() {
-const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},object:{},npc:{},skipcheck:{}};
+const config={map:{},tile:{},wall:{},floor:{},nav:{},building:{},object:{},object:{},npc:{},player:{},skipcheck:{}};
     
 //  ████ █████ █████ █████ ███ █    █  ███   ████
 // █     █       █     █    █  ██   █ █     █
@@ -9,96 +9,145 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
 // SECTION: settings
     
 
-// BASIC settings
-//  most users should only ever need to change these
-
-    // simple map size calculator, will not work with CSS formulas or variables
-    // map.sizingmode will ONLY take the following:
-    // "auto"   treats height & width maximums and will create the largest map possible
-    // "width"  sizes tiles off map.width, ignores map.height
-    // "height" sizes tiles off map.height, ignores map.width
-    // "tile"   ignores both, sizes tile directly using tile.width & tile.height
-    // "none"   turns off the any attempts to size the map
-    config.sizingmode           = "auto";   
-    config.map.width            = 20;       
-    config.map.height           = 15;       
-    config.map.unit             = "rem"
-
-    // default tile def, can also be specified using <<maptile>>
-    config.wall.id              = "."; 
-    config.wall.name            = "wall";   // name is shown when the tile is hovered
-    config.wall.element         = null;     // id is used when no element is specified
+// BASIC
+// most users should only ever need to change these
+    // map configuration
+    config.map.diagonal         = false;
+    // tile size
+    config.tile.size            = "2rem";
+    // wall definition
+    config.wall.id              = ".";
+    config.wall.name            = "wall";
+    config.wall.element         = null;
+    // floor defintion
     config.floor.id             = "x";
     config.floor.name           = "floor";
     config.floor.element        = null;
-
-    // player nav rose, sizing will not work with CSS formulas or vars
-    config.nav.diagonal         = false;    // true enables diagonal movement
-    config.nav.width            = 15;
-    config.nav.height           = 12;
-    config.nav.units            = "rem"
+    // player nav dimensions
+    config.nav.width            = "15rem";
+    config.nav.height           = "12rem";
 
     
 
-// ADVANCED settings
-//  for fancier maps, trickier to work with
-
-    // traversible indices and collision checks
+// ADVANCED
+// should know what you're changing before touching these
+    // validate xy against map boundaries
+    config.skipcheck.xybounds   = false;
+    // traversible indice and collision checks
     config.player.iswall        = true;
     config.building.iswall      = true;
     config.object.iswall        = false;
     config.npc.iswall           = false;
+    // tile sizing
+    config.tile.autosquare      = true;
+    config.tile.width           = "2rem";
+    config.tile.height          = "2rem";
+    // map sizing
+    config.map.autosize         = true;
+    config.map.width            = "20rem";
+    config.map.height           = "15rem";
+    // 
 
-    // make non-square tiles
-    config.tile.width           = 2;        // width > height for fat tiles
-    config.tile.height          = 2;        // width < height for tall tiles
-
-    // checks that residents are always within map boundaries
-    config.skipcheck.xybounds   = false;    // true will allow negative coordinates
-    config.collisionerror       = false;    // true will throw an error when collision happens
-
-
-
-// IAMBIGBOI settings
-//  experimental, expect things to break
-
-    // checks if unused inputs are being given
-    config.skipcheck.unused     = false;    // true will change them to be ignored instead
-
-    // number of tiles occupied by residents, affects collision and boundary checks
-    config.player.spanx         = 1;        // # vertical tiles occupied
-    config.player.spany         = 1;        // # horizontal tiles occupied
-    config.building.spanx       = 1;
-    config.building.spany       = 1;
-    config.object.spanx         = 1;
-    config.object.spany         = 1;
-    config.npc.spanx            = 1;
-    config.npc.spany            = 1;
-
-    // identification keywords
+// IAMBIGBOI
+// experimental configurations
+    // player span and collision
+    config.player.xspan         = 1;
+    config.player.yspan         = 1;
+    config.building.xspan       = 1;
+    config.building.yspan       = 1;
+    config.object.xspan         = 1;
+    config.object.yspan         = 1;
+    config.npc.xspan            = 1;
+    config.npc.yspan            = 1;
+    // wall / floor identification keywords
     config.wall.type            = "wall";
     config.floor.type           = "floor";
-
     // treat all tiles with the same id as one big tile
-    config.mergetiles           = false;    // many macros will stop functioning
-
-    // traversible tiles
-    config.map.manualupdate     = false;    // true will require updating with <<mapcalculate>>
-    config.map.noclip           = false;    // true turns off all collision checks
+    config.mergetiles           = false;
+    // traversible indice updating
+    config.map.manualupdate     = false;
 
 
-
-// GIMMEROPE settings
-//  "What map? I'm here to break something." — you
-
+// GIMMEROPE
+// you've come here to break things
     // guardrails
-    config.mutableconfig        = false;    // true allows changing config after init
-    config.allowclobbering      = false;    // true allows clobbering maps and residents
-    config.skipcheck.sensible   = false;    // true allows macro inputs that don't make sense
-    config.skipcheck.typing     = false;    // true allows any type in any macro input
+    config.mutableconfig        = false;
+    config.allowclobbering      = false;
+    config.skipcheck.args       = false;
+    config.skipcheck.childtags  = false;
 
 
+    const settings = {
+        basic: {
+                
+            diagonal        : false,    // false, disable diagonal movement
+            wall: {
+                tileid      : ".",
+                tilename    : "wall",
+                tileelement : null,
+            },
+            floor: {
+                tileid      : "x",
+                tilename    : "floor",
+                tileelement : null,
+            },
+            tilesize        : "2rem",
+            nav: {
+                height      : "12rem",
+                width       : "15rem",
+            },
+        },
+        advanced: {
+            building: {
+                wall        : true,
+                width       : 1,
+                height      : 1,
+            },
+            object: {
+                wall        : true,
+                width       : 1,
+                height      : 1,
+            },
+            npc: {
+                wall        : true,
+                width       : 1,
+                height      : 1,
+            },
+            autoupdate      : true,
+            unboundedxy     : false,
+        },
+        iambigboi: {
+            reach           : "tile",
+            wall: {
+                tiletype    : "wall",
+            },
+            floor: {
+                tiletype    : "floor",
+            },
+            player: {
+                wall        : true,
+                width       : 1,
+                height      : 1,
+            },
+        },
+        givemerope: {
+            allowclobbering     : false,
+            args: {
+                skiptypecheck   : false,
+                skipvalidation  : false,
+            },
+            childtags: {
+                skipvalidation  : false,
+            },
+        },
+    };
 
+
+    
+    setup.get_resident = function(mapid) {
+        const map = get_map(mapid);
+        return map.residents[String(residenttype) + "_" + String(residentid)]
+    };
 // █   █ █████ █     ████  █████ ████      █████ █    █ █  ████
 // █   █ █     █     █   █ █     █   █     █     ██   █ █ █
 // █████ ███   █     ████  ███   ████      ███   █ █  █    ███
@@ -106,12 +155,29 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
 // █   █ █████ █████ █     █████ █   █     █     █   ██   ████
 // SECTION: helper functions
 
-    // prevent changes to config after init, use def as a proxy
-    const def = config;
-    if (def.mutableconfig) {
+    // prevent changes to config acter initialization
+    const def = {};
+    if (config.mutableconfig) {
+        def = clone(config);
         Object.freeze(def);
     }
-    // convert between xy & i
+    else {
+        def = config;
+    }
+    // (function() {
+    //     for (const c in settings) {
+    //         for (const s in settings[c]) {
+    //             if (typeof settings[c][s] === 'object') {
+    //                 def[s] ??= {};
+    //                 Object.assign(def[s], settings[c][s]);
+    //             }
+    //             else {
+    //                 def[s] = settings[c][s];
+    //             }
+    //         }
+    //     }
+    // }());
+    // convert 
     function convert_i2xy(i, columns) {
         const x = (i % columns) + 1;
         const y = (i - x + 1) / columns + 1;
@@ -169,7 +235,6 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
         const { id, mapid, resident } = argObj;
         const { residentsn, residentid, residenttype, residentname, x, y, width, height, residentelement } = resident;
         try {
-
             const $r = $(document.createElement('div'));
             $r
                 .addClass(`macro-showmap-resident macro-showmap-${residenttype}`)
@@ -178,6 +243,12 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
                 .attr('data-id', residentid)
                 .attr('data-type', residenttype)
                 .attr('data-name', residentname)
+                .css({
+                    top     : `calc(var(--tilesize) * ${y - 1})`,
+                    left    : `calc(var(--tilesize) * ${x - 1})`,
+                    height  : `calc(var(--tilesize) * ${height})`,
+                    width   : `calc(var(--tilesize) * ${width})`,
+                })
                 .wiki(residentelement       
                     ? residentelement
                     : residentname          // use name as fallback
@@ -187,34 +258,6 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
         catch (error) {
             console.error(`failed to create ${residenttype} element "${residentid}" on "${mapid}" for "${id}"`);
             console.error(error);
-        }
-    };
-    function place_resident(argObj) {
-        const { mapid, residenttype, residentid } = argObj
-        const tilewidth  = window.getComputedStyle(document.querySelector('.macro-showmap-tile')).width;
-        const tileheight = window.getComputedStyle(document.querySelector('.macro-showmap-tile')).height;
-        const map = get_map(mapid);
-        const { residents } = map;
-        if (! residentid) {
-            for (const r in residents) {
-                const { residentsn, x, y, spanx, spany } = residents[r];
-                $(`[data-sn="${residentsn}"]`).css({
-                    top     : `calc(${tileheight} * ${y - 1})`,
-                    left    : `calc(${tilewidth}  * ${x - 1})`,
-                    height  : `calc(${tileheight} * ${spany})`,
-                    width   : `calc(${tilewidth}  * ${spanx})`,
-                })
-            }
-        }
-        else {
-            const resident = get_resident(mapid, residenttype, residentid)
-            const { residentsn, x, y, spanx, spany } = resident;
-                $(`[data-sn="${residentsn}"]`).css({
-                    top     : `calc(${tileheight} * ${y - 1})`,
-                    left    : `calc(${tilewidth}  * ${x - 1})`,
-                    height  : `calc(${tileheight} * ${spany})`,
-                    width   : `calc(${tilewidth}  * ${spanx})`,
-                })
         }
     };
 
@@ -278,7 +321,7 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
             };
             const mapname   = argObj.mapname ?? argObj.mapid;
             // validate args
-            if (! def.skipcheck.sensible) {
+            if (! def.skipcheck.args) {
                 validate_args.call(this, {
                     id: macroname,
                     mapid: {
@@ -346,11 +389,10 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
                     mapsn       : mapsn,
                     mapid       : String(mapid),
                     mapname     : mapname,
-                    arr         : arr,
                     columns     : columns,
-                    rows        : arr.length / columns,
                     diagonal    : diagonal,
                     mergetiles  : mergetiles,
+                    arr         : arr,
                     tiles       : tiles,
                     residents   : {},
                     traversible : new Array(arr.length).fill(false),
@@ -385,7 +427,7 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
             const macroname = this.name ?? "maptile";
             this.error ??= function(error) { throw new Error(error) };
             // validate child tags & parse args
-            if (! def.skipcheck.unused) {
+            if (! def.skipcheck.childtags) {
                 validate_tags.call(this, {
                     id: macroname,
                     tilename: {
@@ -417,7 +459,7 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
             // extract from argObj
             const { mapid, tileid } = argObj;
             // validate args
-            if (! def.skipcheck.sensible) {
+            if (! def.skipcheck.args) {
                 validate_args.call(this, {
                     id: macroname,
                     mapid: {
@@ -439,7 +481,7 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
                 for (const tag of ["tilename","tiletype"]) {
                 
                     //////////////////////////////////////////////////
-                    const payload  = this.payload.filter( p => p.name === tag )[0];
+                    const payload = this.payload.filter( p => p.name === tag )[0];
                     // if no payload, skip
                     if (! payload) {
                         continue;
@@ -455,7 +497,7 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
                         },
                     });
                     // validate args
-                    if (! def.skipcheck.sensible) {
+                    if (! def.skipcheck.args) {
                         validate_args.call(this, {
                             id: tag,
                             [tag]: {
@@ -473,7 +515,7 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
                 {
                     //////////////////////////////////////////////////
                     // process tileelement
-                    const payload  = this.payload.filter( p => p.name === "tileelement" )[0];
+                    const payload = this.payload.filter( p => p.name === "tileelement" )[0];
                     // if no tileelement, fin & exit
                     if (! payload) {
                         return
@@ -530,68 +572,24 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
                 mapid: {
                     type        : 'string',
                     required    : true,
-                    alias       : 'map',
+                    alias       : 'map'
                 },
-                sizingmode: {
-                    type        : [
-                                    {exact: 'auto'},
-                                    {exact: 'height'},
-                                    {exact: 'width'},
-                                    {exact: 'tile'},
-                                    {exact: 'none'},
-                                ],
-                    alias       : 'mode',
-                },
-                mapwidth: {
-                    type        : 'number',
-                },
-                mapheight: {
-                    type        : 'number',
-                },
-                tilewidth: {
-                    type        : 'number',
-                },
-                tileheight: {
-                    type        : 'number',
-                },
-                unit: {
+                tilesize: {
                     type        : 'string',
+                    alias       : 'size',
+                },
+                mapclass: {
+                    type        : 'string',
+                    alias       : 'class',
                 },
             });
             // extract from argObj
-            const { mapid, sizingmode } = {
-                sizingmode  : def.sizingmode,
-                ...argObj,
-            };
-            // check for unused inputs
-            if (! def.skipcheck.unused) {
-                if ((sizingmode === "height") && argObj.mapwidth) {
-                    const error = `${macroname} - map width can't be specified when map sizing mode is set to "height"`;
-                    return this.error(error)
-                }
-                else if ((sizingmode === "width") && argObj.mapheight) {
-                    const error = `${macroname} - map height can't be specified when map sizing mode is set to "with"`;
-                    return this.error(error)
-                }
-                else if ((sizingmode === "tile") && (argObj.mapwidth || argObj.mapheight)) {
-                    const error = `${macroname} - map height and width can't be specified when map sizing mode is set to "tile"`;
-                    return this.error(error)
-                }
-                else if ((sizingmode === "none") && (argObj.mapwidth || argObj.mapheight || argObj.unit)) {
-                    const error = `${macroname} - map height, width, and units can't be specified when sizing mode is set to "none"`;
-                    return this.error(error)
-                }
-            }
-            const { mapheight, mapwidth, tileheight, tilewidth, unit } = {
-                mapheight   : def.map.height,
-                mapwidth    : def.map.width,
-                tileheight  : def.tile.height,
-                tilewidth   : def.tile.width,
-                unit        : def.map.unit,
+            const { mapid, tilesize, mapclass } = {
+                tilesize    : def.tile.size,
                 ...argObj,
             };
             // validate args
-            if (! def.skipcheck.sensible) {
+            if (! def.skipcheck.args) {
                 validate_args.call(this, {
                     id: macroname,
                     mapid: {
@@ -599,32 +597,11 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
                         oneword     : true,
                         extant      : true,
                     },
-                    mapwidth: {
-                        val         : mapwidth,
-                        positive    : true,
-                    },
-                    mapheight: {
-                        val         : mapheight,
-                        positive    : true,
-                    },
-                    tilewidth: {
-                        val         : tilewidth,
-                        positive    : true,
-                    },
-                    tileheight: {
-                        val         : tileheight,
-                        positive    : true,
-                    },
-                    unit: {
-                        val         : unit,
-                        oneword     : true,
-                        cssunit     : true,
-                    },
                 });
             }
             // extract from map
             const map = get_map(mapid);
-            const { mapsn, mapname, columns, rows, arr, residents } = map;
+            const { mapsn, mapname, columns, arr, residents } = map;
 
             try {
 
@@ -636,57 +613,17 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
                 const $map = $(document.createElement('div'));
                 $map
                     .addClass(`macro-${macroname}-map`)
+                    .addClass(mapclass)
                     .attr('data-sn', mapsn)
                     .attr('data-id', mapid)
                     .attr('data-name', mapname)
                     .attr('data-columns', columns)
-
-                //////////////////////////////////////////////////
-                // sizing
-                let H, W, sizing;
-                if (sizingmode === 'height') {
-                    H = mapheight / rows;
-                    W = H * tilewidth / tileheight;
-                    sizing = 'height';
-                }
-                else if (sizingmode === 'width') {
-                    W = mapwidth / columns;
-                    H = W * tileheight / tilewidth;
-                    sizing = 'width';
-                }
-                else if (sizingmode === 'auto') {
-                    // if map width is greater, ie height is constraint
-                    if (
-                        (mapwidth / mapheight) > 
-                        ((columns * tilewidth) / (rows * tileheight))
-                    ) {
-                        H = mapheight / rows;
-                        W = H * tilewidth / tileheight;
-                        sizing = 'auto-height';
-                    }
-                    // width is contraint
-                    else {
-                        W = mapwidth / columns;
-                        H = W * tileheight / tilewidth;
-                        sizing = 'auto-width';
-                    }
-                }
-                else if (sizingmode === 'tile') {
-                    W = tilewidth;
-                    H = tileheight;
-                    sizing = 'tile';
-                }
-                if (sizing) {
-                    $map
-                            .attr('data-sizing',sizing)
-                            .attr('data-tilewidth',W)
-                            .attr('data-tileheight',H)
-                            .attr('data-unit',unit)
-                            .css({
-                                    '--tilewidth'   : String(W) + unit,
-                                    '--tileheight'  : String(H) + unit,
-                                })
-                }
+                    .attr('data-tilesize', tilesize)
+                    // define grid size as per config or input
+                    .css({
+                        "--tilesize"            : tilesize,
+                        "grid-template-columns" : `repeat(${columns}, var(--tilesize))`,
+                    });
 
                 //////////////////////////////////////////////////
                 // create tiles
@@ -712,8 +649,6 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
 
                 // output
                 $map.appendTo(this.output);
-
-                setTimeout( () => place_resident.call(this, {mapid}), 40 )
                 
             }
 
@@ -797,13 +732,11 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
                         type        : 'number',
                         required    : true,
                     },
-                    spanx: {
+                    width: {
                         type        : 'number',
-                        alias       : 'width',
                     },
-                    spany: {
+                    height: {
                         type        : 'number',
-                        alias       : 'height',
                     },
                     wall: {
                         type        : 'boolean',
@@ -829,24 +762,24 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
             if (macroname === "addplayer") {
                 argObj.residentid   = "player";
                 argObj.residenttype = "player";
-                argObj.spanx        = def.player.spanx;
-                argObj.spany        = def.player.spany;
+                argObj.width        = 1;
+                argObj.height       = 1;
                 argObj.residentname ??= "Player";
             }
             // extract from argObj
             const { mapid, residentelement, x, y } = argObj;
             const residentname  = argObj.residentname ?? residentid;
             const residenttype  = argObj.residenttype ?? macroname.replace("add","");
-            const { spanx, spany, wall } = {
-                spanx           : def[residenttype].spanx,
-                spany           : def[residenttype].spany,
+            const { width, height, wall } = {
+                width           : def[residenttype].width,
+                height          : def[residenttype].height,
                 wall            : def[residenttype].wall,
                 ...argObj,
             }
             const residentsn = window.crypto.randomUUID();
             const residentid = argObj.residentid ?? residentsn;
             // validate args
-            if (! def.skipcheck.sensible) {
+            if (! def.skipcheck.args) {
                 validate_args.call(this, {
                     id: macroname,
                     mapid: {
@@ -866,13 +799,13 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
                         val         : y,
                         integer     : true,
                     },
-                    spanx: {
-                        val         : spanx,
+                    width: {
+                        val         : width,
                         integer     : true,
                         positive    : true,
                     },
-                    spany: {
-                        val         : spany,
+                    height: {
+                        val         : height,
                         integer     : true,
                         positive    : true,
                     },
@@ -904,13 +837,13 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
                         mapid       : mapid,
                         residentid  : residentid,
                         x: {
-                            label   : "combined x position & tile width (span)",
-                            upper   : x + (spanx-1), 
+                            label   : "combined x position & width",
+                            upper   : x + (width-1), 
                             lower   : x,
                         },
                         y: {
-                            label   : "combined y position & tile height (span)",
-                            upper   : y + (spany-1),
+                            label   : "combined y position & height",
+                            upper   : y + (height-1),
                             lower   : y,
                         },
                     });
@@ -927,8 +860,8 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
                     residentelement : residentelement,
                     x               : x,
                     y               : y,
-                    spanx           : spanx,
-                    spany           : spany,
+                    width           : width,
+                    height          : height,
                     wall            : wall,
                 }
                 residents[residenttype + "_" + String(residentid)] = resident;
@@ -1022,7 +955,7 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
             const { mapid, residentid } = argObj;
             const residenttype = argObj.residenttype ?? macroname.replace("delete","");
             // validate args
-            if (! def.skipcheck.sensible) {
+            if (! def.skipcheck.args) {
                 validate_args.call(this, {
                     id: macroname,
                     mapid: {
@@ -1159,16 +1092,13 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
             // extract from argObj
             const { mapid, residentid, deltax, deltay, ignorewalls } = argObj;
             const residenttype = argObj.residenttype ?? macroname.replace("move","");
-            if (! def.skipcheck.sensible) {
+            if (! def.skipcheck.args) {
                 validate_args.call(this, {
                     id: macroname,
                     mapid: {
                         val     : mapid,
                         oneword : true,
                         extant  : true,
-                    },
-                    residenttype: {
-                        val     : residenttype,
                     },
                     residentid: {
                         val     : residentid,
@@ -1185,11 +1115,9 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
                     },
                 });
             }
-            // extract from map
-            const map = get_map(mapid);
-            const { columns, traversible } = map;
+            // extract from resident
             const resident = get_resident(mapid, residenttype, residentid);
-            const { x, y, spanx, spany } = resident;
+            const { x, y, width, height } = resident;
 
             try {
 
@@ -1201,44 +1129,27 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
                         mapid       : mapid,
                         x: {
                             label   : "combined x position, width, & delta x",
-                            upper   : x + (spanx-1) + deltax,
+                            upper   : x + (width-1) + deltax,
                             lower   : x + deltax,
                         },
                         y: {
                             label   : "combined y position, height, & delta y",
-                            upper   : y + (spany-1) + deltay,
+                            upper   : y + (height-1) + deltay,
                             lower   : y + deltay,
                         },
                     });
                 }
-
-                //////////////////////////////////////////////////
                 // check traversible
-                if (! (ignorewalls || def.map.noclip)) {
-                    for (let j = 0; j < spanx; j++) {
-                        for (let k = 0; k < spany; k++) {
-                            const i = convert_xy2i({
-                                x   : x + j + deltax,
-                                y   : y + k + deltay,
-                            }, columns);
-                            console.log({x,y,i});
-                            if (! traversible[i]) {
-                                console.log('collision!');
-                                if (def.collisionerror) {
-                                    const error = `${macroname} - collision detected for ${residenttype} "${residentid}" on "${mapid}"`
-                                    return this.error(error)
-                                }
-                                else {
-                                    return
-                                }
-                            }
-                        }
-                    }
+                if (! ignorewalls) {
                 }
                 resident.x += deltax;
                 resident.y += deltay;
+                $(`[data-residentid="${residentid}"]`).css({
+                        top     : `calc(var(--tilesize) * ${y-1})`,
+                        left    : `calc(var(--tilesize) * ${x-1})`,
+                });
 
-                place_resident.call(this, {mapid,residenttype,residentid});
+                // Macro.get('mapcalculate').handlerJS.call(this, argObj);
             }
 
             //////////////////////////////////////////////////
@@ -1249,6 +1160,230 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
         },
     });
 
+
+    // Macro.add("shownav", {
+
+    //     tags: ["navcenter","navnorth","naveast","navsouth","navwest"],
+
+    // //      ████ █   █  ████  █     █ █    █  ███  █   █
+    // //     █     █   █ █    █ █     █ ██   █ █   █ █   █
+    // //      ███  █████ █    █ █  █  █ █ █  █ █████ █   █
+    // //         █ █   █ █    █ █ █ █ █ █  █ █ █   █  █ █
+    // //     ████  █   █  ████   █   █  █   ██ █   █   █
+    // //      SECTION: shownav
+
+    //     handler() {
+    //         //////////////////////////////////////////////////
+    //         //////////////////////////////////////////////////
+    //         const argObj = create_argObj.call(this, this.args, {
+    //             id: this.name,
+    //             mapid: {
+    //                 type        : 'string',
+    //                 required    : true,
+    //                 alias       : ['id','map'],
+    //             },
+    //             shownames: {
+    //                 type        : [
+    //                                 {exact:'none'},
+    //                                 {exact:'away'},
+    //                                 {exact:'center'},
+    //                                 {exact:'all'},
+    //                             ],
+    //             },
+    //             navclass: {
+    //                 type        : 'string',
+    //             },
+    //             height: {
+    //                 type        : 'string',
+    //             },
+    //             width: {
+    //                 type        : 'string',
+    //             },
+    //             disabled: {
+    //                 type        : 'boolean',
+    //             },
+    //             usearrows: {
+    //                 type        : 'boolean',
+    //                 alias       : 'arrowkeys',
+    //             },
+
+    //         });
+    //         this.self.handlerJS.call(this, argObj);
+    //     },
+
+    //     handlerJS(argObj) {
+    //         //////////////////////////////////////////////////
+    //         //////////////////////////////////////////////////
+    //         // necessary def
+    //         const macroname = this.name ?? argObj.id ?? "shownav";
+    //         const def = Macro.get('newmap').def;
+    //         this.error ??= function(error) { throw new Error(error) };
+    //         // validate tags
+    //         validate_tags.call(this, {
+    //             id: macroname,
+    //             navcenter: {
+    //                 unique: true,
+    //             },
+    //             navnorth: {
+    //                 unique: true,
+    //             },
+    //             naveast: {
+    //                 unique: true,
+    //             },
+    //             navsouth: {
+    //                 unique: true,
+    //             },
+    //             navwest: {
+    //                 unique: true,
+    //             },
+    //         });
+    //         // extract from argObj
+    //         const { mapid, height, width, navclass, disabled, shownames, showarrows, usearrows } = {
+    //             height      : def.nav.height,
+    //             width       : def.nav.width,
+    //             disabled    : def.nav.disabled,
+    //             usearrows   : def.nav.usearrows,
+    //             shownames   : def.nav.shownames,
+    //             ...argObj,
+    //         };
+    //         // validate args
+    //         validate_args.call(this, {
+    //             id: macroname,
+    //             mapid: {
+    //                 val     : mapid,
+    //                 oneword : true,
+    //                 extant  : true,
+    //             },
+    //             residentid: {
+    //                 val     : "player",
+    //                 extant  : true,
+    //             },
+    //         });
+    //         // extract from map
+    //         const map = Macro.get('newmap').maps[mapid];
+    //         const { columns, arr, tiles, residents } = map;
+
+    //         try {
+                
+    //             //////////////////////////////////////////////////
+    //             const $nav = $(document.createElement('div'));
+    //             $nav
+    //                 .addClass(`macro-${macroname}-nav`)
+    //                 .addClass(navclass)
+    //                 .attr('data-mapname',mapname)
+    //                 .css({
+    //                     "--height"  : height,
+    //                     "--width"   : width,
+    //                 });
+
+    //             const directions = {
+    //                 C: {
+    //                     id      : 'C',
+    //                     name    : 'navcenter',
+    //                     deltax  : 0,
+    //                     deltay  : 0,
+    //                 },
+    //                 N: {
+    //                     id      : 'N',
+    //                     name    : 'navnorth',
+    //                     deltax  : 0,
+    //                     deltay  : -1,
+    //                 },
+    //                 E: {
+    //                     id      : 'E',
+    //                     name    : 'naveast',
+    //                     deltax  : 1,
+    //                     deltay  : 0,
+    //                 },
+    //                 S: {
+    //                     id      : 'S',
+    //                     name    : 'navsouth',
+    //                     deltax  : 0,
+    //                     deltay  : 1,
+    //                 },
+    //                 W: {
+    //                     id      : 'W',
+    //                     name    : 'navwest',
+    //                     deltax  : -1,
+    //                     deltay  : 0,
+    //                 },
+    //             }
+    //             for (const d in directions) {
+    //                 const $dir = this.self.createDir.call(this, {
+    //                     map     : map,
+    //                     dir     : directions[d],
+    //                     player  : player,
+    //                 });
+    //                 $dir.appendTo($nav);
+    //             }
+
+    //             // output
+    //             $nav.appendTo(this.output);
+
+    //             // click functionality
+    //             setTimeout( () => $nav.on('click', function(ev) {
+    //                 const dir = $(ev.target).attr('data-dir');
+    //                 if (dir && (dir !== "C")) {
+    //                     const disabled = $(ev.target).attr('data-disabled') === "true";
+    //                     if (! disabled) {
+    //                         Macro.get("moveresident").handlerJS.call(this, {
+    //                             mapid           : mapid,
+    //                             residentid      : "player",
+    //                             residenttype    : "player",
+    //                             deltax          : directions[dir].deltax,
+    //                             deltay          : directions[dir].deltay,
+    //                         });
+    //                         $nav.html('');
+    //                         for (const d in directions) {
+    //                             const $dir = Macro.get('shownav').createDir.call(this, {
+    //                                 map     : map,
+    //                                 dir     : directions[d],
+    //                                 player  : player,
+    //                             });
+    //                             $dir.appendTo($nav);
+    //                         }
+    //                     }
+    //                 }
+    //             }), 40)
+    //         }
+
+    //         //////////////////////////////////////////////////
+    //         catch (error) {
+    //             console.error(`failed to create shownav for "${mapid}"`);
+    //             console.error(error);
+    //         }
+    //     },
+
+
+    //     createDir: function(argObj) {
+    //         const { map, dir, player } = argObj;
+    //         const { mapname, columns, arr, tiles } = map;
+    //         const { id, name, deltax, deltay } = dir;
+    //         const x = player.x + deltax;
+    //         const y = player.y + deltay;
+    //         const i = convert_xy2i({x,y},columns);
+    //         const t = arr[i];
+    //         // const p = this.payload.filter( p => p.name === name )[0];
+    //         const disabled = tiles[t].tiletype === Macro.get('newmap').def.wall.tiletype
+    //         const $dir = $(document.createElement('div'));
+    //         $dir
+    //             .addClass(`macro-shownav-dir macro-shownav-${id}`)
+    //             .attr('data-dir', id)
+    //             .attr('data-disabled', disabled)
+    //             .attr('data-mapname', mapname)
+    //             // .wiki(p
+    //             //     ? p.contents.trim()
+    //             //     : ! disabled
+    //             //         ? tiles[t].tilename
+    //             //         : ''
+    //             // );
+    //             .wiki(  ! disabled
+    //                         ? tiles[t].tilename
+    //                         : ''
+    //             );
+    //         return $dir
+    //     },
+    // });
 
 
 // █    █  ███  ████   ████  ███  █      ████ █   █ █      ███  █████ █████
@@ -1289,7 +1424,8 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
             const { mapid, coordinates } = argObj;
             // extract from 
             const map = get_map(mapid);
-            const { columns, arr, residents, traversible } = map;
+            const { columns, arr, tiles, residents, traversible } = map;
+            console.log(argObj);
             try {
 
                 //////////////////////////////////////////////////
@@ -1314,14 +1450,14 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
                 //////////////////////////////////////////////////
                 // check all residents
                 for (const r in residents) {
-                    const { wall, x, y, spanx, spany } = residents[r];
+                    const { wall, x, y, width, height } = residents[r];
                     // skip if not wall
                     if (! wall) {
                         continue;
                     }
                     // fill in otherwise
-                    for (let j = 0; j < spanx; j++) {
-                        for (let k = 0; k < spany; k++) {
+                    for (let j = 0; j < width; j++) {
+                        for (let k = 0; k < height; k++) {
                             const i = convert_xy2i({
                                 x   : x + j,
                                 y   : y + k,

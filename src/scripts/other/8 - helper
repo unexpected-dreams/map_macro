@@ -160,21 +160,6 @@ function validatation_errors(argObj) {
                 return this.error(error)
             }
         }
-        // ERROR: not a valid css dimension
-        if (template[key].cssunit) {
-            const units = ['cm','mm','Q','in','pc','pt','px','em','ex','ch','rem','lh','rlh','vw','vh','vmin','vmax','vb','vi','svw','svh','lvw','lvh','dvw','dvh','%'];
-            let pass = false;
-            for (const u of units) {
-                if (val === u) {
-                    pass = true;
-                    break;
-                }
-            }
-            if (! pass) {
-                const error = `${id} - input "${val}" for "${key}" is not a valid css unit`;
-                return this.error(error)
-            }
-        }
     }
     catch (error) {
         console.error(`failed to validate macro arguments on key "${key}" with value "${val}" for "${id}"`);
@@ -309,7 +294,6 @@ function create_argObj(args_in,template_in,options) {
         // go through every arg, deleting them as it reads
         while (active.args.length > 0) {
             debug.log('ArgObj',`entered loop`);
-            debug.log('ArgObj',argObj);
             active.splice = 0;
             const arg_this  = active.args[0];
             try {
@@ -344,8 +328,7 @@ function create_argObj(args_in,template_in,options) {
                 }
                 else {
                     // ERROR: anything after this is mystery
-                    const error = `${id} - unexpected input "${arg_this}", is not a key name and did not match any valid types`;
-                    return this.error(error)
+                    return this.error(`${id} - unexpected input "${arg_this}" did not match any valid types`)
                 }
             }
 
@@ -362,8 +345,7 @@ function create_argObj(args_in,template_in,options) {
         const keys_supplied = Object.keys(argObj);
         for (const k of keys_required) {
             if (! keys_supplied.includes(k)) {
-                const error = `${id} - missing required key "${k}"`;
-                return this.error(error)
+                return this.error(`${id} - missing required key "${k}"`)
             }
         }
 
@@ -374,6 +356,7 @@ function create_argObj(args_in,template_in,options) {
                 argObj[keys_infinite[0]] = [argObj[keys_infinite[0]]];
             }
         }
+        console.log(keys_infinite);
         return argObj
     }
 
@@ -399,8 +382,7 @@ function ArgObj_infinite(active) {
     const typeSet = new TypeSet(template[k].type);
     // ERROR: wrong type for infinite key
     if (! typeSet.accepts(arg_this)) {
-        const error = `${id} - "${arg_this}" is an invalid type for "${k}", expected ${typeSet.print}`;
-        return this.error(error)
+        return this.error(`${id} - "${arg_this}" is an invalid type for "${k}", expected ${typeSet.print}`)
     }
     // turn into array
     if (TypeSet.id(argObj[k]) !== "array") {
@@ -432,8 +414,7 @@ function ArgObj_markup(active) {
     const arg_this = args[0];
     // ERROR: [[markup]] when no passage input
     if (! keys.includes('passage')) {
-        const error = `${id} - macro does not accept [[markup]]`;
-        return this.error(error)
+        return this.error(`${id} - macro does not accept [[markup]]`)
     }
     // write values
     argObj.linktext = arg_this.text;
@@ -454,16 +435,10 @@ function ArgObj_kvp(active) {
     const { id, args, template, keys, argObj, alias, options } = active;
     const arg_this = args[0];
     const arg_next = args[1];
-    // ERROR: undefined input for key
-    if (! arg_next) {
-        const error = `${id} - no input was found for argument "${arg_this}"`;
-        return this.error(error)
-    }
     const typeSet = new TypeSet(template[alias[arg_this]].type);
     // ERROR: wrong type input
     if (! typeSet.accepts(arg_next)) {
-        const error = `${id} - "${arg_next}" is an invalid type for "${arg_this}", expected ${typeSet.print}`;
-        return this.error(error)
+        return this.error(`${id} - "${arg_next}" is an invalid type for "${arg_this}", expected ${typeSet.print}`)
     }
     // write values
     argObj[alias[arg_this]] = arg_next;
@@ -488,8 +463,7 @@ function ArgObj_obj(active) {
             const typeSet = new TypeSet(template[alias[a]].type);
             // ERROR: wrong type input
             if (! typeSet.accepts(arg_this[a])) {
-                const error = `${id} - "${arg_this[a]}" is an invalid type for "${a}", expected ${typeSet.print}`;
-                return this.error(error)
+                return this.error(`${id} - "${arg_this[a]}" is an invalid type for "${a}", expected ${typeSet.print}`)
             }
             // write values
             argObj[alias[a]] = arg_this[a];

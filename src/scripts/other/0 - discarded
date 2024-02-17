@@ -1,4 +1,32 @@
 
+                // const op    = ['height','width','tile'].includes(sizingmode)
+                //                 ? sizingmode
+                //             : sizingmode === "auto"
+                //                 ? (mapwidth / mapheight) > ((columns * tilewidth) / (rows * tileheight))
+                //                     ? "height"
+                //                     : "width"
+                //             : null;
+                // if (op) {
+                //     this.self.sizeMap.call(this, {
+                //         $map, map, 
+                //         mapwidth, mapheight, mapunit, 
+                //         tilewidth, tileheight, tileunit,
+                //         sizingmode, op,
+                //     });
+                // }
+
+                    // if height is constraint that means we're taking the map height and dividing it by rows to get tileheight then using that tileheight ratio to get tilewidth and setting it that way
+
+                    // if tiles are square, then right side equals one and then if left side is wider than it is tall, then it will be greater than one, meaning it is greater than the right side. if it is wider than it is tall that means this will hit the height maximum first and constraint is based off height. if we have a width to height tile ratio of 1.5 and map width to height ratio of 2 then the right side is greater than the left and that the map is wider than it is tall for the same size tile map because lets say we set the total tile height equal to the map height, an arbitrary 10. the tile width would then be 15 while the map width would be 2 meaning it is still wider than it is tall and thus hits the height maximum first
+
+                    // define grid size as per config or input
+                    // .css({
+                    //     "--tilewidth"           : tilewidth,
+                    //     "--tileheight"          : tileheight,
+                    //     "--mapwidth"            : mapwidth,
+                    //     "--mapheight"           : mapheight,
+                    //     "grid-template-columns" : `repeat(${columns}, var(--tilesize))`,
+                    // });
 
 
 // ┬ ┬┌─┐┌─┐┌─┐┬ ┬┬

@@ -35,11 +35,11 @@ Walach Home - regionmap demo
     .   .   .   .   .   .
 
 <</newmap>>
-<<maptile 'demo' "K" "D" "H">>
+/* <<maptile 'demo' "K" "D" "H">>
     <<tiletype 'test'>>
     <<tileelement>>
         #
-<</maptile>>
+<</maptile>> */
 /* <<addnpc 'demo' 2 6 3 1 "3x1">>
     <img src="./assets/favicon.png">
 <</addnpc>>
@@ -51,8 +51,14 @@ Walach Home - regionmap demo
 <</addplayer>>
 
 :: Start
-<<showmap 'demo'>>
-<<shownav 'demo'>><</shownav>>
+<<showmap 
+    mapid       'demo'
+    mapwidth    15
+    mapheight   20
+    tilewidth   2
+    tileheight  1.5
+>>
+/* <<shownav 'demo'>><</shownav>> */
 <<link "delete">>
     <<deletenpc 'demo' '3x1'>>
 <</link>>
@@ -64,13 +70,15 @@ Walach Home - regionmap demo
         height: fit-content;
         width: fit-content;
         overflow: hidden;
+        align-items: center;
+        justify-content: center;
     }
         .macro-showmap-map > * {
             box-sizing: border-box;
         }
     .macro-showmap-tile {
-        width: var(--tilesize);
-        height: var(--tilesize);
+        width: var(--tilewidth);
+        height: var(--tileheight);
         display: flex;
         align-items: center;
         justify-content: center;
@@ -84,8 +92,8 @@ Walach Home - regionmap demo
         }
     .macro-showmap-resident {
         position: absolute;
-        height: 100%;
-        width: 100%;
+        /* height: 100%;
+        width: 100%; */
         z-index: 2;
         transition: all 0.5s;
         display: flex;
