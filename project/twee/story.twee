@@ -1,9 +1,9 @@
 :: StoryTitle
-Walach Home - regionmap demo
+demo map
 
 
 :: StoryInit [nobr]
- <<set 
+<<set 
     $stst = {
         Y: {name: 'Yard'},
         F: {name: 'Front door'},
@@ -21,9 +21,10 @@ Walach Home - regionmap demo
         '-': {type:'wall'},
     };
 >>
+<<set $columns to 6>>
 <<newmap 
     mapid       'demo'
-    columns     6
+    columns     $columns
     diagonal    true
 >>
     .   .   .   .   .   .
@@ -35,20 +36,20 @@ Walach Home - regionmap demo
     .   .   .   .   .   .
 
 <</newmap>>
-/* <<maptile 'demo' "K" "D" "H">>
+<<maptile 'demo' "K" "D" "H">>
     <<tiletype 'test'>>
     <<tileelement>>
         #
-<</maptile>> */
-/* <<addnpc 'demo' 2 6 3 1 "3x1">>
+<</maptile>>
+/<<newnpc 'demo' 2 6 3 1 "3x1">>
     <img src="./assets/favicon.png">
-<</addnpc>>
-<<addnpc 'demo' 6 1 1 1 "1x1">>
+<</newnpc>>
+/* <<addnpc 'demo' 6 1 1 1 "1x1">>
     <img src="./assets/favicon.png">
 <</addnpc>> */
-<<addplayer 'demo' 2 2>>
-    a
-<</addplayer>>
+<<newplayer 'demo' 2 2>>
+    <span style="color:red; font-size: 2rem;">O</span>
+<</newplayer>>
 
 :: Start
 <<showmap 
@@ -57,8 +58,13 @@ Walach Home - regionmap demo
     mapheight   20
     tilewidth   2
     tileheight  1.5
+    unit        'rem'
 >>
-/* <<shownav 'demo'>><</shownav>> */
+<<shownav 
+    mapid       'demo'
+    diagonal    false
+>>
+<</shownav>>
 <<link "delete">>
     <<deletenpc 'demo' '3x1'>>
 <</link>>
@@ -92,8 +98,6 @@ Walach Home - regionmap demo
         }
     .macro-showmap-resident {
         position: absolute;
-        /* height: 100%;
-        width: 100%; */
         z-index: 2;
         transition: all 0.5s;
         display: flex;
@@ -115,34 +119,50 @@ Walach Home - regionmap demo
         .macro-shownav-nav > * {
             box-sizing: border-box;
         }
-        .macro-shownav-dir {
+        .macro-shownav-direction {
             display: flex;
             align-items: center;
             justify-content: center;
             border: 1px dashed blue;
         }
-            .macro-shownav-dir:not([data-disabled="true"]):not([data-dir="C"]) {
+            .macro-shownav-direction:not([data-disabled="true"]):not([data-id="C"]) {
                 cursor: pointer;
             }
         .macro-shownav-C {
-            grid-row: 2;
-            grid-column: 2;
+            grid-row:       2;
+            grid-column:    2;
         }
         .macro-shownav-N {
-            grid-row: 1;
-            grid-column: 2;
+            grid-row:       1;
+            grid-column:    2;
         }
         .macro-shownav-E {
-            grid-row: 2;
-            grid-column: 3;
+            grid-row:       2;
+            grid-column:    3;
         }
         .macro-shownav-S {
-            grid-row: 3;
-            grid-column: 2;
+            grid-row:       3;
+            grid-column:    2;
         }
         .macro-shownav-W {
-            grid-row: 2;
-            grid-column: 1;
+            grid-row:       2;
+            grid-column:    1;
+        }
+        .macro-shownav-NW {
+            grid-row:       1;
+            grid-column:    1;
+        }
+        .macro-shownav-NE {
+            grid-row:       1;
+            grid-column:    3;
+        }
+        .macro-shownav-SE {
+            grid-row:       3;
+            grid-column:    3;
+        }
+        .macro-shownav-SW {
+            grid-row:       3;
+            grid-column:    1;
         }
     
 </style>

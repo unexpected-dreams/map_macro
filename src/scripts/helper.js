@@ -52,6 +52,22 @@ function validate_tags(template) {
 }
 
 
+// █   █  ███  █     ███ ████      ████  █████  ████
+// █   █ █   █ █      █  █   █     █   █ █     █    █
+// █   █ █████ █      █  █   █     ████  ███   █    █
+//  █ █  █   █ █      █  █   █     █   █ █     █ ▄  █
+//   █   █   █ █████ ███ ████      █   █ █████  ████
+// SECTION: validate required / valid req          ▀
+function validate_required(argObj) {
+    const id = argObj.idl
+    const keys = Object.keys(argObj).filter( k => k !== 'id' );
+    for (const k of keys) {
+        if (TypeSet.id(argObj[k]) === 'undefined') {
+            const error = `${id} - missing required input "${k}"`;
+            return this.error(error)
+        }
+    }
+}
 
 
 // █   █  ███  █     ███ ████   ███  █████ █████      ███  ████   ███   ████
@@ -243,38 +259,41 @@ function validate_xy(template) {
 // SECTION: ArgObj parser
 // parses macro arguments into an arg object
 function create_argObj(args_in,template_in,options) {
-    try {
 
-        //////////////////////////////////////////////////
-        // ERROR: no args input
-        if (! args_in) {
-            throw new Error(`ArgObj input missing, arguments`)
-        }
-        const args = clone(args_in);
-        // ERROR: no template input
-        if (! template_in) {
-            throw new Error(`ArgObj input missing, template`)
-        }
-        const template = clone(template_in);
-        // ERROR: template id missing
-        const id = template.id;
-        if (! id) {
-            throw new Error(`ArgObj template id missing`)
-        }
-        // ERROR: empty template
-        const keys = Object.keys(template).filter( k => k !== "id" );
-        if (! keys.length) {
-            throw new Error("ArgObj template cannot be empty")
-        }
-        const keys_infinite = keys.filter( k => template[k].infinite );
-        // ERROR: more than one infinite key
-        if (keys_infinite.length > 1) {
-            throw new Error("ArgObj template cannot have more than one infinite key")
-        }
-        // ERROR: infinite key not last
-        if (keys_infinite[0] && (keys_infinite[0] !== keys[keys.length - 1])) {
-            throw new Error("ArgObj template infinite key must be last")
-        }
+    //////////////////////////////////////////////////
+    // ERROR: no args input
+    if (! args_in) {
+        throw new Error(`create_argObj input missing, arguments`)
+    }
+    const args = clone(args_in);
+    // ERROR: no template input
+    if (! template_in) {
+        throw new Error(`create_argObj input missing, template`)
+    }
+    const template = clone(template_in);
+    // ERROR: template id missing
+    const id = template.id;
+    if (! id) {
+        throw new Error(`create_argObj template id missing`)
+    }
+    // ERROR: empty template
+    const keys = Object.keys(template).filter( k => k !== "id" );
+    if (! keys.length) {
+        throw new Error("create_argObj template cannot be empty")
+    }
+
+    //////////////////////////////////////////////////
+    const keys_infinite = keys.filter( k => template[k].infinite );
+    // ERROR: more than one infinite key
+    if (keys_infinite.length > 1) {
+        throw new Error("create_argObj template cannot have more than one infinite key")
+    }
+    // ERROR: infinite key not last
+    if (keys_infinite[0] && (keys_infinite[0] !== keys[keys.length - 1])) {
+        throw new Error("create_argObj template infinite key must be last")
+    }
+
+    try {
 
         //////////////////////////////////////////////////
         const alias = {};
@@ -308,8 +327,8 @@ function create_argObj(args_in,template_in,options) {
         
         // go through every arg, deleting them as it reads
         while (active.args.length > 0) {
-            debug.log('ArgObj',`entered loop`);
-            debug.log('ArgObj',argObj);
+            debug.log('argObj',`entered loop`);
+            debug.log('argObj',argObj);
             active.splice = 0;
             const arg_this  = active.args[0];
             try {
@@ -317,24 +336,24 @@ function create_argObj(args_in,template_in,options) {
                 //////////////////////////////////////////////////
                 // always check infinite first
                 if (keys_infinite[0] && argObj[keys_infinite[0]]) {
-                    ArgObj_infinite.call(this,active);
+                    argObj_infinite.call(this,active);
                 }
                 // [[markup]] input
                 if (! active.splice && arg_this.isLink) {
-                    ArgObj_markup.call(this,active);
+                    argObj_markup.call(this,active);
                 }
                 // key value pair input
                 if (! active.splice && keys.includes(alias[arg_this])) {
-                    ArgObj_kvp.call(this,active);
+                    argObj_kvp.call(this,active);
                 }
                 // {object} input
                 if (! active.splice && (TypeSet.id(arg_this) === 'object')) {
-                    ArgObj_obj.call(this,active);
+                    argObj_obj.call(this,active);
                 }
                 // lazy matcher, to turn off: options.strict = true
                 const { strict } = {strict: false, ...active.options};
                 if (! active.splice && ! strict) {
-                    ArgObj_lazy.call(this,active);
+                    argObj_lazy.call(this,active);
                 }
 
                 //////////////////////////////////////////////////
@@ -345,41 +364,24 @@ function create_argObj(args_in,template_in,options) {
                 else {
                     // ERROR: anything after this is mystery
                     const error = `${id} - unexpected input "${arg_this}", is not a key name and did not match any valid types`;
+                    console.error(argObj);
                     return this.error(error)
                 }
             }
 
             //////////////////////////////////////////////////
             catch (error) {
-                console.error(`ArgObj failed at "${arg_this}"`);
+                console.error(`failed to create argObj at "${arg_this}"`);
                 console.error(error);
             }
         }
 
-        //////////////////////////////////////////////////
-        // ERROR: missing required key
-        const keys_required = keys.filter( k => template[k].required);
-        const keys_supplied = Object.keys(argObj);
-        for (const k of keys_required) {
-            if (! keys_supplied.includes(k)) {
-                const error = `${id} - missing required key "${k}"`;
-                return this.error(error)
-            }
-        }
-
-        //////////////////////////////////////////////////
-        // turn infinite key into array
-        if (keys_infinite[0] && argObj[keys_infinite[0]]) {
-            if (TypeSet.id(argObj[keys_infinite[0]]) !== "array") {
-                argObj[keys_infinite[0]] = [argObj[keys_infinite[0]]];
-            }
-        }
         return argObj
     }
 
     //////////////////////////////////////////////////
     catch (error) {
-        console.error(`failed to parse macro arguments for "${this.name}"`);
+        console.error(`failed to parse macro arguments for "${id}"`);
         console.error(error);
     }
 }
@@ -390,16 +392,16 @@ function create_argObj(args_in,template_in,options) {
 //  █  █  █ █ █      █  █  █ █  █    █   █
 // ███ █   ██ █     ███ █   ██ ███   █   █████
 // SECTION: infinite
-function ArgObj_infinite(active) {
-    debug.log('ArgObj','entered markup');
-    debug.log('ArgObj',active);
+function argObj_infinite(active) {
+    debug.log('argObj','entered markup');
+    debug.log('argObj',active);
     const { id, args, template, keys, argObj, alias, options } = active;
     const arg_this = args[0];
     const k = keys.filter( k => template[k].infinite )[0];
     const typeSet = new TypeSet(template[k].type);
     // ERROR: wrong type for infinite key
     if (! typeSet.accepts(arg_this)) {
-        const error = `${id} - "${arg_this}" is an invalid type for "${k}", expected ${typeSet.print}`;
+        const error = `${id} - "${arg_this}" is an invalid type for "${k}" ('${TypeSet.id(arg_this)}'), expected ${typeSet.print}`;
         return this.error(error)
     }
     // turn into array
@@ -425,9 +427,9 @@ function ArgObj_infinite(active) {
 // █    █ █   █ █   █ █  █  █   █ █
 // █    █ █   █ █   █ █   █  ███  █
 // SECTION: markup
-function ArgObj_markup(active) {
-    debug.log('ArgObj','entered markup');
-    debug.log('ArgObj',active);
+function argObj_markup(active) {
+    debug.log('argObj','entered markup');
+    debug.log('argObj',active);
     const { id, args, template, keys, argObj, alias, options } = active;
     const arg_this = args[0];
     // ERROR: [[markup]] when no passage input
@@ -448,21 +450,21 @@ function ArgObj_markup(active) {
 // █  █   █ █  █
 // █   █   █   █
 // SECTION: kvp
-function ArgObj_kvp(active) {
-    debug.log('ArgObj','entered kvp');
-    debug.log('ArgObj',active);
+function argObj_kvp(active) {
+    debug.log('argObj','entered kvp');
+    debug.log('argObj',active);
     const { id, args, template, keys, argObj, alias, options } = active;
     const arg_this = args[0];
     const arg_next = args[1];
     // ERROR: undefined input for key
-    if (! arg_next) {
+    if (TypeSet.id(arg_next) === 'undefined') {
         const error = `${id} - no input was found for argument "${arg_this}"`;
         return this.error(error)
     }
     const typeSet = new TypeSet(template[alias[arg_this]].type);
     // ERROR: wrong type input
     if (! typeSet.accepts(arg_next)) {
-        const error = `${id} - "${arg_next}" is an invalid type for "${arg_this}", expected ${typeSet.print}`;
+        const error = `${id} - "${arg_next}" is an invalid type ('${TypeSet.id(arg_next)}') for "${arg_this}", expected ${typeSet.print}`;
         return this.error(error)
     }
     // write values
@@ -477,9 +479,9 @@ function ArgObj_kvp(active) {
 // █    █ █   █ █   █
 //  ████  ████   ███
 // SECTION: object
-function ArgObj_obj(active) {
-    debug.log('ArgObj','entered object parser');
-    debug.log('ArgObj',active);
+function argObj_obj(active) {
+    debug.log('argObj','entered object parser');
+    debug.log('argObj',active);
     const { id, args, template, keys, argObj, alias, options } = active;
     const arg_this = args[0];
     for (const a in arg_this) {
@@ -488,7 +490,7 @@ function ArgObj_obj(active) {
             const typeSet = new TypeSet(template[alias[a]].type);
             // ERROR: wrong type input
             if (! typeSet.accepts(arg_this[a])) {
-                const error = `${id} - "${arg_this[a]}" is an invalid type for "${a}", expected ${typeSet.print}`;
+                const error = `${id} - "${arg_this[a]}" is an invalid type for "${a}" ('${TypeSet.id(arg_this[a])}'), expected ${typeSet.print}`;
                 return this.error(error)
             }
             // write values
@@ -505,9 +507,9 @@ function ArgObj_obj(active) {
 // █     █   █  █      █
 // █████ █   █ █████   █
 // SECTION: lazy
-function ArgObj_lazy(active) {
-    debug.log('ArgObj','entered lazy matcher');
-    debug.log('ArgObj',active);
+function argObj_lazy(active) {
+    debug.log('argObj','entered lazy matcher');
+    debug.log('argObj',active);
     const { id, args, template, keys, argObj, alias, options } = active;
     const arg_this = args[0];
     const keys_left = keys.filter( k => ! Object.keys(argObj).includes(k) );

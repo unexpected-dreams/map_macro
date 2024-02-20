@@ -1,126 +1,215 @@
 // create type set class
 class TypeSet {
-    constructor(...types) {
-        this.set = [];
-        for (const t of types) {
-            this.add(t);
+    //////////////////////////////////////////////////
+    constructor(...args) {
+        this.any = [];
+        this.exact = [];
+        this.other = [];
+        this.label = null;
+        this["this is a TypeSet"] = true;
+        try {
+            for (const a of args) {
+                this.add(a);
+            }
         }
-        this.this_is_a_TypeSet = true;
+        catch (error) {
+            console.error('failed to create TypeSet object');
+        }
     }
     // return the string description
     get print() {
-        const arr = [];
-        for (const t of this.set) {
-            const txt   = t.any
-                            ? `any "${t.any}"`
-                        : `exactly "${t.exact}"`;
-            arr.push(txt);
+        if (this.label) {
+            return this.label;
         }
-        return arr.join(" or ")
-    }
-    // return size
-    get size() {
-        return this.set.length
+        const print = [];
+        for (const t of this.any) {
+            if (t === 'undefined' || t === 'null') {
+                print.push(`${t}`);
+            }
+            else {
+                print.push(`any '${t}'`);
+            }
+        }
+        for (const t of this.exact) {
+            print.push(`exactly the ${TypeSet.id(t)} '${t}'`);
+        }
+        return print.join(" or ")
     }
 
-    add(type) {
-        // do nothing if duplicate
-        if (this.has(type)) {
-            return
+    //////////////////////////////////////////////////
+    // add to TypeSet
+    add(arg) {
+        try {
+            // given array, break it up
+            if (TypeSet.id(arg) === 'array') {
+                this.#add_arr(arg);
+            }
+            // given object, parse
+            else if (TypeSet.id(arg) === 'object') {
+                this.#add_obj(arg);
+            }
+            // given string, assume any-type
+            else if (typeof arg === 'string') {
+                this.#push(arg, 'any');
+            }
+            // ERROR: input not string or object or array
+            else {
+                const error = `TypeSet - invalid input "${arg}", must be 'string' or 'object' or 'array'`;
+                console.error(error);
+            }
         }
-        // routing
-        if (Array.isArray(type)) {
-            this.#add_array(type);
-        }
-        else if (typeof type === 'string') {
-            this.#add_string(type);
-        }
-        else if (typeof type === 'object') {
-            this.#add_object(type);
-        }
-        // ERROR: input not string or object or array
-        else {
-            throw new Error(`invalid TypeSet input, input must be "string" or "object" or "array"`)
+        catch (error) {
+            console.error(`failed to add ${arg} to TypeSet; check 'TypeSet.valid' for valid types`);
+            console.error(error);
         }
     }
     // disects array and plugs it back into push
-    #add_array(type_arr) {
-        if (type_arr.length === 0) {
-            throw new Error(`invalid TypeSet input, array cannot be empty`)
+    #add_arr(arr, type) {
+        // ERROR: empty array
+        if (arr.length === 0) {
+            const error = `TypeSet - array input cannot be empty`;
+            console.error(error);
         }
-        for (const t of type_arr) {
-            this.add(t);
+        for (const t of arr) {
+            // splitting up array to push
+            if (type) {
+                this.#push(t, type);
+            }
+            // splitting up array to parse args
+            else {
+                this.add(t);
+            }
         }
     }
     // add type to TypeSet from object
-    #add_object(type_obj) {
-        // ERROR: input object larger than 1:1
-        if (Object.keys(type_obj).length !== 1) {
-            throw new Error(`invalid TypeSet input, object must have one key only"`)
+    #add_obj(obj) {
+        for (const k in obj) {
+            if (
+                (k === 'any' || k === 'exact' || k === 'other') &&
+                (TypeSet.id(obj[k]) === 'array')
+            ) {
+                this.#add_arr(obj[k], k);
+            }
+            else if (
+                (k === 'any' || k === 'exact' || k === 'other')
+            ) {
+                this.#push(obj[k], k);
+            }
+            else if (k === 'label') {
+                if (TypeSet.id(obj[k]) !== 'string') {
+                    const error = `TypeSet - input for label "${obj[k]}" ('${TypeSet.id(obj[k])}') should be a string instead`;
+                    console.error(error);
+                }
+                this.label = obj[k];
+            }
+            // ERROR: unknown key
+            else {
+                const error = `TypeSet - unexpected object key ${k}`;
+                console.error(error);
+            }
         }
-        // ERROR: input object has some key other than "any" or "exact" as key
-        const keys_invalid = Object.keys(type_obj).filter( k => k !== "any" && k !== "exact" ); 
-        if (keys_invalid.length > 0) {
-            throw new Error(`invalid TypeSet input, object contains invalid key "${keys_invalid[0]}"`)
-        }
-        if (type_obj.any) {
-            TypeSet.validate(type_obj.any);
-        }
-        this.set.push(type_obj);
-    }
-    // add type to TypeSet from string
-    #add_string(type_str) {
-        TypeSet.validate(type_str);
-        this.set.push({any: type_str});
     }
 
+    //////////////////////////////////////////////////
+    // push value
+    #push(arg, type) {
+        try {
+            // already has value, do nothing
+            if (this[type].includes(arg)) {
+                return
+            }
+            // validate string
+            if (type === 'any') {
+                TypeSet.validate(arg);
+                this.any.push(arg);
+            }
+            // push exact as is
+            else if (type === 'exact') {
+                this.exact.push(arg);
+            }
+            // push only specific other values
+            else {
+                if (arg === 'any') {
+                    this.other.push(arg);
+                }
+                else {
+                    const error = `TypeSet - unexpected input for ${type}-type "${arg}"`;
+                    console.error(error);
+                }
+            }
+        }
+        catch (error) {
+            console.error(`failed to push ${type}-type to TypeSet at arg ${arg}`);
+            console.error(error);
+        }
+    }
 
+    //////////////////////////////////////////////////
     // validate that string is a valid type
     static validate(input) {
-        const valid = TypeSet.valid();
+        const valid = TypeSet.valid;
         if (! valid.includes(input)) {
-            throw new Error(`invalid TypeSet input, "${input}" is not a valid type`)
+            const error = `TypeSet - "${input}" is not a valid type; use 'TypeSet.valid' to get the array of valid types; use exact to add the exact value`;
+            throw new Error(error)
         }
         return
     }
     // list valid types
-    static valid() {
+    static get valid() {
         const valid = [
-            "any",
             "string", "number", "object", "boolean", "undefined",
             "array", "null",
-            "story variable", "temp variable",
         ];
         return valid
     }
+    // identify type
     static id(input) {
         let type;
         type    = Object.prototype.toString.call(input).slice(8, -1).toLowerCase();
-        type    = (type === "string") && (Array.from(input)[0] === "$")
-                    ? "story variable"
-                : (type === "string") && (Array.from(input)[0] === "_")
-                    ? "temp variable"
-                : type;
         return type
     }
+    // identify TypeSet
     static isTypeSet(input) {
-        return !! input.this_is_a_TypeSet
+        if (typeof input !== 'object') {
+            return false
+        }
+        else {
+            return !! input["this is a TypeSet"]
+        }
     }
 
-
-    // checks if the type object instance has provided type
-    has(type) {
+    //////////////////////////////////////////////////
+    // checks if the TypeSet has provided type
+    has(input) {
         let pass = false;
-        for (const t of this.set) {
-            const key = Object.keys(t)[0];
-            const val = Object.values(t)[0];
-            if (
-                (val === type)                          ||
-                (key === "exact" && val === type.exact) ||
-                (key === "any"   && val === type.any)
-            ){
-                pass = true;
-                break;
+        // given an object-key input
+        if (
+            (TypeSet.id(input) === 'object')    &&  
+            (Object.keys(input).length === 1)   &&
+            (   Object.keys(input)[0] === 'any'     ||
+                Object.keys(input)[0] === 'exact'   ||
+                Object.keys(input)[0] === 'other'   )
+        ) {
+            for (const c of ['any','exact','other']) {
+                const val = Object.values(input)[0];
+                for (const t of this[c]) {
+                    if (val === t) {
+                        pass = true;
+                        break;
+                    }
+                }
+                if (pass = true) {
+                    break;
+                }
+            }
+        }
+        // given pure value
+        else {
+            for (const t of [...this.any, ...this.exact]) {
+                if (input === t){
+                    pass = true;
+                    break;
+                }
             }
         }
         return pass
@@ -128,24 +217,26 @@ class TypeSet {
     // checks whether the type object passes/accepts the input
     accepts(input) {
         let pass = false;
-        for (const t of this.set) {
-            const key = Object.keys(t)[0];
-            const val = Object.values(t)[0];
-            if (
-                (val === "any")                                     ||
-                (key === "exact" && input === val)                  ||
-                (key === "exact" && input.exact === val)            ||
-                (key === "any"   && TypeSet.id(input) === val)      ||
-                (key === "any"   && TypeSet.id(input.any) === val)
-            ){
-                pass = true;
-                break;
+        if (this.other.includes("any")) {
+            pass = true;
+        }
+        if (! pass) {
+            for (const t of this.any) {
+                if (TypeSet.id(input) === t) {
+                    pass = true;
+                    break;
+                }
+            }
+        }
+        if (! pass) {
+            for (const t of this.exact) {
+                if (input === t) {
+                    pass = true;
+                    break;
+                }
             }
         }
         return pass
-    }
-    values() {
-        return this.set
     }
 }
 
@@ -164,7 +255,8 @@ Object.defineProperty(window, 'demo', {
 
 const debug = {
     on: {
-        ArgObj: false,
+        argObj  : false,
+        proxy   : false,
     },
     log: function(groups,i) {
         groups = Array.isArray(groups)
