@@ -726,9 +726,6 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
             // create map & append
             const $map = this.self.handlerJS.call(this, argObj);
             $map.appendTo(this.output);
-
-            // place residents
-            setTimeout( () => place_resident.call(this, {mapid:argObj.mapid}), 40 )
         },
 
         handlerJS(argObj) {
@@ -884,6 +881,9 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
                     });
                     $r.appendTo($map);
                 }
+
+                // place residents
+                $map.ready( () => place_resident.call(this, {mapid}) );
 
                 // output
                 return $map
