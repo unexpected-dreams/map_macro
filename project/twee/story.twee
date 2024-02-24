@@ -36,23 +36,23 @@ demo map
     .   .   .   .   .   .
 
 <</newmap>>
-/* <<maptile 'demo' "K" "D" "H">>
-    <<tiletype 'test'>>
+<<maptile 'demo' "Y">>
     <<tileelement>>
-        #
-<</maptile>> */
-/* /<<newnpc 'demo' 2 6 3 1 "3x1">>
+        yard
+<</maptile>>
+/<<newobject 'demo' 2 6 3 1 "fatwall" true>>
     <img src="./assets/favicon.png">
-<</newnpc>> */
-/* <<addnpc 'demo' 6 1 1 1 "1x1">>
+<</newobject>>
+<<newobject 'demo' 5 2 1 1 "smallwall" true>>
     <img src="./assets/favicon.png">
-<</addnpc>> */
+<</newobject>>
 <<defineplayer 'demo' 2 2>>
     <span style="color:red; font-size: 2rem;">O</span>
 <</defineplayer>>
 <<setplayer 'demo' 3 3 >>
 
 :: Start
+map
 <<showmap 
     mapid       'demo'
     mapwidth    15
@@ -61,15 +61,24 @@ demo map
     tileheight  1.5
     unit        'rem'
 >>
+player nav
 <<shownav 
     mapid       'demo'
     diagonal    false
 >>
 <</shownav>>
-<<link "delete">>
-    <<deletenpc 'demo' '3x1'>>
+other stuff
+<<link "delete fat wall">>
+    <<deleteobject 'demo' 'fatwall'>>
 <</link>>
-[[test2]]
+<<link "move small wall up">>
+    <<moveobject 'demo' "smallwall" 0 -1>>
+<</link>>
+<<link "move small wall down">>
+    <<moveobject 'demo' "smallwall" 0 1>>
+<</link>>
+go to 
+[[otherpassage]]
 <style>
     .macro-showmap-map {
         display: grid;
@@ -171,5 +180,6 @@ demo map
     
 </style>
 
-:: test2 
+:: otherpassage 
+back to
 [[Start]]

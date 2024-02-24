@@ -1423,6 +1423,8 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
                     spany           : spany,
                     wall            : wall,
                 };
+                map.residents[residenttype] ??= {};
+                map.residents[residenttype][residentid] = resident;
 
                 //////////////////////////////////////////////////
                 // if map current displayed, add to display
@@ -1650,17 +1652,18 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
 
                 //////////////////////////////////////////////////
                 // update map object
-                const $resident = $(`[data-sn="${residentsn}"]`).first();
-                if ($resident.length > 0) {
-                    $resident.remove();
-                    const $r = create_resident.call(this, {
-                        mapid       : mapid,
-                        resident    : resident,
-                    });
-                    $r.appendTo($(`[data-sn="${mapsn}"]`));
+                $(`[data-sn="${mapsn}"]`).trigger(':mapupdate');
+                // const $resident = $(`[data-sn="${residentsn}"]`).first();
+                // if ($resident.length > 0) {
+                //     $resident.remove();
+                //     const $r = create_resident.call(this, {
+                //         mapid       : mapid,
+                //         resident    : resident,
+                //     });
+                //     $r.appendTo($(`[data-sn="${mapsn}"]`));
 
-                    Macro.get('mapcalculate').handlerJS.call(this, argObj);
-                }
+                //     Macro.get('mapcalculate').handlerJS.call(this, argObj);
+                // }
             }
 
             //////////////////////////////////////////////////
@@ -1756,7 +1759,7 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
             }
             // extract from map
             const map = getmap(mapid);
-            const residents = svnavmap.maps["map_" + mapid].residents;
+            const residents = map.residents
 
             try {
             
@@ -1764,7 +1767,7 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
                 for (const r of residentid) {
                     const resident = getresident(mapid, residenttype, r);
                     const residentsn = clone(resident.residentsn);
-                    delete residents[String(residenttype) + "_" + String(r)];
+                    delete residents[residenttype][residentid];
                     
                     //////////////////////////////////////////////////
                     // if map displayed, remove
@@ -1892,7 +1895,7 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
             }
             // extract from map
             const map = getmap(mapid);
-            const { columns, traversible } = map;
+            const { columns, traversible, mapsn } = map;
             const resident = getresident(mapid, residenttype, residentid);
             const { x, y, spanx, spany } = resident;
 
@@ -1933,6 +1936,7 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
                                     return this.error(error)
                                 }
                                 else {
+                                    console.log('collision');
                                     return
                                 }
                             }
@@ -1942,6 +1946,8 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
                 resident.x += deltax;
                 resident.y += deltay;
                 Macro.get('mapcalculate').handlerJS.call(this, argObj);
+
+                $(`[data-sn="${mapsn}"]`).trigger(':mapupdate');
                 
             }
 

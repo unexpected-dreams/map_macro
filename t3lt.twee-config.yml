@@ -66,3 +66,13 @@ sugarcube-2:
     addplayer:
       name: addplayer
       container: true
+    deleteobject:
+      name: deleteobject
+    moveobject:
+      name: moveobject
+    defineplayer:
+      name: defineplayer
+      container: true
+    newobject:
+      name: newobject
+      container: true
