@@ -1187,13 +1187,15 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
                     });
                     $nav.on(':navupdate', function(ev, d_input) {
                         const mapid = $(this).attr('data-mapid');
-                        Macro.get("moveresident").handlerJS.call(this, {
-                            mapid           : mapid,
-                            residentid      : "player",
-                            residenttype    : "player",
-                            deltax          : directions[d_input].deltax,
-                            deltay          : directions[d_input].deltay,
-                        });
+                        if (d_input) {
+                            Macro.get("moveresident").handlerJS.call(this, {
+                                mapid           : mapid,
+                                residentid      : "player",
+                                residenttype    : "player",
+                                deltax          : directions[d_input].deltax,
+                                deltay          : directions[d_input].deltay,
+                            });
+                        }
                         $nav.html('');
                         for (const d in directions) {
                             const $direction = create_direction.call(this, {
@@ -1653,6 +1655,7 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
                 //////////////////////////////////////////////////
                 // update map object
                 $(`[data-sn="${mapsn}"]`).trigger(':mapupdate');
+                $(`.macro-shownav-nav[data-mapid="${mapid}"]`).trigger(':navupdate');
                 // const $resident = $(`[data-sn="${residentsn}"]`).first();
                 // if ($resident.length > 0) {
                 //     $resident.remove();
@@ -1776,6 +1779,7 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
                         $r.remove();
                         Macro.get('mapcalculate').handlerJS.call(this, argObj);
                     }
+                    $(`.macro-shownav-nav[data-mapid="${mapid}"]`).trigger(':navupdate');
                 }
             }
 
@@ -1948,6 +1952,7 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
                 Macro.get('mapcalculate').handlerJS.call(this, argObj);
 
                 $(`[data-sn="${mapsn}"]`).trigger(':mapupdate');
+                $(`.macro-shownav-nav[data-mapid="${mapid}"]`).trigger(':navupdate');
                 
             }
 

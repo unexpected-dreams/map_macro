@@ -64,7 +64,7 @@ map
 player nav
 <<shownav 
     mapid       'demo'
-    diagonal    false
+    diagonal    true
 >>
 <</shownav>>
 other stuff
