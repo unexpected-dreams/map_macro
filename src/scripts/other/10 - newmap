@@ -47,10 +47,10 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
 //  for fancier maps, trickier to work with
 
     // traversible indices and collision checks
-    config.player.wall        = true;       // true means others collide into it
-    config.building.wall      = true;
-    config.object.wall        = false;
-    config.npc.wall           = false;
+    config.player.iswall        = true;
+    config.building.iswall      = true;
+    config.object.iswall        = false;
+    config.npc.iswall           = false;
 
     // make non-square tiles
     config.tile.width           = 2;        // width > height for fat tiles
@@ -142,75 +142,40 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
         }
     }
 
+    // mapsn       : mapsn,
+    // mapid       : String(mapid),
+    // mapname     : mapname,
+    // arr         : arr,
+    // columns     : columns,
+    // rows        : arr.length / columns,
+    // diagonal    : diagonal,
+    // tiles       : tiles,
+    // residents   : {},
+    // traversible : new Array(arr.length).fill(false),
     //////////////////////////////////////////////////
-    const navmaps = {};
     setup.navmaps = navmaps;
+    const navmaps = {};
     class Navmap {
         constructor(mapid,arr,columns) {
             if (! def.allowclobbering && navmaps[mapid]) {
                 throw new Error(`Navmap with mapid "${mapid}" already exists`);
             }
-            navmaps[String(mapid)]  = this;
-            this.mapsn              = window.crypto.randomUUID();
-            this.mapid              = String(mapid);
-            this.arr                = arr,
-            this.columns            = columns,
-            this.rows               = this.arr.length / columns;
-            this.traversible        = new Array(this.arr.length).fill(false);
-
-            this.tiles = {}
-            // write everything floor first
-            for (const tileid of new Set(this.arr)) {
-                this.tiles[String(tileid)] = {
-                    mapid       : this.mapid,
-                    tilesn      : window.crypto.randomUUID(),
-                    tileid      : String(tileid),
-                    tilename    : tileid,
-                    tiletype    : def.floor.type,
-                    tileelement : tileid,
-                };
-            }
-            // then write from default
-            this.tiles[String(def.wall.id)] = {
-                mapid       : this.mapid,
-                tilesn      : window.crypto.randomUUID(),
-                tileid      : String(def.wall.id),
-                tilename    : def.wall.name,
-                tiletype    : def.wall.type,
-                tileelement : def.wall.element,
-            };
-            this.tiles[String(def.floor.id)] = {
-                mapid       : this.mapid,
-                tilesn      : window.crypto.randomUUID(),
-                tileid      : String(def.floor.id),
-                tilename    : def.floor.name,
-                tiletype    : def.floor.type,
-                tileelement : def.floor.element,
-            };
-
-            // auto create player if not extant
-            this.residents ??= {};
-            if (! this.residents.player) {
-                this.residents.player = { 
-                    player: {
-                        residentid      : 'player',
-                        residentname    : 'Player',
-                        wall            : def.player.wall,
-                        spanx           : def.player.spanx,
-                        spany           : def.player.spany,
-                        x               : 1,
-                        y               : 1,
-                    }
-                }
-            }
+            navmaps[mapid]      = this;
+            this.mapsn          = window.crypto.randomUUID();
+            this.mapid          = mapid;
+            this.diagonal       = def.nav.diagonal;
+            this.arr            = arr,
+            this.columns        = columns,
+            this.traversible    = [];
+            this.residents      ??= {};
         }
-
         set residents(val) {
             State.variables[config.Statename][this.mapid] = val;
         }
         get residents() {
             return State.variables[config.Statename][this.mapid]
         }
+
 
         // goodie bag
         static newmap           (argObj) { Macro.get('newmap').handlerJS(argObj) }
@@ -220,14 +185,35 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
         static moveresident     (argObj) { Macro.get('moveresident').handlerJS(argObj) }
         static mapcalculate     (argObj) { Macro.get('mapcalculate').handlerJS(argObj) }
     }
-
-    //////////////////////////////////////////////////
-    // set global
+    // getter setter goodie bag
     if (! def.disableglobal) {
         Object.defineProperty(window, def.globalname, {
             value: Navmap,
         });
     }
+    //     Object.defineProperty(window, def.globalname, {
+    //         value: {
+    //             // get stuff, w/ lazy catchers
+    //             getmap:         (...args) => get_map(...args),
+    //             gettile:        (...args) => get_tile(...args),
+    //             getresident:    (...args) => get_resident(...args),
+    //             // same as macro with same name
+    //             newmap:         (argObj) => Macro.get('newmap').handlerJS(argObj),
+    //             maptile:        (argObj) => Macro.get('maptile').handlerJS(argObj),
+    //             // generalized input for macros, residenttype specification required
+    //             newresident:    (argObj) => Macro.get('newresident').handlerJS(argObj),
+    //             deleteresident: (argObj) => Macro.get('deleteresident').handlerJS(argObj),
+    //             moveresident:   (argObj) => Macro.get('moveresident').handlerJS(argObj),
+    //             // manually update traversible indices, w/ lazy catcher
+    //             mapcalculate:   function(args) {
+    //                 const input = typeof args === 'object'
+    //                                 ? args
+    //                                 : {mapid: args};
+    //                 Macro.get('mapcalculate').handlerJS(input);
+    //             },
+    //         },
+    //     });
+    // }
 
     //////////////////////////////////////////////////
     // convert between xy & i
@@ -238,31 +224,44 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
     }
     function convert_xy2i(xy, columns) {
         const {x,y} = xy;
-        if (x < 1 || y < 1) {
-            return -1
-        }
         const i = (y - 1) * columns + x - 1;
         return i
     }
 
+    // mapsn       : mapsn,
+    // mapid       : String(mapid),
+    // mapname     : mapname,
+    // arr         : arr,
+    // columns     : columns,
+    // rows        : arr.length / columns,
+    // diagonal    : diagonal,
+    // tiles       : tiles,
+    // residents   : {},
+    // traversible : new Array(arr.length).fill(false),
     //////////////////////////////////////////////////
+    // window.Navmap = Navmap;
     // retrieve data
-    function getmap(...args) {
-        const mapid = args[0].mapid ?? args[0];
-        return navmaps[mapid]
+    function get_map(argObj) {
+        const mapid = argObj?.mapid ?? argObj;
+        const map   = Macro.get('newmap').maps["map_".concat(mapid)]
+                        ? {
+                            ...Macro.get('newmap').maps["map_".concat(mapid)],
+                            ...State.variables[config.Statename]["map_".concat(mapid)],
+                        }
+                        : undefined;
+        return map
     }
-    function gettile(...args) {
-        const mapid = args[0].mapid ?? args[0];
-        const tileid = args[0].tileid ?? args[1];
-        const map = getmap(mapid);
-        return map.tiles[tileid]
+    function get_tile(...args) {
+        const mapid = args[0]?.mapid ?? args[0];
+        const tileid = args[0]?.tileid ?? args[1];
+        const map = get_map(mapid);
+        return map.tiles["tile_" + String(tileid)];
     }
-    function getresident(...args) {
-        const mapid = args[0].mapid ?? args[0];
-        const residenttype = args[0].residenttype ?? args[1];
-        const residentid = args[0].residentid ?? args[2];
-        const map = getmap(mapid);
-        return map.residents[residenttype][residentid]
+    function get_resident(...args) {
+        const mapid = args[0]?.mapid ?? args[0];
+        const residenttype = args[0]?.residenttype ?? args[1];
+        const residentid = args[0]?.residentid ?? args[2];
+        return svnavmap.maps[`map_${String(mapid)}`].residents[String(residenttype) + "_" + String(residentid)]
     }
 
     //////////////////////////////////////////////////
@@ -270,7 +269,7 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
     function create_tile(argObj) {
         const { mapid, tile, i }= argObj;
         const { tilesn, tileid, tilename, tiletype, tileelement } = tile;
-        const map = getmap(mapid);
+        const map = get_map(mapid);
         const { columns } = map;
         try {
             const { x, y } = convert_i2xy(i, columns);
@@ -295,14 +294,14 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
         }
         //////////////////////////////////////////////////
         catch (error) {
-            console.error(`${this.name} - failed to create tile element at "${i}" on "${mapid}" for ${this.name}`);
+            console.error(`failed to create tile element at "${i}" on "${mapid}" for ${this.name}`);
             console.error(error);
         }
     }
     //////////////////////////////////////////////////
     function create_resident(argObj) {
         const { mapid, resident } = argObj;
-        const { residentsn, residentid, residenttype, residentname, x, y, spanx, spany, residentelement } = resident;
+        const { residentsn, residentid, residenttype, residentname, x, y, width, height, residentelement } = resident;
         try {
 
             const $r = $(document.createElement('div'));
@@ -316,64 +315,51 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
                 .wiki(residentelement       
                     ? residentelement
                     : residentname          // use name as fallback
-                )
-                .css({
-                    'grid-column'   : `${x} / span ${spanx}`,
-                    'grid-row'      : `${y} / span ${spany}`,
-                });
+                );
             return $r
         }
         //////////////////////////////////////////////////
         catch (error) {
-            console.error(`${this.name} - failed to create ${residenttype} element "${residentid}" on "${mapid}" for "${this.name}"`);
+            console.error(`failed to create ${residenttype} element "${residentid}" on "${mapid}" for "${this.name}"`);
             console.error(error);
         }
     }
     //////////////////////////////////////////////////
     function create_direction(argObj) {
         const { mapid, direction } = argObj;
-        const map = getmap(mapid);
+        const map = get_map(mapid);
         const { arr, columns, traversible } = map;
         const { id, name, deltax, deltay } = direction;
-        const player = getresident(mapid, "player", "player");
+        const player = get_resident(mapid, "player", "player");
         try {
-            
+            const x = player.x + deltax;
+            const y = player.y + deltay;
+            const i = convert_xy2i({x,y}, columns);
+            const tile = get_tile(mapid, arr[i]);
+            const { tileid, tilename, tileelement } = tile
+            // const p = this.payload.filter( p => p.name === name )[0];
+            const disabled = ! traversible[i];
             const $dir = $(document.createElement('div'));
             $dir
                 .addClass(`macro-shownav-direction macro-shownav-${id}`)
                 .attr('data-id', id)
-                .attr('data-direction', name)
-                .attr('data-mapid', mapid);
+                .attr('data-direction',name)
+                .attr('data-disabled', disabled)
+                .attr('data-mapid', mapid)
+                .attr('data-tileid', tileid);
 
-            const x = player.x + deltax;
-            const y = player.y + deltay;
-            const i = convert_xy2i({x,y}, columns);
-
-            if (i >= 0) {
-                const tile = gettile(mapid, arr[i]);
-                const { tileid, tilename, tileelement } = tile
-                // const p = this.payload.filter( p => p.name === name )[0];
-                const disabled = ! traversible[i];
-                $dir
-                    .attr('data-disabled', disabled)
-                    .attr('data-tileid', tileid)
-                    .wiki(! disabled
+            if (! disabled) {
+                $dir.wiki(tilename
                             ? tilename
-                                ? tilename
-                                : tileid
-                            : '');
-            }
-            else {
-                $dir
-                    .attr('data-disabled', true)
-                    .attr('data-tileid', null)
+                            : tileid
+                );
             }
 
             return $dir
         }
         //////////////////////////////////////////////////
         catch (error) {
-            console.error(`${this.name} - failed to create nav direction "${name}" for "${mapid}"`);
+            console.error(`failed to create nav direction "${name}" for "${mapid}"`);
             console.error(error);
         }
     }
@@ -413,65 +399,7 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
         exact: ['cm','mm','Q','in','pc','pt','px','em','ex','ch','rem','lh','rlh','vw','vh','vmin','vmax','vb','vi','svw','svh','lvh','dvw','dvh','%'],
         label: "any valid 'CSS unit'",
     };
-    const directions_4 = {
-        C: {
-            id      : 'C',
-            name    : 'center',
-            deltax  : 0,
-            deltay  : 0,
-        },
-        N: {
-            id      : 'N',
-            name    : 'north',
-            deltax  : 0,
-            deltay  : -1,
-        },
-        E: {
-            id      : 'E',
-            name    : 'east',
-            deltax  : 1,
-            deltay  : 0,
-        },
-        S: {
-            id      : 'S',
-            name    : 'south',
-            deltax  : 0,
-            deltay  : 1,
-        },
-        W: {
-            id      : 'W',
-            name    : 'west',
-            deltax  : -1,
-            deltay  : 0,
-        },
-    };
-    const directions_8 = {
-        ...directions_4,
-        NW: {
-            id      : 'NW',
-            name    : 'northwest',
-            deltax  : -1,
-            deltay  : -1,
-        },
-        NE: {
-            id      : 'NE',
-            name    : 'northeast',
-            deltax  : 1,
-            deltay  : -1,
-        },
-        SE: {
-            id      : 'SE',
-            name    : 'southeast',
-            deltax  : 1,
-            deltay  : 1,
-        },
-        SW: {
-            id      : 'SW',
-            name    : 'southwest',
-            deltax  : -1,
-            deltay  : 1,
-        },
-    };    
+    
 
 
 // █    █ █████ █     █ █    █  ███  ████
@@ -526,7 +454,7 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
             this.name   ??= argObj.id ?? "newmap";
             this.error  ??= function(error) { throw new Error(error) };
             // extract from argObj
-            const { source, mapid, diagonal, inputtype, inputmap } = {
+            const { source, mapid, diagonal, inputtype, inputmap, savetostate } = {
                 diagonal        : def.nav.diagonal,
                 ...argObj,
             };
@@ -557,7 +485,7 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
                 }
             }
             catch (error) {
-                console.error(`${this.name} - failed to parse inputmap for inputtype "${inputtype}"`);
+                console.error(`failed to parse inputmap for inputtype "${inputtype}"`);
                 console.error(inputmap);
                 console.error(error);
             }
@@ -588,7 +516,13 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
             const mapsn = window.crypto.randomUUID();
 
             try {
+                console.log(get_map(mapid));
                 //////////////////////////////////////////////////
+                // ERROR: map already exists
+                if (! def.allowclobbering && get_map(mapid)) {
+                    const error = `${this.name} - map "${mapid}" already exists`;
+                    return this.error(error)
+                }
                 // ERROR: map not rectangular
                 if (arr.length % columns) {
                     const error = `${this.name} - input map is not rectangular`;
@@ -596,16 +530,60 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
                 }
 
                 //////////////////////////////////////////////////
-                const map = new Navmap(mapid,arr,columns);
-                map.diagonal = diagonal;
-                map.mapname  = mapname;
+                // default tiles, set everything to floor first
+                const tiles = {};
+                for (const tileid of new Set(arr)) {
+                    tiles["tile".concat(tileid)] = {
+                        mapid       : mapid,
+                        tilesn      : window.crypto.randomUUID(),
+                        tileid      : String(tileid),
+                        tilename    : tileid,
+                        tiletype    : def.floor.type,
+                        tileelement : tileid,
+                    };
+                }
+                // then write from default
+                tiles["tile_".concat(def.wall.id)] = {
+                    mapid       : mapid,
+                    tilesn      : window.crypto.randomUUID(),
+                    tileid      : String(def.wall.id),
+                    tilename    : def.wall.name,
+                    tiletype    : def.wall.type,
+                    tileelement : def.wall.element,
+                };
+                tiles["tile_".concat(def.floor.id)] = {
+                    mapid       : mapid,
+                    tilesn      : window.crypto.randomUUID(),
+                    tileid      : String(def.floor.id),
+                    tilename    : def.floor.name,
+                    tiletype    : def.floor.type,
+                    tileelement : def.floor.element,
+                };
 
+                //////////////////////////////////////////////////
+                // create navmap object
+                Macro.get("newmap").maps["map_".concat(mapid)] = {
+                    mapsn       : mapsn,
+                    mapid       : String(mapid),
+                    mapname     : mapname,
+                    arr         : arr,
+                    columns     : columns,
+                    rows        : arr.length / columns,
+                    diagonal    : diagonal,
+                    tiles       : tiles,
+                    // residents   : {},
+                    traversible : new Array(arr.length).fill(false),
+                };
+                // save residents to state
+                State.variables[config.Statename]["map_".concat(mapid)] = {
+                    residents   : {},
+                };
                 Macro.get('mapcalculate').handlerJS.call(this, argObj);
             }
 
             //////////////////////////////////////////////////
             catch (error) {
-                console.error(`${this.name} - failed to create newmap navmap object for "${mapid}"`);
+                console.error(`failed to create newmap navmap object for "${mapid}"`);
                 console.error(error);
             }
         },
@@ -711,7 +689,7 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
 
             //////////////////////////////////////////////////
             catch (error) {
-                console.error(`${this.name} - failed to process payloads for ${argObj.mapid}`);
+                console.error(`failed to process ${this.name} payloads for ${argObj.mapid}`);
                 console.error(error);
             }
             
@@ -772,7 +750,7 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
             try {
 
                 for (const t of tileid) {
-                    const tile = gettile(mapid, t);
+                    const tile = get_tile(mapid, t);
                     if (tilename) {
                         tile.tilename = tilename;
                     }
@@ -788,7 +766,7 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
 
             //////////////////////////////////////////////////
             catch (error) {
-                console.error(`${this.name} - failed to process "${tileid}" maptile definition for "${mapid}"`);
+                console.error(`failed to process "${tileid}" maptile definition for "${mapid}"`);
                 console.error(error);
             }
         },
@@ -911,7 +889,7 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
                 });
             }
             // extract from map
-            const map = getmap(mapid);
+            const map = get_map(mapid);
             const { mapsn, mapname, columns, rows, arr } = map;
             const residents = map.residents;
 
@@ -983,49 +961,31 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
                     const tileid = arr[i];
                     const $t = create_tile.call(this, {
                         mapid       : mapid,
-                        tile        : gettile(mapid, tileid),
+                        tile        : get_tile(mapid, tileid),
                         i           : i,
                     });
                     $t.appendTo($map);
                 }
                 // create residents
-                for (const type in residents) {
-                    for (const r in residents[type]) {
-                        const $r = create_resident.call(this, {
-                            mapid       : mapid,
-                            resident    : residents[type][r],
-                        });
-                        $r.appendTo($map);
-                    }
+                for (const r in residents) {
+                    const $r = create_resident.call(this, {
+                        mapid       : mapid,
+                        resident    : residents[r],
+                    });
+                    $r.appendTo($map);
                 }
 
                 // place residents
-                // setTimeout( () => place_resident.call(this, {mapid}), 40)
+                setTimeout( () => place_resident.call(this, {mapid}), 40)
 
                 // output
                 $map.appendTo(this.output);
-
-                setTimeout( function() {
-                    $map.on(':mapupdate', function(ev) {
-                        $(this).children(`.macro-showmap-resident`).remove();
-                        for (const type in residents) {
-                            for (const r in residents[type]) {
-                                const $r = create_resident.call(this, {
-                                    mapid       : mapid,
-                                    resident    : residents[type][r],
-                                });
-                                $r.appendTo($map);
-                            }
-                        }
-                    });
-                }, 40)
-
                 
             }
 
             //////////////////////////////////////////////////
             catch (error) {
-                console.error(`${this.name} - failed to create showmap element for "${mapid}"`);
+                console.error(`failed to create showmap element for "${mapid}"`);
                 console.error(error);
             }
         },
@@ -1087,7 +1047,7 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
             };
             validate_required.call(this, {mapid});
             // extract from map
-            const map = getmap(mapid);
+            const map = get_map(mapid);
             const diagonal = argObj.diagonal ?? map.diagonal ?? def.nav.diagonal;
             // validate args
             if (! def.skipcheck.sensible) {
@@ -1123,10 +1083,67 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
                         "--width"   : String(width) + unit,
                     });
 
-                
+                const directions = {
+                    C: {
+                        id      : 'C',
+                        name    : 'center',
+                        deltax  : 0,
+                        deltay  : 0,
+                    },
+                    N: {
+                        id      : 'N',
+                        name    : 'north',
+                        deltax  : 0,
+                        deltay  : -1,
+                    },
+                    E: {
+                        id      : 'E',
+                        name    : 'east',
+                        deltax  : 1,
+                        deltay  : 0,
+                    },
+                    S: {
+                        id      : 'S',
+                        name    : 'south',
+                        deltax  : 0,
+                        deltay  : 1,
+                    },
+                    W: {
+                        id      : 'W',
+                        name    : 'west',
+                        deltax  : -1,
+                        deltay  : 0,
+                    },
+                }
+                if (diagonal) {
+                    Object.assign(directions, {
+                        NW: {
+                            id      : 'NW',
+                            name    : 'northwest',
+                            deltax  : -1,
+                            deltay  : -1,
+                        },
+                        NE: {
+                            id      : 'NE',
+                            name    : 'northeast',
+                            deltax  : 1,
+                            deltay  : -1,
+                        },
+                        SE: {
+                            id      : 'SE',
+                            name    : 'southeast',
+                            deltax  : 1,
+                            deltay  : 1,
+                        },
+                        SW: {
+                            id      : 'SW',
+                            name    : 'southwest',
+                            deltax  : -1,
+                            deltay  : 1,
+                        },
+                    });
+                }
                 // fill in each direction
-                const directions = diagonal ? directions_8 : directions_4;
-                
                 for (const d in directions) {
                     const $direction = create_direction.call(this, {
                         mapid       : mapid,
@@ -1143,29 +1160,22 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
                         if (d && (d !== "C")) {
                             const disabled = $(ev.target).attr('data-disabled') === "true";
                             if (! disabled) {
-                                $(this).trigger(':navupdate', [d]);
-                                const mapid = $(this).attr('data-mapid');
-                                const mapsn = getmap(mapid).mapsn;
-                                $(`[data-sn="${mapsn}"]`).trigger(':mapupdate');
+                                Macro.get("moveresident").handlerJS.call(this, {
+                                    mapid           : mapid,
+                                    residentid      : "player",
+                                    residenttype    : "player",
+                                    deltax          : directions[d].deltax,
+                                    deltay          : directions[d].deltay,
+                                });
+                                $nav.html('');
+                                for (const d in directions) {
+                                    const $direction = create_direction.call(this, {
+                                        mapid       : mapid,
+                                        direction   : directions[d],
+                                    });
+                                    $direction.appendTo($nav);
+                                }
                             }
-                        }
-                    });
-                    $nav.on(':navupdate', function(ev, d_input) {
-                        const mapid = $(this).attr('data-mapid');
-                        Macro.get("moveresident").handlerJS.call(this, {
-                            mapid           : mapid,
-                            residentid      : "player",
-                            residenttype    : "player",
-                            deltax          : directions[d_input].deltax,
-                            deltay          : directions[d_input].deltay,
-                        });
-                        $nav.html('');
-                        for (const d in directions) {
-                            const $direction = create_direction.call(this, {
-                                mapid       : mapid,
-                                direction   : directions[d],
-                            });
-                            $direction.appendTo($nav);
                         }
                     });
                 }, 40)
@@ -1177,7 +1187,7 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
 
             //////////////////////////////////////////////////
             catch (error) {
-                console.error(`${this.name} -  failed to create nav rose for ${mapid}`);
+                console.error(`failed to create nav rose for ${mapid}`);
                 console.error(error);
             }
         },
@@ -1334,7 +1344,7 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
                 });
             }
             // extract from map
-            const map = getmap(mapid);
+            const map = get_map(mapid);
             const { mapsn } = map;
 
             try {
@@ -1348,7 +1358,7 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
                     return this.error(error)
                 }
                 // ERROR: resident already exists
-                if (! def.allowclobbering && getresident(mapid, residenttype, residentid)) {
+                if (! def.allowclobbering && get_resident(mapid, residenttype, residentid)) {
                     const error = residenttype === "player"
                                     ? `${this.name} - player already exists in map "${mapid}"`
                                     : `${this.name} - ${residenttype} with id "${residentid}" already exists in map "${mapid}"`;
@@ -1400,7 +1410,7 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
                     });
                     $r.appendTo($map);
 
-                    // place_resident.call(this, {mapid, residenttype, residentid});
+                    place_resident.call(this, {mapid, residenttype, residentid});
 
                     Macro.get('mapcalculate').handlerJS.call(this, argObj);
                 }
@@ -1408,7 +1418,7 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
 
             //////////////////////////////////////////////////
             catch (error) {
-                console.error(`${this.name} = failed to add ${residenttype} "${residentid}" to "${mapid}"`);
+                console.error(`failed to add ${residenttype} "${residentid}" to "${mapid}"`);
                 console.error(error);
             }
         },
@@ -1498,14 +1508,14 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
                 });
             }
             // extract from map
-            const map = getmap(mapid);
+            const map = get_map(mapid);
             const residents = svnavmap.maps["map_" + mapid].residents;
 
             try {
             
                 //////////////////////////////////////////////////
                 for (const r of residentid) {
-                    const resident = getresident(mapid, residenttype, r);
+                    const resident = get_resident(mapid, residenttype, r);
                     const residentsn = clone(resident.residentsn);
                     delete residents[String(residenttype) + "_" + String(r)];
                     
@@ -1521,22 +1531,24 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
 
             //////////////////////////////////////////////////
             catch (error) {
-                console.error(`${this.name} - failed to delete ${residenttype} "${residentid}" from "${mapid}"`);
+                console.error(`failed to delete ${residenttype} "${residentid}" from "${mapid}"`);
                 console.error(error);
             }
         },
     });
 
 
+// STOPPED HERE
 
-// █    █  ████  █   █ █████ ████  █████  ████
-// ██  ██ █    █ █   █ █     █   █ █     █
-// █ ██ █ █    █ █   █ ███   ████  ███    ███
-// █    █ █    █  █ █  █     █   █ █         █
-// █    █  ████    █   █████ █   █ █████ ████
-// SECTION: moveres / move resident
 
     Macro.add(["moveresident","moveplayer","movenpc","movebuilding","moveobject"], {
+
+    //     █    █  ████  █   █ █████ ████  █████  ████
+    //     ██  ██ █    █ █   █ █     █   █ █     █
+    //     █ ██ █ █    █ █   █ ███   ████  ███    ███
+    //     █    █ █    █  █ █  █     █   █ █         █
+    //     █    █  ████    █   █████ █   █ █████ ████
+    //      SECTION: move resident
 
         handler() {
             //////////////////////////////////////////////////
@@ -1598,7 +1610,7 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
             this.name   ??= argObj.id ?? argObj.residenttype
                                             ? "move" + argObj.residenttype
                                             : "moveresident";
-            this.error  ??= function(error) { throw new Error(error) };
+            this.error ??= function(error) { throw new Error(error) };
             // player handling
             if (this.name === "moveplayer") {
                 argObj.residentid = "player";
@@ -1634,9 +1646,9 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
                 });
             }
             // extract from map
-            const map = getmap(mapid);
+            const map = get_map(mapid);
             const { columns, traversible } = map;
-            const resident = getresident(mapid, residenttype, residentid);
+            const resident = get_resident(mapid, residenttype, residentid);
             const { x, y, spanx, spany } = resident;
 
             try {
@@ -1685,90 +1697,20 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
                 resident.x += deltax;
                 resident.y += deltay;
                 Macro.get('mapcalculate').handlerJS.call(this, argObj);
+
+                place_resident.call(this, {mapid, residenttype, residentid});
                 
             }
 
             //////////////////////////////////////////////////
             catch (error) {
-                console.error(`${this.name} - failed to move ${residenttype} "${residentid}" on "${mapid}"`);
+                console.error(`failed to move ${residenttype} "${residentid}" on "${mapid}"`);
                 console.error(error);
             }
         },
     });
 
 
-//  ████ █████ █████ ████  █████  ████
-// █     █       █   █   █ █     █
-//  ███  ███     █   ████  ███    ███
-//     █ █       █   █   █ █         █
-// ████  █████   █   █   █ █████ ████
-// SECTION: set resident / setres
-    Macro.add(["setresident","setplayer","setnpc","setbuilding","setobject"], {
-
-        handler() {
-            //////////////////////////////////////////////////
-            //////////////////////////////////////////////////
-            const argObj = this.name === "setplayer" 
-                ? create_argObj.call(this, this.args, {
-                    id: this.name,
-                    mapid: {
-                        type        : 'string',
-                        alias       : 'map',
-                    },
-                    x: {
-                        type        : 'number',
-                    },
-                    y: {
-                        type        : 'number',
-                    },
-                })
-                : create_argObj.call(this, this.args, {
-                    id: this.name,
-                    mapid: {
-                        type        : 'string',
-                        alias       : 'map',
-                    },
-                    residentid: {
-                        type        : 'string',
-                        alias       : [
-                                        'id',
-                                        'npcid',        'npc',
-                                        'buildingid',   'building',
-                                        'objectid',     'object',
-                                    ],
-                    },
-                    x: {
-                        type        : 'number',
-                    },
-                    y: {
-                        type        : 'number',
-                    },
-                })
-            argObj.residenttype = this.name.replace("set","");
-            this.self.handlerJS.call(this, argObj);
-        },
-
-        handlerJS(argObj) {
-            //////////////////////////////////////////////////
-            //////////////////////////////////////////////////
-            // necessary definitions
-            this.name   ??= argObj.id ?? argObj.residenttype
-                                            ? "set" + argObj.residenttype
-                                            : "setresident";
-            this.error  ??= function(error) { throw new Error(error) };
-            // player handling
-            if (this.name === 'setplayer') {
-                argObj.residentid = 'player';
-            }
-            // extract from argObj
-            const { mapid, residenttype, residentid, x, y } = argObj;
-            const map = getmap(mapid);
-            console.log(map.residents[residenttype]);
-            const resident = map.residents[residenttype][residentid];
-            resident.x = x;
-            resident.y = y;
-        },
-    });
 
 // █    █  ███  ████   ████  ███  █      ████ █   █ █      ███  █████ █████
 // ██  ██ █   █ █   █ █     █   █ █     █     █   █ █     █   █   █   █
@@ -1788,6 +1730,11 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
                     type        : 'string',
                     alias       : 'map',
                 },
+                coordinates: {      // remember, this gets turned into an array
+                    type        : ["object","array"],
+                    infinite    : true,
+                    alias       : 'xy',
+                },
             });
             this.self.handlerJS.call(this, argObj);
         },
@@ -1805,39 +1752,52 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
             // extract from argObj
             const { mapid } = argObj;
             validate_required.call(this, {id:this.name, mapid});
+            // turn into array if it isn't
+            const coordinates   = TypeSet.id(argObj.coordinates) === 'array'
+                                    ? argObj.coordinates
+                                : TypeSet.id(argObj.coordinates) === 'object'
+                                    ? [argObj.coordinates]
+                                : null;
             // extract from 
-            const map = getmap(mapid);
-            const { columns, arr, traversible, residents } = map;
-
+            const map = get_map(mapid);
+            const { columns, arr, traversible } = map;
+            const residents = svnavmap.maps["map_" + mapid].residents;
             try {
+
+                //////////////////////////////////////////////////
+                // specific indices given, only change those
+                if (coordinates) {
+                    for (const xy of coordinates) {
+                        const i = convert_xy2i(xy, columns);
+                        traversible[i] = xy.wall;
+                    }
+                    return
+                }
 
                 //////////////////////////////////////////////////
                 // fill in all walltypes
                 const walltype = def.wall.type;
                 for (let i = 0; i < arr.length; i++) {
                     const t = arr[i];
-                    const tile = gettile(mapid, t);
-                    traversible[i] = tile.tiletype !== walltype;
+                    traversible[i] = get_tile(mapid, t).tiletype !== walltype;
                 }
-
+                
                 //////////////////////////////////////////////////
                 // check all residents
-                for (const type in residents) {
-                    for (const r in residents[type]) {
-                        const { wall, x, y, spanx, spany } = residents[type][r];
-                        // skip if not wall
-                        if (! wall) {
-                            continue;
-                        }
-                        // fill in otherwise
-                        for (let j = 0; j < spanx; j++) {
-                            for (let k = 0; k < spany; k++) {
-                                const i = convert_xy2i({
-                                    x   : x + j,
-                                    y   : y + k,
-                                }, columns);
-                                traversible[i] = false;
-                            }
+                for (const r in residents) {
+                    const { wall, x, y, spanx, spany } = residents[r];
+                    // skip if not wall
+                    if (! wall) {
+                        continue;
+                    }
+                    // fill in otherwise
+                    for (let j = 0; j < spanx; j++) {
+                        for (let k = 0; k < spany; k++) {
+                            const i = convert_xy2i({
+                                x   : x + j,
+                                y   : y + k,
+                            }, columns);
+                            traversible[i] = false;
                         }
                     }
                 }
@@ -1845,7 +1805,7 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
 
             //////////////////////////////////////////////////
             catch (error) {
-                console.error(`${this.name} - failed to calculate traversible indices for "${mapid}"`);
+                console.error(`failed to calculate traversible indices for "${mapid}"`);
                 console.error(error);
             }
         },

@@ -130,7 +130,7 @@ function validatation_errors(argObj) {
             // ERROR: map doesn't exist
             if (
                 (key === "mapid")   && 
-                (! getmap(val))
+                (! get_map(val))
             ) {
                 const error = `${id} - no map with id "${val}" found`;
                 return this.error(error)
@@ -138,7 +138,7 @@ function validatation_errors(argObj) {
             // ERROR: tile doesn't exist in map
             if (
                 (key === "tileid")  &&
-                (! gettile(template.mapid.val,val))
+                (! get_tile(template.mapid.val,val))
             ) {
                 const error = `${id} - no tile with id "${val}" in map ${template.mapid.val} found`;
                 return this.error(error)
@@ -146,7 +146,7 @@ function validatation_errors(argObj) {
             // ERROR: resident doesn't exist in map
             if (
                 (key === "residentid")  &&
-                (! getresident(template.mapid.val,template.residenttype.val,val))
+                (! get_resident(template.mapid.val,template.residenttype.val,val))
             ) {
                 const error = val === "player"
                                 ? `${id} - no player found residing on map "${template.mapid.val}", use <<addplayer>> to add one`
@@ -219,7 +219,7 @@ function validate_xy(template) {
     }
 
     try {
-        const map = getmap(mapid);
+        const map = get_map(mapid);
         const { arr, columns } = map;
         // check upper bound
         if (x.upper > columns) {

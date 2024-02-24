@@ -36,20 +36,21 @@ demo map
     .   .   .   .   .   .
 
 <</newmap>>
-<<maptile 'demo' "K" "D" "H">>
+/* <<maptile 'demo' "K" "D" "H">>
     <<tiletype 'test'>>
     <<tileelement>>
         #
-<</maptile>>
-/<<newnpc 'demo' 2 6 3 1 "3x1">>
+<</maptile>> */
+/* /<<newnpc 'demo' 2 6 3 1 "3x1">>
     <img src="./assets/favicon.png">
-<</newnpc>>
+<</newnpc>> */
 /* <<addnpc 'demo' 6 1 1 1 "1x1">>
     <img src="./assets/favicon.png">
 <</addnpc>> */
-<<newplayer 'demo' 2 2>>
+<<defineplayer 'demo' 2 2>>
     <span style="color:red; font-size: 2rem;">O</span>
-<</newplayer>>
+<</defineplayer>>
+<<setplayer 'demo' 3 3 >>
 
 :: Start
 <<showmap 
