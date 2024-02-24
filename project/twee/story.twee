@@ -69,6 +69,7 @@ demo map
 <<link "delete">>
     <<deletenpc 'demo' '3x1'>>
 <</link>>
+[[test2]]
 <style>
     .macro-showmap-map {
         display: grid;
@@ -104,6 +105,8 @@ demo map
         display: flex;
         align-items: center;
         justify-content: center;
+        height: 100%;
+        width: 100%;
     }
         .macro-showmap-resident img {
             width: 100%;
@@ -168,3 +171,5 @@ demo map
     
 </style>
 
+:: test2 
+[[Start]]

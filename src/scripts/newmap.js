@@ -98,12 +98,11 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
     config.allowclobbering      = false;    // true allows clobbering maps and residents
     config.skipcheck.sensible   = false;    // true allows macro inputs that don't make sense
 
-    // global object with methods, setters, & getters
+    // global object, setup setup namespace, State namespace
+    // can't be set via setup settings
     config.disableglobal        = false;        // true removes the global object
-    config.globalname           = 'Navmap';     // default, navmap
-
-    // can't be set via setup
     config.setupname            = '@navmap';    // default, setup['@navmap']
+    config.globalname           = 'Navmap';     // default, navmap
     config.Statename            = '@navmap';    // default, State.variables['@navmap']
 
 
@@ -193,7 +192,9 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
             if (! this.residents.player) {
                 this.residents.player = { 
                     player: {
+                        residentsn      : window.crypto.randomUUID(),
                         residentid      : 'player',
+                        residenttype    : 'player',
                         residentname    : 'Player',
                         wall            : def.player.wall,
                         spanx           : def.player.spanx,
@@ -213,18 +214,50 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
         }
 
         // goodie bag
-        static newmap           (argObj) { Macro.get('newmap').handlerJS(argObj) }
-        static maptile          (argObj) { Macro.get('maptile').handlerJS(argObj)}
-        static newresident      (argObj) { Macro.get('newresident').handlerJS(argObj) }
-        static deleteresident   (argObj) { Macro.get('deleteresident').handlerJS(argObj) }
-        static moveresident     (argObj) { Macro.get('moveresident').handlerJS(argObj) }
-        static mapcalculate     (argObj) { Macro.get('mapcalculate').handlerJS(argObj) }
+        static newmap(argObj) { 
+            argObj.id = "newmap"; 
+            argObj.source = "JS";
+            Macro.get('newmap').handlerJS(argObj); 
+        }
+        static maptile(argObj) { 
+            argObj.id = "maptile";
+            argObj.source = "JS";
+            Macro.get('maptile').handlerJS(argObj);
+        }
+        static newresident(argObj) { 
+            argObj.id = "newresident";
+            argObj.source = "JS";
+            Macro.get('newresident').handlerJS(argObj); 
+        }
+        static defineresident(argObj) { 
+            argObj.id = "defineresident";
+            argObj.source = "JS";
+            Macro.get('defineresident').handlerJS(argObj); 
+        }
+        static deleteresident(argObj) { 
+            argObj.id = "deleteresident";
+            argObj.source = "JS";
+            Macro.get('deleteresident').handlerJS(argObj);
+        }
+        static moveresident(argObj) { 
+            argObj.id = "moveresident";
+            argObj.source = "JS";
+            Macro.get('moveresident').handlerJS(argObj); 
+        }
+        static mapcalculate(argObj) { 
+            argObj.id = "mapcalculate";
+            argObj.source = "JS";
+            Macro.get('mapcalculate').handlerJS(argObj);
+        }
+        static getmap(...args)      { getmap(...args) }
+        static gettile(...args)     { gettile(...args) }
+        static getresident(...args) { getresident(...args) }
     }
 
     //////////////////////////////////////////////////
     // set global
-    if (! def.disableglobal) {
-        Object.defineProperty(window, def.globalname, {
+    if (! config.disableglobal) {
+        Object.defineProperty(window, config.globalname, {
             value: Navmap,
         });
     }
@@ -262,7 +295,12 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
         const residenttype = args[0].residenttype ?? args[1];
         const residentid = args[0].residentid ?? args[2];
         const map = getmap(mapid);
-        return map.residents[residenttype][residentid]
+        if (! map.residents[residenttype]) {
+            return
+        }
+        else {
+            return map.residents[residenttype][residentid]
+        }
     }
 
     //////////////////////////////////////////////////
@@ -999,9 +1037,6 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
                     }
                 }
 
-                // place residents
-                // setTimeout( () => place_resident.call(this, {mapid}), 40)
-
                 // output
                 $map.appendTo(this.output);
 
@@ -1387,8 +1422,7 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
                     spanx           : spanx,
                     spany           : spany,
                     wall            : wall,
-                }
-                svnavmap["map_" + mapid].residents[residenttype + "_" + String(residentid)] = resident;
+                };
 
                 //////////////////////////////////////////////////
                 // if map current displayed, add to display
@@ -1401,6 +1435,229 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
                     $r.appendTo($map);
 
                     // place_resident.call(this, {mapid, residenttype, residentid});
+
+                    Macro.get('mapcalculate').handlerJS.call(this, argObj);
+                }
+            }
+
+            //////////////////////////////////////////////////
+            catch (error) {
+                console.error(`${this.name} = failed to add ${residenttype} "${residentid}" to "${mapid}"`);
+                console.error(error);
+            }
+        },
+    });
+
+
+
+// ████  █████ █████ ███ █    █ █████ ████  █████  ████
+// █   █ █     █      █  ██   █ █     █   █ █     █
+// █   █ ███   ███    █  █ █  █ ███   ████  ███    ███
+// █   █ █     █      █  █  █ █ █     █   █ █         █
+// ████  █████ █     ███ █   ██ █████ █   █ █████ ████
+// SECTION: defineres / define resident
+
+
+    Macro.add(["defineresident","defineplayer","definenpc","definebuilding","defineobject"], {
+
+        tags: null,
+
+        handler() {
+            //////////////////////////////////////////////////
+            //////////////////////////////////////////////////
+            const argObj = this.name === "defineplayer"
+                ? create_argObj.call(this, this.args, {
+                    id: this.name,
+                    mapid: {
+                        type        : 'string',
+                        alias       : 'map',
+                    },
+                    residentname: {
+                        type        : 'string',
+                        alias       : ['name','playername','player',],
+                    },
+                    x: {
+                        type        : 'number',
+                    },
+                    y: {
+                        type        : 'number',
+                    },
+                    wall: {
+                        type        : 'boolean',
+                    },
+                })
+                : create_argObj.call(this, this.args, {
+                    id: this.name,
+                    mapid: {
+                        type        : 'string',
+                        alias       : 'map',
+                    },
+                    residentid: {
+                        type        : 'string',
+                        alias       : [
+                                        'id',
+                                        'npcid',        'npc',
+                                        'buildingid',   'building',
+                                        'objectid',     'object',
+                                    ],
+                    },
+                    residentname: {
+                        type        : 'string',
+                        alias       : [
+                                        'name',
+                                        'npcname',
+                                        'buildingname',
+                                        'objecname'
+                                    ],
+                    },
+                    x: {
+                        type        : 'number'
+                    },
+                    y: {
+                        type        : 'number',
+                    },
+                    spanx: {
+                        type        : 'number',
+                        alias       : 'width',
+                    },
+                    spany: {
+                        type        : 'number',
+                        alias       : 'height',
+                    },
+                    wall: {
+                        type        : 'boolean',
+                    },
+                });
+
+            // assign type & payload
+            argObj.residenttype = this.name.replace("define","");
+            argObj.residentelement = this.payload[0]?.contents?.trim();
+            argObj.source = 'macro';
+            this.self.handlerJS.call(this, argObj);
+        },
+
+        handlerJS(argObj) {
+            //////////////////////////////////////////////////
+            //////////////////////////////////////////////////
+            // necessary definitions
+            this.name   ??= argObj.id ?? argObj.residenttype
+                                            ? "define" + argObj.residenttype
+                                            : "defineresident";
+            this.error  ??= function(error) { throw new Error(error) };
+            // player handling
+            if (this.name === "defineplayer") {
+                argObj.residentid   = "player";
+                argObj.residenttype = "player";
+            }
+            // extract from argObj
+            const { mapid, residenttype, residentid, residentname, residentelement, x, y, spanx, spany, wall } = argObj;
+            validate_required.call(this, {id:this.name, mapid, residenttype, residentid});
+            // validate args
+            if (! def.skipcheck.sensible) {
+                validate_args.call(this, {
+                    id: this.name,
+                    mapid: {
+                        val         : mapid,
+                        oneword     : true,
+                        extant      : true,
+                    },
+                    residenttype: {
+                        val         : residenttype,
+                    },
+                    residentid: {
+                        val         : residentid,
+                        oneword     : true,
+                        extant      : true,
+                    },
+                });
+                if (x) {
+                    validate_args.call(this, {
+                        id: this.name,
+                        x: {
+                            val         : x,
+                            integer     : true,
+                        },
+                    });
+                }
+                if (y) {
+                    validate_args.call(this, {
+                        id: this.name,
+                        y: {
+                            val         : y,
+                            integer     : true,
+                        },
+                    });
+                }
+                if (spanx) {
+                    validate_args.call(this, {
+                        id: this.name,
+                        spanx: {
+                            val         : spanx,
+                            integer     : true,
+                            positive    : true,
+                        },
+                    });
+                }
+                if (spany) {
+                    validate_args.call(this, {
+                        id: this.name,
+                        spany: {
+                            val         : spany,
+                            integer     : true,
+                            positive    : true,
+                        },
+                    });
+                }
+            }
+            // extract from map
+            const map = getmap(mapid);
+            const { mapsn } = map;
+
+            try {
+
+                //////////////////////////////////////////////////
+                // validate xy
+                if (! def.skipcheck.xybounds) {
+                    validate_xy.call(this, {
+                        id: this.name,
+                        mapid       : mapid,
+                        residentid  : residentid,
+                        x: {
+                            label   : "combined x position & tile width (span)",
+                            upper   : x + (spanx-1), 
+                            lower   : x,
+                        },
+                        y: {
+                            label   : "combined y position & tile height (span)",
+                            upper   : y + (spany-1),
+                            lower   : y,
+                        },
+                    });
+                }
+
+                // extract from resident
+                const resident = map.residents[residenttype][residentid];
+                const { residentsn } = resident;
+
+                //////////////////////////////////////////////////
+                // assign to map object
+                const inputs = {x, y, spanx, spany, residentname, residentelement};
+                for (const i in inputs) {
+                    if (inputs[i]) {
+                        resident[i] = inputs[i]
+                    }
+                }
+
+                //////////////////////////////////////////////////
+                // update map object
+                const $resident = $(`[data-sn="${residentsn}"]`).first();
+                if ($resident.length > 0) {
+                    $resident.remove();
+                    const $r = create_resident.call(this, {
+                        mapid       : mapid,
+                        resident    : resident,
+                    });
+                    $r.appendTo($(`[data-sn="${mapsn}"]`));
 
                     Macro.get('mapcalculate').handlerJS.call(this, argObj);
                 }
@@ -1763,7 +2020,6 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
             // extract from argObj
             const { mapid, residenttype, residentid, x, y } = argObj;
             const map = getmap(mapid);
-            console.log(map.residents[residenttype]);
             const resident = map.residents[residenttype][residentid];
             resident.x = x;
             resident.y = y;
