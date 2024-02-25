@@ -25,18 +25,18 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
     config.map.unit             = "rem";
 
     // player movement
-    config.nav.diagonal         = false;    // true enables diagonal movement by default
+    config.nav.diagonal         = false;        // true enables diagonal movement by default
 
     // navigation rose
     config.nav.width            = 15;
     config.nav.height           = 12;
     config.nav.unit             = "rem"
-    config.nav.sizingoff        = false;    // true disables all attempts to size nav
+    config.nav.sizingoff        = false;        // true disables all attempts to size nav
 
     // default tile def, can also be specified using <<maptile>>
-    config.wall.id              = ".";      // default map input character for walls
-    config.wall.name            = "wall";   // name is shown when the tile on map is hovered
-    config.wall.element         = null;     // id is used when no element is specified
+    config.wall.id              = ".";          // default map input character for walls
+    config.wall.name            = "wall";       // name is shown when the tile on map is hovered
+    config.wall.element         = null;         // id is used when no element is specified
     config.floor.id             = "x";
     config.floor.name           = "floor";
     config.floor.element        = null;
@@ -47,17 +47,17 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
 //  for fancier maps, trickier to work with
 
     // traversible indices and collision checks
-    config.player.wall        = true;       // true means others collide into it
+    config.player.wall        = true;           // true means others collide into it
     config.building.wall      = true;
     config.object.wall        = false;
     config.npc.wall           = false;
 
     // make non-square tiles
-    config.tile.width           = 2;        // width > height for fat tiles
-    config.tile.height          = 2;        // width < height for tall tiles
+    config.tile.width           = 2;            // width > height for fat tiles
+    config.tile.height          = 2;            // width < height for tall tiles
 
-    // checks that residents are always within map boundaries
-    config.skipcheck.xybounds   = false;    // true will allow negative coordinates
+    // checks that entities are always within map boundaries
+    config.skipcheck.xybounds   = false;        // true will allow negative coordinates
 
 
 
@@ -65,29 +65,15 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
 //  experimental, expect things to break
 
     // checks if unused inputs are being given
-    config.skipcheck.unused     = false;    // true will suppress & ignore errors
-
-    // number of tiles occupied by residents, affects collision and boundary checks
-    config.player.spanx         = 1;        // # vertical tiles occupied
-    config.player.spany         = 1;        // # horizontal tiles occupied
-    config.building.spanx       = 1;
-    config.building.spany       = 1;
-    config.object.spanx         = 1;
-    config.object.spany         = 1;
-    config.npc.spanx            = 1;
-    config.npc.spany            = 1;
+    config.skipcheck.unused     = false;        // true will suppress & ignore errors
 
     // identification keywords
-    config.wall.type            = "wall";   // used to checked for collisions
-    config.floor.type           = "floor";  // assigned to all non-wall tiles by default
-
-    // treat all tiles with the same id as one big tile
-    // not yet added
-    // config.mergetiles           = false;    // many macros will stop functioning
+    config.wall.type            = "wall";       // used to checked for collisions
+    config.floor.type           = "floor";      // assigned to all non-wall tiles by default
 
     // collsion checks
-    config.noclip               = false;    // true turns off all collision checks
-    config.collisionerror       = false;    // true will throw an error when collision happens
+    config.noclip               = false;        // true turns off all collision checks
+    config.collisionerror       = false;        // true will throw an error when collision happens
 
 
 
@@ -95,8 +81,8 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
 //  "What map? I'm here to break something." — you
 
     // guardrails
-    config.allowclobbering      = false;    // true allows clobbering maps and residents
-    config.skipcheck.sensible   = false;    // true allows macro inputs that don't make sense
+    config.allowclobbering      = false;        // true allows clobbering maps and entities
+    config.skipcheck.sensible   = false;        // true allows macro inputs that don't make sense
 
     // global object, setup setup namespace, State namespace
     // can't be set via setup settings
@@ -188,28 +174,24 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
             };
 
             // auto create player if not extant
-            this.residents ??= {};
-            if (! this.residents.player) {
-                this.residents.player = { 
-                    player: {
-                        residentsn      : window.crypto.randomUUID(),
-                        residentid      : 'player',
-                        residenttype    : 'player',
-                        residentname    : 'Player',
-                        wall            : def.player.wall,
-                        spanx           : def.player.spanx,
-                        spany           : def.player.spany,
-                        x               : 1,
-                        y               : 1,
-                    }
-                }
+            this.entities ??= {};
+            if (! this.entities.player) {
+                this.entities.player = {
+                    entitysn        : window.crypto.randomUUID(),
+                    entityid        : 'player',
+                    entityname      : 'Player',
+                    wall            : def.player.wall,
+                    x               : 1,
+                    y               : 1,
+                };
+                
             }
         }
 
-        set residents(val) {
+        set entities(val) {
             State.variables[config.Statename][this.mapid] = val;
         }
-        get residents() {
+        get entities() {
             return State.variables[config.Statename][this.mapid]
         }
 
@@ -224,25 +206,20 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
             argObj.source = "JS";
             Macro.get('maptile').handlerJS(argObj);
         }
-        static newresident(argObj) { 
-            argObj.id = "newresident";
+        static newentity(argObj) { 
+            argObj.id = "newentity";
             argObj.source = "JS";
-            Macro.get('newresident').handlerJS(argObj); 
+            Macro.get('newentity').handlerJS(argObj); 
         }
-        static defineresident(argObj) { 
-            argObj.id = "defineresident";
+        static delentity(argObj) { 
+            argObj.id = "delentity";
             argObj.source = "JS";
-            Macro.get('defineresident').handlerJS(argObj); 
+            Macro.get('delentity').handlerJS(argObj);
         }
-        static deleteresident(argObj) { 
-            argObj.id = "deleteresident";
+        static moventity(argObj) { 
+            argObj.id = "moventity";
             argObj.source = "JS";
-            Macro.get('deleteresident').handlerJS(argObj);
-        }
-        static moveresident(argObj) { 
-            argObj.id = "moveresident";
-            argObj.source = "JS";
-            Macro.get('moveresident').handlerJS(argObj); 
+            Macro.get('moventity').handlerJS(argObj); 
         }
         static mapcalculate(argObj) { 
             argObj.id = "mapcalculate";
@@ -251,7 +228,7 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
         }
         static getmap(...args)      { getmap(...args) }
         static gettile(...args)     { gettile(...args) }
-        static getresident(...args) { getresident(...args) }
+        static getentity(...args)   { getentity(...args) }
     }
 
     //////////////////////////////////////////////////
@@ -290,17 +267,11 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
         const map = getmap(mapid);
         return map.tiles[tileid]
     }
-    function getresident(...args) {
+    function getentity(...args) {
         const mapid = args[0].mapid ?? args[0];
-        const residenttype = args[0].residenttype ?? args[1];
-        const residentid = args[0].residentid ?? args[2];
+        const entityid = args[0].entityid ?? args[1];
         const map = getmap(mapid);
-        if (! map.residents[residenttype]) {
-            return
-        }
-        else {
-            return map.residents[residenttype][residentid]
-        }
+        return map.entities[entityid]
     }
 
     //////////////////////////////////////////////////
@@ -338,32 +309,30 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
         }
     }
     //////////////////////////////////////////////////
-    function create_resident(argObj) {
-        const { mapid, resident } = argObj;
-        const { residentsn, residentid, residenttype, residentname, x, y, spanx, spany, residentelement } = resident;
+    function create_entity(argObj) {
+        const { mapid, entity } = argObj;
+        const { entitysn, entityid, entityname, x, y, entityelement } = entity;
         try {
 
             const $r = $(document.createElement('div'));
             $r
-                .addClass(`macro-showmap-resident macro-showmap-${residenttype}`)
-                .addClass(residenttype)
-                .attr('data-sn', residentsn)
-                .attr('data-id', residentid)
-                .attr('data-type', residenttype)
-                .attr('data-name', residentname)
-                .wiki(residentelement       
-                    ? residentelement
-                    : residentname          // use name as fallback
+                .addClass(`macro-showmap-entity`)
+                .attr('data-sn', entitysn)
+                .attr('data-id', entityid)
+                .attr('data-name', entityname)
+                .wiki(entityelement       
+                        ? entityelement
+                        : entityname          // use name as fallback
                 )
                 .css({
-                    'grid-column'   : `${x} / span ${spanx}`,
-                    'grid-row'      : `${y} / span ${spany}`,
+                    'grid-column'   : `${x}`,
+                    'grid-row'      : `${y}`,
                 });
             return $r
         }
         //////////////////////////////////////////////////
         catch (error) {
-            console.error(`${this.name} - failed to create ${residenttype} element "${residentid}" on "${mapid}" for "${this.name}"`);
+            console.error(`${this.name} - failed to create entity element for "${entityid}" on "${mapid}" for "${this.name}"`);
             console.error(error);
         }
     }
@@ -373,7 +342,7 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
         const map = getmap(mapid);
         const { arr, columns, traversible } = map;
         const { id, name, deltax, deltay } = direction;
-        const player = getresident(mapid, "player", "player");
+        const player = getentity(mapid, "player", "player");
         try {
             
             const $dir = $(document.createElement('div'));
@@ -413,35 +382,6 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
         catch (error) {
             console.error(`${this.name} - failed to create nav direction "${name}" for "${mapid}"`);
             console.error(error);
-        }
-    }
-
-    //////////////////////////////////////////////////
-    function place_resident(argObj) {
-        const { mapid, residenttype, residentid } = argObj
-        const tilewidth  = window.getComputedStyle(document.querySelector('.macro-showmap-tile')).width;
-        const tileheight = window.getComputedStyle(document.querySelector('.macro-showmap-tile')).height;
-        const residents = svnavmap["map_" + mapid].residents;
-        if (! residentid) {
-            for (const r in residents) {
-                const { residentsn, x, y, spanx, spany } = residents[r];
-                $(`[data-sn="${residentsn}"]`).css({
-                    top     : `calc(${tileheight} * ${y - 1})`,
-                    left    : `calc(${tilewidth}  * ${x - 1})`,
-                    height  : `calc(${tileheight} * ${spany})`,
-                    width   : `calc(${tilewidth}  * ${spanx})`,
-                })
-            }
-        }
-        else {
-            const resident = residents[residenttype + "_" + residentid];
-            const { residentsn, x, y, spanx, spany } = resident;
-                $(`[data-sn="${residentsn}"]`).css({
-                    top     : `calc(${tileheight} * ${y - 1})`,
-                    left    : `calc(${tilewidth}  * ${x - 1})`,
-                    height  : `calc(${tileheight} * ${spany})`,
-                    width   : `calc(${tilewidth}  * ${spanx})`,
-                })
         }
     }
 
@@ -951,7 +891,7 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
             // extract from map
             const map = getmap(mapid);
             const { mapsn, mapname, columns, rows, arr } = map;
-            const residents = map.residents;
+            const entities = map.entities;
 
             try {
 
@@ -1026,15 +966,13 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
                     });
                     $t.appendTo($map);
                 }
-                // create residents
-                for (const type in residents) {
-                    for (const r in residents[type]) {
-                        const $r = create_resident.call(this, {
-                            mapid       : mapid,
-                            resident    : residents[type][r],
-                        });
-                        $r.appendTo($map);
-                    }
+                // create entities
+                for (const e in entities) {
+                    const $r = create_entity.call(this, {
+                        mapid       : mapid,
+                        entity      : entity[e],
+                    });
+                    $r.appendTo($map);
                 }
 
                 // output
@@ -1042,15 +980,13 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
 
                 setTimeout( function() {
                     $map.on(':mapupdate', function(ev) {
-                        $(this).children(`.macro-showmap-resident`).remove();
-                        for (const type in residents) {
-                            for (const r in residents[type]) {
-                                const $r = create_resident.call(this, {
-                                    mapid       : mapid,
-                                    resident    : residents[type][r],
-                                });
-                                $r.appendTo($map);
-                            }
+                        $(this).children(`.macro-showmap-entity`).remove();
+                        for (const e in entities) {
+                            const $e = create_entity.call(this, {
+                                mapid       : mapid,
+                                entity      : entities[e],
+                            });
+                            $e.appendTo($map);
                         }
                     });
                 }, 40)
@@ -1188,10 +1124,9 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
                     $nav.on(':navupdate', function(ev, d_input) {
                         const mapid = $(this).attr('data-mapid');
                         if (d_input) {
-                            Macro.get("moveresident").handlerJS.call(this, {
+                            Macro.get("moveentity").handlerJS.call(this, {
                                 mapid           : mapid,
-                                residentid      : "player",
-                                residenttype    : "player",
+                                entityid        : "player",
                                 deltax          : directions[d_input].deltax,
                                 deltay          : directions[d_input].deltay,
                             });
@@ -1222,64 +1157,34 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
 
 
 
-// █    █ █████ █     █ ████  █████  ████ ███ ████  █████ █    █ █████
-// ██   █ █     █     █ █   █ █     █      █  █   █ █     ██   █   █
-// █ █  █ ███   █  █  █ ████  ███    ███   █  █   █ ███   █ █  █   █
-// █  █ █ █     █ █ █ █ █   █ █         █  █  █   █ █     █  █ █   █
-// █   ██ █████  █   █  █   █ █████ ████  ███ ████  █████ █   ██   █
-// SECTION: new resident
 
-    Macro.add(["newresident","newplayer","newnpc","newbuilding","newobject"], {
+// █    █ █████ █     █ █████ █    █ █████ ███ █████ █   █
+// ██   █ █     █     █ █     ██   █   █    █    █    █ █
+// █ █  █ ███   █  █  █ ███   █ █  █   █    █    █     █
+// █  █ █ █     █ █ █ █ █     █  █ █   █    █    █     █
+// █   ██ █████  █   █  █████ █   ██   █   ███   █     █
+// SECTION: new entity / newentity
+
+    Macro.add(["newentity"], {
 
         tags: null,
 
         handler() {
             //////////////////////////////////////////////////
             //////////////////////////////////////////////////
-            const argObj = this.name === "newplayer"
-                ? create_argObj.call(this, this.args, {
+            const argObj = create_argObj.call(this, this.args, {
                     id: this.name,
                     mapid: {
                         type        : 'string',
                         alias       : 'map',
                     },
-                    residentname: {
+                    entityid: {
                         type        : 'string',
-                        alias       : ['name','playername','player',],
+                        alias       : 'id',
                     },
-                    x: {
-                        type        : 'number',
-                    },
-                    y: {
-                        type        : 'number',
-                    },
-                    wall: {
-                        type        : 'boolean',
-                    },
-                })
-                : create_argObj.call(this, this.args, {
-                    id: this.name,
-                    mapid: {
+                    entityname: {
                         type        : 'string',
-                        alias       : 'map',
-                    },
-                    residentid: {
-                        type        : 'string',
-                        alias       : [
-                                        'id',
-                                        'npcid',        'npc',
-                                        'buildingid',   'building',
-                                        'objectid',     'object',
-                                    ],
-                    },
-                    residentname: {
-                        type        : 'string',
-                        alias       : [
-                                        'name',
-                                        'npcname',
-                                        'buildingname',
-                                        'objecname'
-                                    ],
+                        alias       : 'name',
                     },
                     x: {
                         type        : 'number'
@@ -1301,8 +1206,7 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
                 });
 
             // assign type & payload
-            argObj.residenttype = this.name.replace("new","");
-            argObj.residentelement = this.payload[0]?.contents?.trim();
+            argObj.entityelement = this.payload[0]?.contents?.trim();
             argObj.source = 'macro';
             this.self.handlerJS.call(this, argObj);
         },
@@ -1311,32 +1215,15 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
             //////////////////////////////////////////////////
             //////////////////////////////////////////////////
             // necessary definitions
-            this.name   ??= argObj.id ?? argObj.residenttype
-                                            ? "new" + argObj.residenttype
-                                            : "newresident";
+            this.name   ??= argObj.id ?? "newentity";
             this.error  ??= function(error) { throw new Error(error) };
-            // player handling
-            if (this.name === "newplayer") {
-                argObj.residentid   = "player";
-                argObj.residenttype = "player";
-                argObj.spanx        = def.player.spanx;
-                argObj.spany        = def.player.spany;
-                argObj.residentname ??= "Player";
-            }
             // extract from argObj
-            const { mapid, residentelement, x, y, source } = argObj;
-            const residentname  = argObj.residentname ?? residentid;
-            const residenttype  = argObj.residenttype ?? this.name.replace("new","");
-            const { spanx, spany, wall } = {
-                spanx           : def[residenttype].spanx,
-                spany           : def[residenttype].spany,
-                wall            : def[residenttype].wall,
-                ...argObj,
-            }
-            validate_required.call(this, {id:this.name, mapid, residenttype, x, y});
+            const { mapid, entityelement, x, y, source, wall } = argObj;
+            const entityname  = argObj.entityname ?? entityid;
+            validate_required.call(this, {id:this.name, mapid, x, y});
             // assign sn & id
-            const residentsn = window.crypto.randomUUID();
-            const residentid = argObj.residentid ?? residentsn;
+            const entitysn = window.crypto.randomUUID();
+            const entityid = argObj.entityid ?? entitysn;
             // validate args
             if (! def.skipcheck.sensible) {
                 validate_args.call(this, {
@@ -1346,8 +1233,8 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
                         oneword     : true,
                         extant      : true,
                     },
-                    residentid: {
-                        val         : residentid,
+                    entityid: {
+                        val         : entityid,
                         oneword     : true,
                     },
                     x: {
@@ -1378,17 +1265,15 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
 
                 //////////////////////////////////////////////////
                 // ERROR: no payload
-                if (! residentelement) {
+                if (! entityelement) {
                     const error = source === 'macro'
                                     ? `${this.name} - macro payload required`
-                                    : `${this.name} - "residentelement" key required`;
+                                    : `${this.name} - missing required "entityelement" value`;
                     return this.error(error)
                 }
-                // ERROR: resident already exists
-                if (! def.allowclobbering && getresident(mapid, residenttype, residentid)) {
-                    const error = residenttype === "player"
-                                    ? `${this.name} - player already exists in map "${mapid}"`
-                                    : `${this.name} - ${residenttype} with id "${residentid}" already exists in map "${mapid}"`;
+                // ERROR: entity already exists
+                if (! def.allowclobbering && getentity(mapid, entityid)) {
+                    const error = `${this.name} - entity with id "${entityid}" already exists in map "${mapid}"`;
                     return this.error(error)
                 }
                 // validate xy
@@ -1396,7 +1281,7 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
                     validate_xy.call(this, {
                         id: this.name,
                         mapid       : mapid,
-                        residentid  : residentid,
+                        entityid    : entityid,
                         x: {
                             label   : "combined x position & tile width (span)",
                             upper   : x + (spanx-1), 
@@ -1412,33 +1297,30 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
 
                 //////////////////////////////////////////////////
                 // add to map object
-                const resident = {
+                const entity = {
                     mapid           : mapid,
-                    residentsn      : residentsn,
-                    residentid      : String(residentid),
-                    residentname    : residentname,
-                    residenttype    : residenttype,
-                    residentelement : residentelement,
+                    entitysn        : entitysn,
+                    entityid        : String(entityid),
+                    entityname      : entityname,
+                    entityelement   : entityelement,
                     x               : x,
                     y               : y,
                     spanx           : spanx,
                     spany           : spany,
                     wall            : wall,
                 };
-                map.residents[residenttype] ??= {};
-                map.residents[residenttype][residentid] = resident;
+                map.entities ??= {};
+                map.entities[entityid] = entity;
 
                 //////////////////////////////////////////////////
                 // if map current displayed, add to display
                 const $map = $(`[data-sn="${mapsn}"]`).first();
                 if ($map.length > 0) {
-                    const $r = create_resident.call(this, {
+                    const $e = create_entity.call(this, {
                         mapid       : mapid,
-                        resident    : resident,
+                        entity      : entity,
                     });
                     $r.appendTo($map);
-
-                    // place_resident.call(this, {mapid, residenttype, residentid});
 
                     Macro.get('mapcalculate').handlerJS.call(this, argObj);
                 }
@@ -1446,7 +1328,7 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
 
             //////////////////////////////////////////////////
             catch (error) {
-                console.error(`${this.name} = failed to add ${residenttype} "${residentid}" to "${mapid}"`);
+                console.error(`${this.name} = failed to add entity "${entityid}" to "${mapid}"`);
                 console.error(error);
             }
         },
@@ -1454,269 +1336,33 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
 
 
 
-// ████  █████ █████ ███ █    █ █████ ████  █████  ████
-// █   █ █     █      █  ██   █ █     █   █ █     █
-// █   █ ███   ███    █  █ █  █ ███   ████  ███    ███
-// █   █ █     █      █  █  █ █ █     █   █ █         █
-// ████  █████ █     ███ █   ██ █████ █   █ █████ ████
-// SECTION: defineres / define resident
-
-
-    Macro.add(["defineresident","defineplayer","definenpc","definebuilding","defineobject"], {
-
-        tags: null,
-
-        handler() {
-            //////////////////////////////////////////////////
-            //////////////////////////////////////////////////
-            const argObj = this.name === "defineplayer"
-                ? create_argObj.call(this, this.args, {
-                    id: this.name,
-                    mapid: {
-                        type        : 'string',
-                        alias       : 'map',
-                    },
-                    residentname: {
-                        type        : 'string',
-                        alias       : ['name','playername','player',],
-                    },
-                    x: {
-                        type        : 'number',
-                    },
-                    y: {
-                        type        : 'number',
-                    },
-                    wall: {
-                        type        : 'boolean',
-                    },
-                })
-                : create_argObj.call(this, this.args, {
-                    id: this.name,
-                    mapid: {
-                        type        : 'string',
-                        alias       : 'map',
-                    },
-                    residentid: {
-                        type        : 'string',
-                        alias       : [
-                                        'id',
-                                        'npcid',        'npc',
-                                        'buildingid',   'building',
-                                        'objectid',     'object',
-                                    ],
-                    },
-                    residentname: {
-                        type        : 'string',
-                        alias       : [
-                                        'name',
-                                        'npcname',
-                                        'buildingname',
-                                        'objecname'
-                                    ],
-                    },
-                    x: {
-                        type        : 'number'
-                    },
-                    y: {
-                        type        : 'number',
-                    },
-                    spanx: {
-                        type        : 'number',
-                        alias       : 'width',
-                    },
-                    spany: {
-                        type        : 'number',
-                        alias       : 'height',
-                    },
-                    wall: {
-                        type        : 'boolean',
-                    },
-                });
-
-            // assign type & payload
-            argObj.residenttype = this.name.replace("define","");
-            argObj.residentelement = this.payload[0]?.contents?.trim();
-            argObj.source = 'macro';
-            this.self.handlerJS.call(this, argObj);
-        },
-
-        handlerJS(argObj) {
-            //////////////////////////////////////////////////
-            //////////////////////////////////////////////////
-            // necessary definitions
-            this.name   ??= argObj.id ?? argObj.residenttype
-                                            ? "define" + argObj.residenttype
-                                            : "defineresident";
-            this.error  ??= function(error) { throw new Error(error) };
-            // player handling
-            if (this.name === "defineplayer") {
-                argObj.residentid   = "player";
-                argObj.residenttype = "player";
-            }
-            // extract from argObj
-            const { mapid, residenttype, residentid, residentname, residentelement, x, y, spanx, spany, wall } = argObj;
-            validate_required.call(this, {id:this.name, mapid, residenttype, residentid});
-            // validate args
-            if (! def.skipcheck.sensible) {
-                validate_args.call(this, {
-                    id: this.name,
-                    mapid: {
-                        val         : mapid,
-                        oneword     : true,
-                        extant      : true,
-                    },
-                    residenttype: {
-                        val         : residenttype,
-                    },
-                    residentid: {
-                        val         : residentid,
-                        oneword     : true,
-                        extant      : true,
-                    },
-                });
-                if (x) {
-                    validate_args.call(this, {
-                        id: this.name,
-                        x: {
-                            val         : x,
-                            integer     : true,
-                        },
-                    });
-                }
-                if (y) {
-                    validate_args.call(this, {
-                        id: this.name,
-                        y: {
-                            val         : y,
-                            integer     : true,
-                        },
-                    });
-                }
-                if (spanx) {
-                    validate_args.call(this, {
-                        id: this.name,
-                        spanx: {
-                            val         : spanx,
-                            integer     : true,
-                            positive    : true,
-                        },
-                    });
-                }
-                if (spany) {
-                    validate_args.call(this, {
-                        id: this.name,
-                        spany: {
-                            val         : spany,
-                            integer     : true,
-                            positive    : true,
-                        },
-                    });
-                }
-            }
-            // extract from map
-            const map = getmap(mapid);
-            const { mapsn } = map;
-
-            try {
-
-                //////////////////////////////////////////////////
-                // validate xy
-                if (! def.skipcheck.xybounds) {
-                    validate_xy.call(this, {
-                        id: this.name,
-                        mapid       : mapid,
-                        residentid  : residentid,
-                        x: {
-                            label   : "combined x position & tile width (span)",
-                            upper   : x + (spanx-1), 
-                            lower   : x,
-                        },
-                        y: {
-                            label   : "combined y position & tile height (span)",
-                            upper   : y + (spany-1),
-                            lower   : y,
-                        },
-                    });
-                }
-
-                // extract from resident
-                const resident = map.residents[residenttype][residentid];
-                const { residentsn } = resident;
-
-                //////////////////////////////////////////////////
-                // assign to map object
-                const inputs = {x, y, spanx, spany, residentname, residentelement};
-                for (const i in inputs) {
-                    if (inputs[i]) {
-                        resident[i] = inputs[i]
-                    }
-                }
-
-                //////////////////////////////////////////////////
-                // update map object
-                $(`[data-sn="${mapsn}"]`).trigger(':mapupdate');
-                $(`.macro-shownav-nav[data-mapid="${mapid}"]`).trigger(':navupdate');
-                // const $resident = $(`[data-sn="${residentsn}"]`).first();
-                // if ($resident.length > 0) {
-                //     $resident.remove();
-                //     const $r = create_resident.call(this, {
-                //         mapid       : mapid,
-                //         resident    : resident,
-                //     });
-                //     $r.appendTo($(`[data-sn="${mapsn}"]`));
-
-                //     Macro.get('mapcalculate').handlerJS.call(this, argObj);
-                // }
-            }
-
-            //////////////////////////////////////////////////
-            catch (error) {
-                console.error(`${this.name} = failed to add ${residenttype} "${residentid}" to "${mapid}"`);
-                console.error(error);
-            }
-        },
-    });
 
 
 
-// ████  █████ █     █████ █████ █████ ████  █████  ████
-// █   █ █     █     █       █   █     █   █ █     █
-// █   █ ███   █     ███     █   ███   ████  ███    ███
-// █   █ █     █     █       █   █     █   █ █         █
-// ████  █████ █████ █████   █   █████ █   █ █████ ████
-// SECTION: deleteres / delete resident
+// ████  █████ █     █████ █    █ █████ ███ █████ █   █
+// █   █ █     █     █     ██   █   █    █    █    █ █
+// █   █ ███   █     ███   █ █  █   █    █    █     █
+// █   █ █     █     █     █  █ █   █    █    █     █
+// ████  █████ █████ █████ █   ██   █   ███   █     █
+// SECTION: delentity / delete entity
 
-    Macro.add(["deleteresident","deleteplayer","deletenpc","deletebuilding","deleteobject"], {
+    Macro.add(["delentity"], {
 
         handler() {
             //////////////////////////////////////////////////
             //////////////////////////////////////////////////
-            const argObj = this.name === "deleteplayer"
-                ? create_argObj.call(this, this.args, {
+            const argObj = create_argObj.call(this, this.args, {
                     id: this.name,
                     mapid: {
                         type        : 'string',
                         alias       : 'map',
                     },
-                })
-                : create_argObj.call(this, this.args, {
-                    id: this.name,
-                    mapid: {
-                        type        : 'string',
-                        alias       : 'map',
-                    },
-                    residentid: {   // remember, this gets turned into an array
+                    entityid: {   // remember, this gets turned into an array
                         type        : ['string','array'],
                         infinite    : true,
-                        alias       : [
-                                        'id',
-                                        'npcid',        'npc',
-                                        'buildingid',   'building',
-                                        'objectid',     'object',
-                                    ],
+                        alias       : 'id',
                     },
                 });
-            argObj.residenttype = this.name.replace("delete","");
             this.self.handlerJS.call(this, argObj);
         },
 
@@ -1724,23 +1370,15 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
             //////////////////////////////////////////////////
             //////////////////////////////////////////////////
             // necessary definitions
-            this.name   ??= argObj.id ?? argObj.residenttype
-                                            ? "delete" + argObj.residenttype
-                                            : "deleteresident";
+            this.name   ??= argObj.id ?? "delentity";
             this.error  ??= function(error) { throw new Error(error) };
-            // player handling
-            if (this.name === "deleteplayer") {
-                argObj.residentid   = "player";
-                argObj.residenttype = "player";
-            }
             // extract from argObj
             const { mapid }     = argObj;
             // turn into array if it isn't
-            const residentid    = TypeSet.id(argObj.residentid) === 'array'
-                                    ? argObj.residentid
-                                    : [argObj.residentid];
-            const residenttype = argObj.residenttype ?? this.name.replace("delete","");
-            validate_required.call(this, {id:this.name, mapid, residentid, residenttype});
+            const entityid  = TypeSet.id(argObj.entityid) === 'array'
+                                ? argObj.entityid
+                                : [argObj.entityid];
+            validate_required.call(this, {id:this.name, mapid, entityid});
             // validate args
             if (! def.skipcheck.sensible) {
                 validate_args.call(this, {
@@ -1750,11 +1388,8 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
                         oneword : true,
                         extant  : true,
                     },
-                    residenttype: {
-                        val     : residenttype,
-                    },
-                    residentid: {
-                        val     : residentid,
+                    entityid: {
+                        val     : entityid,
                         oneword : true,
                         extant  : true,
                     },
@@ -1762,21 +1397,20 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
             }
             // extract from map
             const map = getmap(mapid);
-            const residents = map.residents
+            const entities = map.entities
 
             try {
             
                 //////////////////////////////////////////////////
-                for (const r of residentid) {
-                    const resident = getresident(mapid, residenttype, r);
-                    const residentsn = clone(resident.residentsn);
-                    delete residents[residenttype][residentid];
+                for (const e of entityid) {
+                    const entitysn = clone(entities[e].entitysn);
+                    delete entities[e];
                     
                     //////////////////////////////////////////////////
                     // if map displayed, remove
-                    const $r = $(`[data-sn="${residentsn}"]`).first();
-                    if ($r) {
-                        $r.remove();
+                    const $e = $(`[data-sn="${entitysn}"]`).first();
+                    if ($e) {
+                        $e.remove();
                         Macro.get('mapcalculate').handlerJS.call(this, argObj);
                     }
                     $(`.macro-shownav-nav[data-mapid="${mapid}"]`).trigger(':navupdate');
@@ -1785,7 +1419,7 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
 
             //////////////////////////////////////////////////
             catch (error) {
-                console.error(`${this.name} - failed to delete ${residenttype} "${residentid}" from "${mapid}"`);
+                console.error(`${this.name} - failed to delete entity "${entityid}" from "${mapid}"`);
                 console.error(error);
             }
         },
@@ -1793,24 +1427,27 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
 
 
 
-// █    █  ████  █   █ █████ ████  █████  ████
-// ██  ██ █    █ █   █ █     █   █ █     █
-// █ ██ █ █    █ █   █ ███   ████  ███    ███
-// █    █ █    █  █ █  █     █   █ █         █
-// █    █  ████    █   █████ █   █ █████ ████
-// SECTION: moveres / move resident
+// █    █  ████  █   █ █████ █    █ █████ ███ █████ █   █
+// ██  ██ █    █ █   █ █     ██   █   █    █    █    █ █
+// █ ██ █ █    █ █   █ ███   █ █  █   █    █    █     █
+// █    █ █    █  █ █  █     █  █ █   █    █    █     █
+// █    █  ████    █   █████ █   ██   █   ███   █     █
+// SECTION: moventity
 
-    Macro.add(["moveresident","moveplayer","movenpc","movebuilding","moveobject"], {
+    Macro.add(["moventity"], {
 
         handler() {
             //////////////////////////////////////////////////
             //////////////////////////////////////////////////
-            const argObj = this.name === "moveplayer" 
-                ? create_argObj.call(this, this.args, {
+            const argObj =  create_argObj.call(this, this.args, {
                     id: this.name,
                     mapid: {
                         type        : 'string',
                         alias       : 'map',
+                    },
+                    entityid: {
+                        type        : 'string',
+                        alias       : 'id',
                     },
                     deltax: {
                         type        : 'number',
@@ -1824,34 +1461,6 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
                         type        : 'boolean',
                     },
                 })
-                : create_argObj.call(this, this.args, {
-                    id: this.name,
-                    mapid: {
-                        type        : 'string',
-                        alias       : 'map',
-                    },
-                    residentid: {
-                        type        : 'string',
-                        alias       : [
-                                        'id',
-                                        'npcid',        'npc',
-                                        'buildingid',   'building',
-                                        'objectid',     'object',
-                                    ],
-                    },
-                    deltax: {
-                        type        : 'number',
-                        alias       : 'x',
-                    },
-                    deltay: {
-                        type        : 'number',
-                        alias       : 'y',
-                    },
-                    ignorewalls: {
-                        type        : 'boolean',
-                    },
-                })
-            argObj.residenttype = this.name.replace("move","");
             this.self.handlerJS.call(this, argObj);
         },
 
@@ -1859,18 +1468,11 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
             //////////////////////////////////////////////////
             //////////////////////////////////////////////////
             // necessary definitions
-            this.name   ??= argObj.id ?? argObj.residenttype
-                                            ? "move" + argObj.residenttype
-                                            : "moveresident";
+            this.name   ??= argObj.id ?? "moventity";
             this.error  ??= function(error) { throw new Error(error) };
-            // player handling
-            if (this.name === "moveplayer") {
-                argObj.residentid = "player";
-            }
             // extract from argObj
-            const { mapid, residentid, deltax, deltay, ignorewalls } = argObj;
-            const residenttype = argObj.residenttype ?? this.name.replace("move","");
-            validate_required.call(this, {id:this.name, mapid, residenttype, residentid, deltax, deltay});
+            const { mapid, entityid, deltax, deltay, ignorewalls } = argObj;
+            validate_required.call(this, {id:this.name, mapid, entityid, deltax, deltay});
             if (! def.skipcheck.sensible) {
                 validate_args.call(this, {
                     id: this.name,
@@ -1879,11 +1481,8 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
                         oneword : true,
                         extant  : true,
                     },
-                    residenttype: {
-                        val     : residenttype,
-                    },
-                    residentid: {
-                        val     : residentid,
+                    entityid: {
+                        val     : entityid,
                         oneword : true,
                         extant  : true,
                     },
@@ -1900,8 +1499,8 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
             // extract from map
             const map = getmap(mapid);
             const { columns, traversible, mapsn } = map;
-            const resident = getresident(mapid, residenttype, residentid);
-            const { x, y, spanx, spany } = resident;
+            const entity = getentity(mapid, entityid);
+            const { x, y, spanx, spany } = entity;
 
             try {
 
@@ -1911,15 +1510,15 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
                     validate_xy.call(this, {
                         id: this.name,
                         mapid       : mapid,
-                        residentid  : residentid,
+                        entityid    : entityid,
                         x: {
                             label   : "combined x position, width (spanx), & delta x",
-                            upper   : x + (spanx-1) + deltax,
+                            upper   : x + deltax,
                             lower   : x + deltax,
                         },
                         y: {
                             label   : "combined y position, height (spany), & delta y",
-                            upper   : y + (spany-1) + deltay,
+                            upper   : y + deltay,
                             lower   : y + deltay,
                         },
                     });
@@ -1936,7 +1535,7 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
                             }, columns);
                             if (! traversible[i]) {
                                 if (def.collisionerror) {
-                                    const error = `${this.name} - collision detected for ${residenttype} "${residentid}" on "${mapid}"`
+                                    const error = `${this.name} - collision detected for entity "${entityid}" on "${mapid}"`
                                     return this.error(error)
                                 }
                                 else {
@@ -1947,8 +1546,8 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
                         }
                     }
                 }
-                resident.x += deltax;
-                resident.y += deltay;
+                entity.x += deltax;
+                entity.y += deltay;
                 Macro.get('mapcalculate').handlerJS.call(this, argObj);
 
                 $(`[data-sn="${mapsn}"]`).trigger(':mapupdate');
@@ -1958,84 +1557,13 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
 
             //////////////////////////////////////////////////
             catch (error) {
-                console.error(`${this.name} - failed to move ${residenttype} "${residentid}" on "${mapid}"`);
+                console.error(`${this.name} - failed to move entity "${entityid}" on "${mapid}"`);
                 console.error(error);
             }
         },
     });
 
 
-//  ████ █████ █████ ████  █████  ████
-// █     █       █   █   █ █     █
-//  ███  ███     █   ████  ███    ███
-//     █ █       █   █   █ █         █
-// ████  █████   █   █   █ █████ ████
-// SECTION: set resident / setres
-    Macro.add(["setresident","setplayer","setnpc","setbuilding","setobject"], {
-
-        handler() {
-            //////////////////////////////////////////////////
-            //////////////////////////////////////////////////
-            const argObj = this.name === "setplayer" 
-                ? create_argObj.call(this, this.args, {
-                    id: this.name,
-                    mapid: {
-                        type        : 'string',
-                        alias       : 'map',
-                    },
-                    x: {
-                        type        : 'number',
-                    },
-                    y: {
-                        type        : 'number',
-                    },
-                })
-                : create_argObj.call(this, this.args, {
-                    id: this.name,
-                    mapid: {
-                        type        : 'string',
-                        alias       : 'map',
-                    },
-                    residentid: {
-                        type        : 'string',
-                        alias       : [
-                                        'id',
-                                        'npcid',        'npc',
-                                        'buildingid',   'building',
-                                        'objectid',     'object',
-                                    ],
-                    },
-                    x: {
-                        type        : 'number',
-                    },
-                    y: {
-                        type        : 'number',
-                    },
-                })
-            argObj.residenttype = this.name.replace("set","");
-            this.self.handlerJS.call(this, argObj);
-        },
-
-        handlerJS(argObj) {
-            //////////////////////////////////////////////////
-            //////////////////////////////////////////////////
-            // necessary definitions
-            this.name   ??= argObj.id ?? argObj.residenttype
-                                            ? "set" + argObj.residenttype
-                                            : "setresident";
-            this.error  ??= function(error) { throw new Error(error) };
-            // player handling
-            if (this.name === 'setplayer') {
-                argObj.residentid = 'player';
-            }
-            // extract from argObj
-            const { mapid, residenttype, residentid, x, y } = argObj;
-            const map = getmap(mapid);
-            const resident = map.residents[residenttype][residentid];
-            resident.x = x;
-            resident.y = y;
-        },
-    });
 
 // █    █  ███  ████   ████  ███  █      ████ █   █ █      ███  █████ █████
 // ██  ██ █   █ █   █ █     █   █ █     █     █   █ █     █   █   █   █
@@ -2074,7 +1602,7 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
             validate_required.call(this, {id:this.name, mapid});
             // extract from 
             const map = getmap(mapid);
-            const { columns, arr, traversible, residents } = map;
+            const { columns, arr, traversible, entities } = map;
 
             try {
 
@@ -2088,23 +1616,21 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
                 }
 
                 //////////////////////////////////////////////////
-                // check all residents
-                for (const type in residents) {
-                    for (const r in residents[type]) {
-                        const { wall, x, y, spanx, spany } = residents[type][r];
-                        // skip if not wall
-                        if (! wall) {
-                            continue;
-                        }
-                        // fill in otherwise
-                        for (let j = 0; j < spanx; j++) {
-                            for (let k = 0; k < spany; k++) {
-                                const i = convert_xy2i({
-                                    x   : x + j,
-                                    y   : y + k,
-                                }, columns);
-                                traversible[i] = false;
-                            }
+                // check all entities
+                for (const e in entities) {
+                    const { wall, x, y, spanx, spany } = entities[e];
+                    // skip if not wall
+                    if (! wall) {
+                        continue;
+                    }
+                    // fill in otherwise
+                    for (let j = 0; j < spanx; j++) {
+                        for (let k = 0; k < spany; k++) {
+                            const i = convert_xy2i({
+                                x   : x + j,
+                                y   : y + k,
+                            }, columns);
+                            traversible[i] = false;
                         }
                     }
                 }

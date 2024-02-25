@@ -143,14 +143,12 @@ function validatation_errors(argObj) {
                 const error = `${id} - no tile with id "${val}" in map ${template.mapid.val} found`;
                 return this.error(error)
             }
-            // ERROR: resident doesn't exist in map
+            // ERROR: entity doesn't exist in map
             if (
-                (key === "residentid")  &&
-                (! getresident(template.mapid.val,template.residenttype.val,val))
+                (key === "entityid")  &&
+                (! getentity(template.mapid.val,val))
             ) {
-                const error = val === "player"
-                                ? `${id} - no player found residing on map "${template.mapid.val}", use <<addplayer>> to add one`
-                                : `${id} - no "${val}" was found residing on map "${template.mapid.val}"`;
+                const error = `${id} - no "${val}" was found residing on map "${template.mapid.val}"`;
                 return this.error(error)
             }
         }
@@ -212,7 +210,7 @@ function validate_xy(template) {
         return this.error(error)
     }
     // ERROR: missing id
-    const { id, mapid, residentid, x, y } = template;
+    const { id, mapid, entityid, x, y } = template;
     if (! id) {
         const error = `validate_xy missing required id`;
         return this.error(error)
@@ -223,20 +221,20 @@ function validate_xy(template) {
         const { arr, columns } = map;
         // check upper bound
         if (x.upper > columns) {
-            const error = `${id} - ${x.label} for "${residentid}" will exceed upper map boundary on "${mapid}"`;
+            const error = `${id} - ${x.label} for "${entityid}" will exceed upper map boundary on "${mapid}"`;
             return this.error(error)
         }
         if (y.val > (arr.length / columns)) {
-            const error = `${id} - ${y.label} for "${residentid}" will exceed upper map boundary on "${mapid}"`;
+            const error = `${id} - ${y.label} for "${entityid}" will exceed upper map boundary on "${mapid}"`;
             return this.error(error)
         }
         // check lower bound
         if (x.lower < 1) {
-            const error = `${id} - ${x.label} for "${residentid}" will exceed lower map boundary on "${mapid}"`;
+            const error = `${id} - ${x.label} for "${entityid}" will exceed lower map boundary on "${mapid}"`;
             return this.error(error)
         }
         if (y.lower < 1) {
-            const error = `${id} - ${y.label} for "${residentid}" will exceed lower map boundary on "${mapid}"`;
+            const error = `${id} - ${y.label} for "${entityid}" will exceed lower map boundary on "${mapid}"`;
             return this.error(error)
         }
     }
