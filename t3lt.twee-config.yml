@@ -78,3 +78,11 @@ sugarcube-2:
       container: true
     setplayer:
       name: setplayer
+    newtile:
+      name: newtile
+      container: true
+    newentity:
+      name: newentity
+      container: true
+    entityhandler:
+      name: entityhandler

@@ -1,92 +1,46 @@
 
-// █   █  ███  █     ███ ████   ███  █████ █████     █████  ███   ███   ████
-// █   █ █   █ █      █  █   █ █   █   █   █           █   █   █ █     █
-// █   █ █████ █      █  █   █ █████   █   ███         █   █████ █  ██  ███
-//  █ █  █   █ █      █  █   █ █   █   █   █           █   █   █ █   █     █
-//   █   █   █ █████ ███ ████  █   █   █   █████       █   █   █  ███  ████
-// SECTION: validate tags
-// validates macro child tags for unique / required
-function validate_tags(template) {
 
-    //////////////////////////////////////////////////
-    // ERROR: missing argument
-    if (! template) {
-        const error = `validate_tags missing required template`;
-        return this.error(error)
-    }
-    const id = template.id;
-    if (! id) {
-        const error = `validate_tags missing required id`;
-        return this.error(error)
-    }
-
+//  ████ █   █ █████  ████ █   █     ████  █████  ████
+// █     █   █ █     █     █  █      █   █ █     █    █
+// █     █████ ███   █     ███       ████  ███   █    █
+// █     █   █ █     █     █  █      █   █ █     █ ▄  █
+//  ████ █   █ █████  ████ █   █     █   █ █████  ████
+// SECTION: check req / check required              ▀
+function check_required(argObj) {
+    const id = argObj.id;
+    const keys = Object.keys(argObj).filter( k => k !== 'id' );
     try {
-        //////////////////////////////////////////////////
-        const tags = Object.keys(template).filter( k => k !== "id" );
-        for (const tag of tags) {
-            // ERROR: missing tag in macro def
-            if (! this.self.tags.includes(tag)) {
-                const error = `${id} tag validation failed, missing tag "${tag}" in macro definition`;
+        for (const k of keys) {
+            if (TypeSet.id(argObj[k]) === 'undefined') {
+                const error = `check_required - missing required input "${k}" for ${id}`;
                 return this.error(error)
-            }
-            if (template[tag].unique) {
-                if (this.payload.filter( p => p.name === tag ).length > 1) {
-                    const error = `${tag} - macro only accepts one ${tag} tag`;
-                    return this.error(error)
-                }
-            }
-            if (template[tag].required) {
-                if (this.payload.filter( p => p.name === tag ).length === 0) {
-                    const error = `${this.name} - ${tag} tag is required for macro`;
-                    return this.error(error)
-                }
             }
         }
     }
-
-    //////////////////////////////////////////////////
     catch (error) {
-        console.error(`failed to validate macro child tags for "${id}"`);
+        console.error(`check_required - failed to validate required arguments for ${id}`);
         console.error(error);
     }
 }
 
-
-// █   █  ███  █     ███ ████      ████  █████  ████
-// █   █ █   █ █      █  █   █     █   █ █     █    █
-// █   █ █████ █      █  █   █     ████  ███   █    █
-//  █ █  █   █ █      █  █   █     █   █ █     █ ▄  █
-//   █   █   █ █████ ███ ████      █   █ █████  ████
-// SECTION: validate required / valid req          ▀
-function validate_required(argObj) {
-    const id = argObj.idl
-    const keys = Object.keys(argObj).filter( k => k !== 'id' );
-    for (const k of keys) {
-        if (TypeSet.id(argObj[k]) === 'undefined') {
-            const error = `${id} - missing required input "${k}"`;
-            return this.error(error)
-        }
-    }
-}
-
-// █   █  ███  █     ███ ████       ████ █████ █    █  ████ ███ ████  █     █████
-// █   █ █   █ █      █  █   █     █     █     ██   █ █      █  █   █ █     █
-// █   █ █████ █      █  █   █      ███  ███   █ █  █  ███   █  ████  █     ███
-//  █ █  █   █ █      █  █   █         █ █     █  █ █     █  █  █   █ █     █
-//   █   █   █ █████ ███ ████      ████  █████ █   ██ ████  ███ ████  █████ █████
-// SECTION: validate sensible / valid sensible
-function validate_args(template) {
+//  ████ █   █ █████  ████ █   █      ████ █████ █    █  ████ ███ ████  █     █████
+// █     █   █ █     █     █  █      █     █     ██   █ █      █  █   █ █     █
+// █     █████ ███   █     ███        ███  ███   █ █  █  ███   █  ████  █     ███
+// █     █   █ █     █     █  █          █ █     █  █ █     █  █  █   █ █     █
+//  ████ █   █ █████  ████ █   █     ████  █████ █   ██ ████  ███ ████  █████ █████
+// SECTION: check sensible / check_sensible
+function check_sensible(template) {
     
     //////////////////////////////////////////////////
     // ERROR: missing argument
     if (! template) {
-        const error = `validate_args missing required template argument`;
+        const error = `check_sensible - missing required template argument`;
         return this.error(error)
     }
     // ERROR: missing id
     const id = template.id;
     if (! id) {
-        const error = `validate_args missing required id`;
+        const error = `check_sensible - missing required id`;
         return this.error(error)
     }
 
@@ -115,7 +69,7 @@ function validate_args(template) {
 
     //////////////////////////////////////////////////
     catch (error) {
-        console.error(`failed to validate macro arguments for "${id}"`);
+        console.error(`${this.name} - failed to validate macro arguments for "${id}"`);
         console.error(error);
     }
 }
@@ -196,23 +150,23 @@ function validatation_errors(argObj) {
 }
 
 
-// █   █  ███  █     ███ ████   ███  █████ █████     █   █ █   █
-// █   █ █   █ █      █  █   █ █   █   █   █          █ █   █ █
-// █   █ █████ █      █  █   █ █████   █   ███         █     █
-//  █ █  █   █ █      █  █   █ █   █   █   █          █ █    █
-//   █   █   █ █████ ███ ████  █   █   █   █████     █   █   █
-// SECTION: validate xy
-function validate_xy(template) {
+//  ████ █   █ █████  ████ █   █       █   █ █   █
+// █     █   █ █     █     █  █         █ █   █ █
+// █     █████ ███   █     ███           █     █
+// █     █   █ █     █     █  █         █ █    █
+//  ████ █   █ █████  ████ █   █       █   █   █
+// SECTION: check xy / check_xy
+function check_xy(template) {
     //////////////////////////////////////////////////
     // ERROR: missing argument
     if (! template) {
-        const error = `validate_xy missing required template argument`;
+        const error = `check_xy - missing required template argument`;
         return this.error(error)
     }
     // ERROR: missing id
     const { id, mapid, entityid, x, y } = template;
     if (! id) {
-        const error = `validate_xy missing required id`;
+        const error = `check_xy - missing required id`;
         return this.error(error)
     }
 
@@ -241,7 +195,76 @@ function validate_xy(template) {
 
     //////////////////////////////////////////////////
     catch (error) {
-        console.error(`failed to validate coordinates { "${x.label}" : "${x.val}", "${y.label}" : "${y.val}" } on "${mapid}" for "${id}"`);
+        console.error(`check_xy - failed to validate coordinates { "${x.label}" : "${x.val}", "${y.label}" : "${y.val}" } on "${mapid}" for "${id}"`);
+        console.error(error);
+    }
+}
+
+// ████   ███  █   █      ████  ████      █ █████  ████ █████
+// █   █ █   █  █ █      █    █ █   █     █ █     █       █
+// ████  █████   █       █    █ ████      █ ███   █       █
+// █     █   █   █       █    █ █   █ █   █ █     █       █
+// █     █   █   █        ████  ████   ███  █████  ████   █
+// SECTION: payObj parser
+// parses payloads into a payload object
+function create_payObj(pays_in, template_in) {
+
+    //////////////////////////////////////////////////
+    // ERROR: no payload input
+    if (! pays_in) {
+        const error = `create_payObj - missing input "pays_in" for "${this.name}"`;
+        return this.error(error)
+    }
+    const pays = clone(pays_in);
+    // ERROR: no template input
+    if (! template_in) {
+        const error = `create_payObj - misssing input "tempalte_in" for "${this.name}"`;
+        return this.error(error)
+    }
+    const template = clone(template_in);
+    // ERROR missing template id
+    const id = template.id;
+    if (! id) {
+        const error = `create_payObj - missing template id for "${this.name}"`;
+        return this.error(error);
+    }
+    // ERROR: empty template
+    const keys = Object.keys(template).filter( k => k !== "id" );
+    if (! keys.length) {
+        const error = `create_payObj - template is empty for "${this.name}"`;
+        return this.error(error);
+    }
+
+    const payObj = {};
+    try {
+        for (const k of keys) {
+            const p = this.payload.filter( p => p.name === template[k].tagname);
+            if (! def.skipcheck.unused) {
+                // ERROR: extra payloads
+                if (template[k].unique && (p.length > 1)) {
+                    const error = `${id} - multiple of the same child tag received`;
+                    return this.error(error);
+                }
+                // ERROR: unused arguments
+                if (template[k].noargs && p[0]?.args?.length > 0) {
+                    const error = `${id} - child tag doesn't take arguments`;
+                    return this.error(error);
+                }
+                // ERROR: empty payload
+                if (p[0] && ! p[0]?.contents.trim()) {
+                    const error = `${id} - payload required to use this child tag`;
+                    return this.error(error);
+                }
+            }
+            payObj[k]   = p[0]
+                            ? p[0].contents.trim()
+                            : null;
+        }
+
+        return payObj
+    }
+    catch (error) {
+        console.error(`${id} - failed to parse payloads`);
         console.error(error);
     }
 }
@@ -253,41 +276,47 @@ function validate_xy(template) {
 // █████ ████  █  ██     █    █ ████      █ ███   █       █
 // █   █ █   █ █   █     █    █ █   █ █   █ █     █       █
 // █   █ █   █  ███       ████  ████   ███  █████  ████   █
-// SECTION: ArgObj parser
+// SECTION: argObj parser
 // parses macro arguments into an arg object
-function create_argObj(args_in,template_in,options) {
+function create_argObj(args_in, template_in, options) {
 
     //////////////////////////////////////////////////
     // ERROR: no args input
     if (! args_in) {
-        throw new Error(`create_argObj input missing, arguments`)
+        const error = `create_argObj - missing input "args_in" for "${this.name}"`;
+        return this.error(error);
     }
     const args = clone(args_in);
     // ERROR: no template input
     if (! template_in) {
-        throw new Error(`create_argObj input missing, template`)
+        const error = `create_argObj - missing input "template_in" for "${this.name}"`;
+        return this.error(error);
     }
     const template = clone(template_in);
     // ERROR: template id missing
     const id = template.id;
     if (! id) {
-        throw new Error(`create_argObj template id missing`)
+        const error = `create_argObj - missing template id for "${this.name}"`;
+        return this.error(error);
     }
     // ERROR: empty template
     const keys = Object.keys(template).filter( k => k !== "id" );
     if (! keys.length) {
-        throw new Error("create_argObj template cannot be empty")
+        const error = `create_argObj - template is empty for "${id}"`;
+        return this.error(error);
     }
 
     //////////////////////////////////////////////////
     const keys_infinite = keys.filter( k => template[k].infinite );
     // ERROR: more than one infinite key
     if (keys_infinite.length > 1) {
-        throw new Error("create_argObj template cannot have more than one infinite key")
+        const error = `create_argObj - "${id}" template has more than one infinite key`;
+        return this.error(error);
     }
     // ERROR: infinite key not last
     if (keys_infinite[0] && (keys_infinite[0] !== keys[keys.length - 1])) {
-        throw new Error("create_argObj template infinite key must be last")
+        const error = `create_argObj - "${id}" template infinite key must be last`;
+        return this.error(error);
     }
 
     try {
@@ -368,7 +397,7 @@ function create_argObj(args_in,template_in,options) {
 
             //////////////////////////////////////////////////
             catch (error) {
-                console.error(`failed to create argObj at "${arg_this}"`);
+                console.error(`create_argObj - failed to create argObj at "${arg_this}" for "${id}"`);
                 console.error(error);
             }
         }
@@ -378,7 +407,7 @@ function create_argObj(args_in,template_in,options) {
 
     //////////////////////////////////////////////////
     catch (error) {
-        console.error(`failed to parse macro arguments for "${id}"`);
+        console.error(`${id} - failed to parse macro arguments`);
         console.error(error);
     }
 }

@@ -34,12 +34,8 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
     config.nav.sizingoff        = false;        // true disables all attempts to size nav
 
     // default tile def, can also be specified using <<maptile>>
-    config.wall.id              = ".";          // default map input character for walls
-    config.wall.name            = "wall";       // name is shown when the tile on map is hovered
-    config.wall.element         = null;         // id is used when no element is specified
-    config.floor.id             = "x";
-    config.floor.name           = "floor";
-    config.floor.element        = null;
+    config.wall.tileid          = ".";          // default map input character for walls
+    config.floor.tileid         = "x";
 
     
 
@@ -68,8 +64,8 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
     config.skipcheck.unused     = false;        // true will suppress & ignore errors
 
     // identification keywords
-    config.wall.type            = "wall";       // used to checked for collisions
-    config.floor.type           = "floor";      // assigned to all non-wall tiles by default
+    config.wall.tiletype        = "wall";       // used to checked for collisions
+    config.floor.tiletype       = "floor";      // assigned to all non-wall tiles by default
 
     // collsion checks
     config.noclip               = false;        // true turns off all collision checks
@@ -133,59 +129,48 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
     class Navmap {
         constructor(mapid,arr,columns) {
             if (! def.allowclobbering && navmaps[mapid]) {
-                throw new Error(`Navmap with mapid "${mapid}" already exists`);
+                throw new Error(`Navmap with map id "${mapid}" already exists`);
             }
             navmaps[String(mapid)]  = this;
             this.mapsn              = window.crypto.randomUUID();
             this.mapid              = String(mapid);
             this.arr                = arr,
             this.columns            = columns,
-            this.rows               = this.arr.length / columns;
-            this.traversible        = new Array(this.arr.length).fill(false);
+            this.rows               = this.arr.length / this.columns;
+            this.traversible        = new Array(this.arr.length);
 
             this.tiles = {}
             // write everything floor first
-            for (const tileid of new Set(this.arr)) {
-                this.tiles[String(tileid)] = {
+            for (const t of new Set(this.arr)) {
+                this.tiles[String(t)] = {
                     mapid       : this.mapid,
                     tilesn      : window.crypto.randomUUID(),
-                    tileid      : String(tileid),
-                    tilename    : tileid,
-                    tiletype    : def.floor.type,
-                    tileelement : tileid,
+                    tileid      : String(t),
+                    tilename    : t,
+                    tiletype    : def.floor.tiletype,
+                    tilehtml    : t,
                 };
             }
             // then write from default
-            this.tiles[String(def.wall.id)] = {
-                mapid       : this.mapid,
+            this.tiles[String(def.wall.tileid)] = {
+                mapid   : this.mapid,
                 tilesn      : window.crypto.randomUUID(),
-                tileid      : String(def.wall.id),
-                tilename    : def.wall.name,
-                tiletype    : def.wall.type,
-                tileelement : def.wall.element,
+                tileid      : String(def.wall.tileid),
+                tilename    : def.wall.tileid,
+                tiletype    : def.wall.tiletype,
+                tilehtml    : def.wall.tileid,
             };
-            this.tiles[String(def.floor.id)] = {
-                mapid       : this.mapid,
-                tilesn      : window.crypto.randomUUID(),
-                tileid      : String(def.floor.id),
-                tilename    : def.floor.name,
-                tiletype    : def.floor.type,
-                tileelement : def.floor.element,
+            this.tiles[String(def.floor.tileid)] = {
+                mapid           : this.mapid,
+                tilesn          : window.crypto.randomUUID(),
+                tileid          : String(def.floor.tileid),
+                tilename        : def.floor.tileid,
+                tiletype        : def.floor.tiletype,
+                tilehtml        : def.floor.tileid,
             };
-
-            // auto create player if not extant
+            
             this.entities ??= {};
-            if (! this.entities.player) {
-                this.entities.player = {
-                    entitysn        : window.crypto.randomUUID(),
-                    entityid        : 'player',
-                    entityname      : 'Player',
-                    wall            : def.player.wall,
-                    x               : 1,
-                    y               : 1,
-                };
-                
-            }
+
         }
 
         set entities(val) {
@@ -273,12 +258,32 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
         const map = getmap(mapid);
         return map.entities[entityid]
     }
+    function getoverlap(...args) {
+        const mapid = args[0].mapid ?? args[0];
+        const entityid = args[0].entityid ?? args[1];
+        const map = getmap(mapid);
+        const { columns, traversible } = map;
+        const entity = getentity(mapid, entityid);
+        const { x, y } = entity;
+        const i = convert_xy2i({x,y}, columns);
+        return traversible[i].overlap.filter( e => e !== entityid );
+    }
+    function getadjacent(...args) {
+        const mapid = args[0].mapid ?? args[0];
+        const entityid = args[0].entityid ?? args[1];
+        const map = getmap(mapid);
+        const { columns, traversible } = map;
+        const entity = getentity(mapid, entityid);
+        const { x, y } = entity;
+        const i = convert_xy2i({x,y}, columns);
+        return traversible[i].adjacent.filter( e => e !== entityid );
+    }
 
     //////////////////////////////////////////////////
     // create elemeents
     function create_tile(argObj) {
         const { mapid, tile, i }= argObj;
-        const { tilesn, tileid, tilename, tiletype, tileelement } = tile;
+        const { tilesn, tileid, tilename, tiletype, tilehtml } = tile;
         const map = getmap(mapid);
         const { columns } = map;
         try {
@@ -287,18 +292,18 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
             $t
                 .addClass(`macro-showmap-tile`)
                 .addClass(tiletype)
-                .attr('title','tilename')
-                .attr('data-sn', tilesn)
-                .attr('data-id', tileid)
-                .attr('data-name', tilename)
-                .attr('data-type', tiletype)
+                .attr('title', tilename)
+                .attr('data-tilesn', tilesn)
+                .attr('data-tileid', tileid)
+                .attr('data-tilename', tilename)
+                .attr('data-tiletype', tiletype)
                 .css({
-                    "grid-column"   : x,
-                    "grid-row"      : y,
+                    "grid-column"   : `${x} / span 1`,
+                    "grid-row"      : `${y} / span 1`,
                 })
-                .wiki(tileelement
-                    ? tileelement
-                    : tileid            // use id as fallback
+                .wiki(tilehtml
+                        ? tilehtml
+                        : tileid            // use id as fallback
                 );
             return $t
         }
@@ -311,56 +316,53 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
     //////////////////////////////////////////////////
     function create_entity(argObj) {
         const { mapid, entity } = argObj;
-        const { entitysn, entityid, entityname, x, y, entityelement } = entity;
+        const { entitysn, entityid, entityname, x, y, entityhtml } = entity;
         try {
-
-            const $r = $(document.createElement('div'));
-            $r
+            const $e = $(document.createElement('div'));
+            $e
                 .addClass(`macro-showmap-entity`)
+                .attr('title', entityname)
                 .attr('data-sn', entitysn)
-                .attr('data-id', entityid)
-                .attr('data-name', entityname)
-                .wiki(entityelement       
-                        ? entityelement
-                        : entityname          // use name as fallback
+                .attr('data-entityid', entityid)
+                .wiki(entityhtml       
+                        ? entityhtml
+                        : entityid          // use name as fallback
                 )
                 .css({
-                    'grid-column'   : `${x}`,
-                    'grid-row'      : `${y}`,
+                    "grid-column"   : `${x} / span 1`,
+                    "grid-row"      : `${y} / span 1`,
                 });
-            return $r
+            return $e
         }
         //////////////////////////////////////////////////
         catch (error) {
-            console.error(`${this.name} - failed to create entity element for "${entityid}" on "${mapid}" for "${this.name}"`);
+            console.error(`${this.name} - failed to create entity element for "${entityid}" on "${mapid}"`);
             console.error(error);
         }
     }
     //////////////////////////////////////////////////
-    function create_direction(argObj) {
-        const { mapid, direction } = argObj;
+    function create_dir(argObj) {
+        const { mapid, entityid, dir } = argObj;
         const map = getmap(mapid);
         const { arr, columns, traversible } = map;
-        const { id, name, deltax, deltay } = direction;
-        const player = getentity(mapid, "player", "player");
+        const { dirid, dirname, deltax, deltay } = dir;
+        const entity = getentity(mapid, entityid);
         try {
-            
             const $dir = $(document.createElement('div'));
             $dir
-                .addClass(`macro-shownav-direction macro-shownav-${id}`)
-                .attr('data-id', id)
-                .attr('data-direction', name)
+                .addClass(`macro-shownav-direction macro-shownav-${dirid}`)
+                .attr('data-dirid', dirid)
+                .attr('data-mapname', dirname)
                 .attr('data-mapid', mapid);
 
-            const x = player.x + deltax;
-            const y = player.y + deltay;
+            const x = entity.x + deltax;
+            const y = entity.y + deltay;
             const i = convert_xy2i({x,y}, columns);
 
             if (i >= 0) {
                 const tile = gettile(mapid, arr[i]);
-                const { tileid, tilename, tileelement } = tile
-                // const p = this.payload.filter( p => p.name === name )[0];
-                const disabled = ! traversible[i];
+                const { tileid, tilename } = tile;
+                const disabled = traversible[i].wall;
                 $dir
                     .attr('data-disabled', disabled)
                     .attr('data-tileid', tileid)
@@ -380,7 +382,7 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
         }
         //////////////////////////////////////////////////
         catch (error) {
-            console.error(`${this.name} - failed to create nav direction "${name}" for "${mapid}"`);
+            console.error(`${this.name} - failed to create nav direction "${dirname}" for map "${mapid}"`);
             console.error(error);
         }
     }
@@ -391,61 +393,61 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
         exact: ['cm','mm','Q','in','pc','pt','px','em','ex','ch','rem','lh','rlh','vw','vh','vmin','vmax','vb','vi','svw','svh','lvh','dvw','dvh','%'],
         label: "any valid 'CSS unit'",
     };
-    const directions_4 = {
+    const dirs_4 = {
         C: {
-            id      : 'C',
-            name    : 'center',
+            dirid   : 'C',
+            dirname : 'center',
             deltax  : 0,
             deltay  : 0,
         },
         N: {
-            id      : 'N',
-            name    : 'north',
+            dirid   : 'N',
+            dirname : 'north',
             deltax  : 0,
             deltay  : -1,
         },
         E: {
-            id      : 'E',
-            name    : 'east',
+            dirid   : 'E',
+            dirname : 'east',
             deltax  : 1,
             deltay  : 0,
         },
         S: {
-            id      : 'S',
-            name    : 'south',
+            dirid   : 'S',
+            dirname : 'south',
             deltax  : 0,
             deltay  : 1,
         },
         W: {
-            id      : 'W',
-            name    : 'west',
+            dirid   : 'W',
+            dirname : 'west',
             deltax  : -1,
             deltay  : 0,
         },
     };
-    const directions_8 = {
-        ...directions_4,
+    const dirs_8 = {
+        ...dirs_4,
         NW: {
-            id      : 'NW',
-            name    : 'northwest',
+            dirid   : 'NW',
+            dirname : 'northwest',
             deltax  : -1,
             deltay  : -1,
         },
         NE: {
-            id      : 'NE',
-            name    : 'northeast',
+            dirid   : 'NE',
+            dirname  : 'northeast',
             deltax  : 1,
             deltay  : -1,
         },
         SE: {
-            id      : 'SE',
-            name    : 'southeast',
+            dirid   : 'SE',
+            dirname  : 'southeast',
             deltax  : 1,
             deltay  : 1,
         },
         SW: {
-            id      : 'SW',
-            name    : 'southwest',
+            dirid   : 'SW',
+            dirname : 'southwest',
             deltax  : -1,
             deltay  : 1,
         },
@@ -457,8 +459,16 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
 // █ █  █ ███   █  █  █ █ ██ █ █████ ████
 // █  █ █ █     █ █ █ █ █    █ █   █ █
 // █   ██ █████  █   █  █    █ █   █ █
-// SECTION:
+// SECTION: newmap / new map
 
+    /*  creates new navmap
+        input: 
+            mapid       (required)
+            inputmap    (required, macro payload / array)
+            inputtype   (required, macro source / type)
+            columns
+            diagonal
+    */
     Macro.add("newmap", {
 
         tags    : [null],
@@ -473,7 +483,7 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
                 // map identifiers
                 mapid: {
                     type        : 'string',
-                    alias       : 'id',
+                    alias       : 'map',
                 },
                 mapname: {
                     type        : 'string',
@@ -484,9 +494,6 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
                     type        : 'number',
                 },
                 diagonal: {
-                    type        : 'boolean',
-                },
-                savetostate: {
                     type        : 'boolean',
                 },
             });
@@ -504,11 +511,11 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
             this.name   ??= argObj.id ?? "newmap";
             this.error  ??= function(error) { throw new Error(error) };
             // extract from argObj
-            const { source, mapid, diagonal, inputtype, inputmap } = {
+            const { source, mapid, mapname, diagonal, inputtype, inputmap } = {
                 diagonal        : def.nav.diagonal,
                 ...argObj,
             };
-            validate_required.call(this, {id:this.name, mapid, inputtype});
+            check_required.call(this, {id:this.name, mapid, inputtype});
             // ERROR: missing inputmap
             if (! inputmap) {
                 const error = source === 'macro'
@@ -516,9 +523,8 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
                                 : `${this.name} - missing required input "inputmap"`;
                 return this.error(error);
             }
-            // set map name if none provided
-            const mapname = argObj.mapname ?? argObj.mapid;
-            
+
+            //////////////////////////////////////////////////
             // parse mapinput input into array
             try {
                 if (inputtype === 'array') {
@@ -535,11 +541,13 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
                 }
             }
             catch (error) {
-                console.error(`${this.name} - failed to parse inputmap for inputtype "${inputtype}"`);
+                console.error(`${this.name} - failed to parse input for inputtype "${inputtype}" and inputmap:+`);
                 console.error(inputmap);
                 console.error(error);
             }
+
             const { arr, columns } = argObj;
+
             // ERROR: missing columns
             if (! columns) {
                 const error = inputtype = 'array'
@@ -548,9 +556,10 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
                 return this.error(error);
             }
 
+            //////////////////////////////////////////////////
             // validate args
             if (! def.skipcheck.sensible) {
-                validate_args.call(this, {
+                check_sensible.call(this, {
                     id: this.name,
                     mapid: {
                         val         : mapid,
@@ -563,157 +572,91 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
                     },
                 });
             }
-            const mapsn = window.crypto.randomUUID();
-
+            
+            //////////////////////////////////////////////////
             try {
-                //////////////////////////////////////////////////
                 // ERROR: map not rectangular
                 if (arr.length % columns) {
-                    const error = `${this.name} - input map is not rectangular`;
+                    const error = `${this.name} - inputmap is not rectangular`;
                     return this.error(error)
                 }
 
-                //////////////////////////////////////////////////
-                const map = new Navmap(mapid,arr,columns);
-                map.diagonal = diagonal;
-                map.mapname  = mapname;
-
-                Macro.get('mapcalculate').handlerJS.call(this, argObj);
+                const map = new Navmap(mapid, arr, columns);
+                map.mapname     = mapname;
+                map.diagonal    = diagonal;
             }
-
-            //////////////////////////////////////////////////
             catch (error) {
-                console.error(`${this.name} - failed to create newmap navmap object for "${mapid}"`);
+                console.error(`${this.name} - failed to create Navmap object for map "${mapid}"`);
                 console.error(error);
             }
+
+            
+            //////////////////////////////////////////////////
+            Macro.get('mapcalculate').handlerJS.call(this, {mapid,diagonal});
         },
     });
 
 
 
-// █    █  ███  ████  █████ ███ █     █████
-// ██  ██ █   █ █   █   █    █  █     █
-// █ ██ █ █████ ████    █    █  █     ███
-// █    █ █   █ █       █    █  █     █
-// █    █ █   █ █       █   ███ █████ █████
-// SECTION: maptile
 
-    Macro.add('maptile', {
+// █    █ █████ █     █ █████ ███ █     █████
+// ██   █ █     █     █   █    █  █     █
+// █ █  █ ███   █  █  █   █    █  █     ███
+// █  █ █ █     █ █ █ █   █    █  █     █
+// █   ██ █████  █   █    █   ███ █████ █████
+// SECTION: new tile / newtile
 
-        tags: ["tilename","tiletype","tileelement"],
+    /*  defines map tiles
+        input:
+            mapid       (required)
+            name
+            type
+            element
+    */
+    Macro.add("newtile", {
+
+        tags: null,
 
         handler() {
-            // validate child tags & parse args
-            if (! def.skipcheck.unused) {
-                validate_tags.call(this, {
-                    id: this.name,
-                    tilename: {
-                        unique: true,
-                    },
-                    tiletype: {
-                        unique: true,
-                    },
-                    tileelement: {
-                        unique: true,
-                    },
-                });
-            }
-            // parse args
+            //////////////////////////////////////////////////
+            //////////////////////////////////////////////////
             const argObj = create_argObj.call(this, this.args, {
                 id: this.name,
                 mapid: {
                     type        : 'string',
                     alias       : 'map',
                 },
-                tileid: {   // remember, this gets turned into an array
-                    type        : ["string","array"],
-                    infinite    : true,
-                    alias       : ['tile','tiles'],
+                tileid: {
+                    type        : 'string',
+                    alias       : 'tile',
+                },
+                tilename: {
+                    type        : 'string',
+                    alias       : 'name',
+                },
+                tiletype: {
+                    type        : 'string',
+                    alias       : 'type',
                 },
             });
-            // write payloads
-            try {
-
-                //////////////////////////////////////////////////
-                // process tilename & tiletype
-                for (const tag of ["tilename","tiletype"]) {
-                
-                    const payload  = this.payload.filter( p => p.name === tag )[0];
-                    // if payload exists, run
-                    if (payload) {
-                        // check unused
-                        if (! def.skipcheck.unused) {
-                            // ERROR: no args or too many args
-                            if (payload.args.length !== 1) {
-                                const error = `${tag} - child tag takes one string argument`;
-                                return this.error(error);
-                            }
-                            // ERROR: unused payload
-                            if (payload.contents.trim()) {
-                                const error = `${tag} - child tag doesn't take input in its payload`;
-                                return this.error(error);
-                            }
-                        }
-                        // ERROR: invalid type
-                        if (
-                            (! def.skipcheck.typing)    &&
-                            (TypeSet.id(payload.args[0]) !== 'string')
-                        ) {
-                            const error = `${tag} - invalid type for ${tag} ('${TypeSet.id(payload.args[0])}'), expected any 'string'`;
-                            return this.error(error);
-                        }
-                        // write to argObj
-                        argObj[tag] = payload.args[0];
-                    }
-                }
-                //////////////////////////////////////////////////
-                // process tileelement
-                const payload  = this.payload.filter( p => p.name === "tileelement" )[0];
-                if (payload) {
-                    if (! def.skipcheck.unused) {
-                        // ERROR: tileelement doesn't take arguments
-                        if (payload.args.length > 0) {
-                            const error = `tileelement - child tag doesn't take arguments`;
-                            return this.error(error)
-                        }
-                        // ERROR: empty payload
-                        const contents = payload.contents.trim();
-                        if (! contents) {
-                            const error = `tileelement - child tag payload is required`;
-                            return this.error(error)
-                        }
-                        argObj.tileelement = contents;
-                    }
-                }
-            }
-
-            //////////////////////////////////////////////////
-            catch (error) {
-                console.error(`${this.name} - failed to process payloads for ${argObj.mapid}`);
-                console.error(error);
-            }
-            
-            // passover to JS handler
+            argObj.tilehtml = this.payload[0].contents.trim();
             this.self.handlerJS.call(this, argObj);
         },
-        handlerJS(argObj) {     
+
+        handlerJS(argObj) {
             //////////////////////////////////////////////////
             //////////////////////////////////////////////////
             // necessary definitions
-            this.name   ??= argObj.id ?? "maptile";
-            this.error  ??= function(error) { throw new Error(error) };  
+            this.name   ??= argObj.id ?? "newtile";
+            this.error  ??= function(error) { throw new Error(error) }  
 
             //////////////////////////////////////////////////
             // extract from argObj
-            const { mapid, tilename, tiletype, tileelement } = argObj;
-            validate_required.call(this, {id:this.name, mapid, tileid:argObj.tileid});
-            // turn into array if it isn't
-            const tileid    = TypeSet.id(argObj.tileid) === 'array'
-                                ? argObj.tileid
-                                : [argObj.tileid];
+            const { mapid, tileid, tilename, tiletype, tilehtml } = argObj;
+            check_required.call(this, {id:this.name, mapid, tileid});
             // validate args
             if (! def.skipcheck.sensible) {
-                validate_args.call(this, {
+                check_sensible.call(this, {
                     id: this.name,
                     mapid: {
                         val         : mapid,
@@ -727,18 +670,18 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
                     },
                 });
                 if (tilename) {
-                    validate_args.call(this, {
-                        id: 'tilename',
-                        tilename: {
+                    check_sensible.call(this, {
+                        id: 'name',
+                        name: {
                             val         : tilename,
                             oneword     : true,
                         },
                     });
                 }   
                 if (tiletype) {
-                   validate_args.call(this, {
-                        id: 'tiletype',
-                        tiletype: {
+                   check_sensible.call(this, {
+                        id: 'type',
+                        type: {
                             val         : tiletype,
                             oneword     : true,
                         },
@@ -748,25 +691,19 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
 
             //////////////////////////////////////////////////
             try {
-
-                for (const t of tileid) {
-                    const tile = gettile(mapid, t);
-                    if (tilename) {
-                        tile.tilename = tilename;
-                    }
-                    if (tiletype) {
-                        tile.tiletype = tiletype;
-                    }
-                    if (tileelement) {
-                        tile.tileelement = tileelement;
-                    }
+                const tile = gettile(mapid,tileid);
+                if (tilename) {
+                    tile.tilename = tilename;
                 }
-                
+                if (tiletype) {
+                    tile.tiletype = tiletype;
+                }
+                if (tilehtml) {
+                    tile.tilehtml = tilehtml;
+                }
             }
-
-            //////////////////////////////////////////////////
             catch (error) {
-                console.error(`${this.name} - failed to process "${tileid}" maptile definition for "${mapid}"`);
+                console.error(`${this.name} - failed to create new tile definition for "${tileid}" on map "${mapid}"`);
                 console.error(error);
             }
         },
@@ -826,14 +763,14 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
             //////////////////////////////////////////////////
             //////////////////////////////////////////////////
             // necessary definitions
-            this.name   ??= "showmap";
+            this.name   ??= argObj.id ?? "showmap";
             this.error  ??= function(error) { throw new Error(error) };
             // extract from argObj
             const { mapid, sizingmode } = {
                 sizingmode  : def.sizingmode,
                 ...argObj,
             };
-            validate_required.call(this, {mapid});
+            check_required.call(this, {mapid});
             // check for unused inputs
             if (! def.skipcheck.unused) {
                 if ((sizingmode === "height") && argObj.mapwidth) {
@@ -863,7 +800,7 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
             };
             // validate args
             if (! def.skipcheck.sensible) {
-                validate_args.call(this, {
+                check_sensible.call(this, {
                     id: this.name,
                     mapid: {
                         val         : mapid,
@@ -890,13 +827,14 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
             }
             // extract from map
             const map = getmap(mapid);
-            const { mapsn, mapname, columns, rows, arr } = map;
+            const { columns, rows, arr, diagonal } = map;
+            const mapsn = map.mapsn;
             const entities = map.entities;
 
             try {
 
                 // update traversible indices
-                Macro.get('mapcalculate').handlerJS.call(this, argObj);
+                Macro.get('mapcalculate').handlerJS.call(this, {mapid,diagonal});
                 
                 //////////////////////////////////////////////////
                 // create map container
@@ -904,8 +842,7 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
                 $map
                     .addClass(`macro-${this.name}-map`)
                     .attr('data-sn', mapsn)
-                    .attr('data-id', mapid)
-                    .attr('data-name', mapname)
+                    .attr('data-mapid', mapid)
                     .attr('data-columns', columns)
 
                 //////////////////////////////////////////////////
@@ -958,21 +895,21 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
                 //////////////////////////////////////////////////
                 // create tiles
                 for (let i = 0; i < arr.length; i++) {
-                    const tileid = arr[i];
+                    const t = arr[i];
                     const $t = create_tile.call(this, {
                         mapid       : mapid,
-                        tile        : gettile(mapid, tileid),
+                        tile        : gettile(mapid, t),
                         i           : i,
                     });
                     $t.appendTo($map);
                 }
                 // create entities
                 for (const e in entities) {
-                    const $r = create_entity.call(this, {
+                    const $e = create_entity.call(this, {
                         mapid       : mapid,
-                        entity      : entity[e],
+                        entity      : entities[e],
                     });
-                    $r.appendTo($map);
+                    $e.appendTo($map);
                 }
 
                 // output
@@ -996,7 +933,7 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
 
             //////////////////////////////////////////////////
             catch (error) {
-                console.error(`${this.name} - failed to create showmap element for "${mapid}"`);
+                console.error(`${this.name} - failed to create showmap element for map "${mapid}"`);
                 console.error(error);
             }
         },
@@ -1013,16 +950,21 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
 
     Macro.add("shownav", {
 
-        tags: ['navnorth','naveast','navsouth','navwest','navnorthwest','navnorthwest','navsoutheast','navsouthwest'],
+        tags: ['nav-north','nav-east','nav-south','nav-west','nav-northwest','nav-northeast','nav-southeast','nav-southwest'],
 
         handler() {
             //////////////////////////////////////////////////
             //////////////////////////////////////////////////
+            // parse args
             const argObj = create_argObj.call(this, this.args, {
                 id: this.name,
                 mapid: {
                     type        : 'string',
-                    alias       : ['id','map'],
+                    alias       : 'map',
+                },
+                entityid: {
+                    type        : 'string',
+                    alias       : 'entity',
                 },
                 width: {
                     type        : 'number',
@@ -1033,14 +975,56 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
                 unit: {
                     type        : cssunit,
                 },
-                arrowkeys: {
-                    type        : 'boolean',
+            });
+            const payObj = create_payObj.call(this, this.payload, {
+                id: this.name,
+                north: {
+                    tagname     : 'nav-north',
+                    unique      : true,
+                    noargs      : true,
                 },
-                diagonal: {
-                    type        : 'boolean',
+                east: {
+                    tagname     : 'nav-east',
+                    unique      : true,
+                    noargs      : true,
+                },
+                south: {
+                    tagname     : 'nav-south',
+                    unique      : true,
+                    noargs      : true,
+                },
+                west: {
+                    tagname     : 'nav-west',
+                    unique      : true,
+                    noargs      : true,
+                },
+                northwest: {
+                    tagname     : 'nav-northwest',
+                    unique      : true,
+                    noargs      : true,
+                },
+                northeast: {
+                    tagname     : 'nav-northeast',
+                    unique      : true,
+                    noargs      : true,
+                },
+                southeast: {
+                    tagname     : 'nav-southeast',
+                    unique      : true,
+                    noargs      : true,
+                },
+                southwest: {
+                    tagname     : 'nav-southwest',
+                    unique      : true,
+                    noargs      : true,
                 },
             });
-            this.self.handlerJS.call(this, argObj);
+            
+            //////////////////////////////////////////////////
+            this.self.handlerJS.call(this, {
+                ...argObj,
+                ...payObj,
+            });
         },
 
         handlerJS(argObj) {
@@ -1050,19 +1034,21 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
             this.name   ??= argObj.id ?? "shownav";
             this.error  ??= function(error) { throw new Error(error) };
             // extract from argObj
-            const { mapid, width, height, unit, arrowkeys } = {
+            const { mapid, entityid, width, height, unit, north, east, south, west, northwest, northeast, southeast, southwest } = {
                 width   : def.nav.width,
                 height  : def.nav.height,
                 unit    : def.nav.unit,
                 ...argObj,
             };
-            validate_required.call(this, {mapid});
+            check_required.call(this, {mapid});
+
             // extract from map
             const map = getmap(mapid);
-            const diagonal = argObj.diagonal ?? map.diagonal ?? def.nav.diagonal;
+            const { diagonal } = map;
+            
             // validate args
             if (! def.skipcheck.sensible) {
-                validate_args.call(this, {
+                check_sensible.call(this, {
                     id: this.name,
                     mapid: {
                         val         : mapid,
@@ -1080,11 +1066,14 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
                 });
             };
 
-            try {
+            // create nav
+            const $nav = $(document.createElement('div'));
+            const dirs = diagonal ? dirs_8 : dirs_4;
 
-                //////////////////////////////////////////////////
+            //////////////////////////////////////////////////
+            try {
+                // define nav;
                 const navsn = window.crypto.randomUUID();
-                const $nav = $(document.createElement('div'));
                 $nav
                     .addClass(`macro-${this.name}-nav`)
                     .attr('data-mapid',mapid)
@@ -1094,23 +1083,31 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
                         "--width"   : String(width) + unit,
                     });
 
-                
                 // fill in each direction
-                const directions = diagonal ? directions_8 : directions_4;
-                
-                for (const d in directions) {
-                    const $direction = create_direction.call(this, {
+                for (const d in dirs) {
+                    const $dir = create_dir.call(this, {
                         mapid       : mapid,
-                        direction   : directions[d],
+                        entityid    : entityid,
+                        dir         : dirs[d],
                     });
-                    $direction.appendTo($nav);
+                    $dir.appendTo($nav);
                 }
 
-                //////////////////////////////////////////////////
-                // click functionality
+                // output
+                $nav.appendTo(this.output)
+            }
+            catch (error) {
+                console.error(`${this.name} -  failed to create nav rose for ${mapid}`);
+                console.error(error);
+            }
+
+            
+            //////////////////////////////////////////////////
+            try {
                 setTimeout( function() {
+                    // click functionality
                     $nav.on('click', function(ev) {
-                        const d = $(ev.target).attr('data-id');
+                        const d = $(ev.target).attr('data-dirid');
                         if (d && (d !== "C")) {
                             const disabled = $(ev.target).attr('data-disabled') === "true";
                             if (! disabled) {
@@ -1121,35 +1118,31 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
                             }
                         }
                     });
+                    // update functinality
                     $nav.on(':navupdate', function(ev, d_input) {
                         const mapid = $(this).attr('data-mapid');
                         if (d_input) {
-                            Macro.get("moveentity").handlerJS.call(this, {
-                                mapid           : mapid,
-                                entityid        : "player",
-                                deltax          : directions[d_input].deltax,
-                                deltay          : directions[d_input].deltay,
+                            Macro.get("moventity").handlerJS.call(this, {
+                                mapid       : mapid,
+                                entityid    : entityid,
+                                deltax      : dirs[d_input].deltax,
+                                deltay      : dirs[d_input].deltay,
                             });
                         }
                         $nav.html('');
-                        for (const d in directions) {
-                            const $direction = create_direction.call(this, {
+                        for (const d in dirs) {
+                            const $dir = create_dir.call(this, {
                                 mapid       : mapid,
-                                direction   : directions[d],
+                                entityid    : entityid,
+                                dir         : dirs[d],
                             });
-                            $direction.appendTo($nav);
+                            $dir.appendTo($nav);
                         }
                     });
                 }, 40)
-
-                // output
-                $nav.appendTo(this.output)
-
             }
-
-            //////////////////////////////////////////////////
             catch (error) {
-                console.error(`${this.name} -  failed to create nav rose for ${mapid}`);
+                console.error(`${this.name} -  failed to add click functionality to navrose for ${mapid}`);
                 console.error(error);
             }
         },
@@ -1173,42 +1166,39 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
             //////////////////////////////////////////////////
             //////////////////////////////////////////////////
             const argObj = create_argObj.call(this, this.args, {
-                    id: this.name,
-                    mapid: {
-                        type        : 'string',
-                        alias       : 'map',
-                    },
-                    entityid: {
-                        type        : 'string',
-                        alias       : 'id',
-                    },
-                    entityname: {
-                        type        : 'string',
-                        alias       : 'name',
-                    },
-                    x: {
-                        type        : 'number'
-                    },
-                    y: {
-                        type        : 'number',
-                    },
-                    spanx: {
-                        type        : 'number',
-                        alias       : 'width',
-                    },
-                    spany: {
-                        type        : 'number',
-                        alias       : 'height',
-                    },
-                    wall: {
-                        type        : 'boolean',
-                    },
-                });
+                id: this.name,
+                mapid: {
+                    type        : 'string',
+                    alias       : 'map',
+                },
+                entityid: {
+                    type        : 'string',
+                    alias       : 'entity',
+                },
+                wall: {
+                    type        : 'boolean',
+                },
+                x: {
+                    type        : 'number',
+                },
+                y: {
+                    type        : 'number',
+                },
+            });
+            const payObj = create_payObj.call(this, this.payload, {
+                id: this.name,
+                entityhtml: {
+                    tagname     : this.name,
+                },
+            });
+            payObj.entitytrigger
 
-            // assign type & payload
-            argObj.entityelement = this.payload[0]?.contents?.trim();
+            //////////////////////////////////////////////////
             argObj.source = 'macro';
-            this.self.handlerJS.call(this, argObj);
+            this.self.handlerJS.call(this, {
+                ...argObj,
+                ...payObj,
+            });
         },
 
         handlerJS(argObj) {
@@ -1218,15 +1208,14 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
             this.name   ??= argObj.id ?? "newentity";
             this.error  ??= function(error) { throw new Error(error) };
             // extract from argObj
-            const { mapid, entityelement, x, y, source, wall } = argObj;
-            const entityname  = argObj.entityname ?? entityid;
-            validate_required.call(this, {id:this.name, mapid, x, y});
+            const { mapid, x, y, source, wall, entityhtml, entityhandler } = argObj;
+            check_required.call(this, {id:this.name, mapid, x, y});
             // assign sn & id
             const entitysn = window.crypto.randomUUID();
             const entityid = argObj.entityid ?? entitysn;
             // validate args
             if (! def.skipcheck.sensible) {
-                validate_args.call(this, {
+                check_sensible.call(this, {
                     id: this.name,
                     mapid: {
                         val         : mapid,
@@ -1245,32 +1234,14 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
                         val         : y,
                         integer     : true,
                     },
-                    spanx: {
-                        val         : spanx,
-                        integer     : true,
-                        positive    : true,
-                    },
-                    spany: {
-                        val         : spany,
-                        integer     : true,
-                        positive    : true,
-                    },
                 });
             }
             // extract from map
             const map = getmap(mapid);
-            const { mapsn } = map;
 
             try {
 
                 //////////////////////////////////////////////////
-                // ERROR: no payload
-                if (! entityelement) {
-                    const error = source === 'macro'
-                                    ? `${this.name} - macro payload required`
-                                    : `${this.name} - missing required "entityelement" value`;
-                    return this.error(error)
-                }
                 // ERROR: entity already exists
                 if (! def.allowclobbering && getentity(mapid, entityid)) {
                     const error = `${this.name} - entity with id "${entityid}" already exists in map "${mapid}"`;
@@ -1278,18 +1249,18 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
                 }
                 // validate xy
                 if (! def.skipcheck.xybounds) {
-                    validate_xy.call(this, {
+                    check_xy.call(this, {
                         id: this.name,
                         mapid       : mapid,
                         entityid    : entityid,
                         x: {
-                            label   : "combined x position & tile width (span)",
-                            upper   : x + (spanx-1), 
+                            label   : "entity x position",
+                            upper   : x, 
                             lower   : x,
                         },
                         y: {
-                            label   : "combined y position & tile height (span)",
-                            upper   : y + (spany-1),
+                            label   : "entity y position",
+                            upper   : y,
                             lower   : y,
                         },
                     });
@@ -1301,29 +1272,15 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
                     mapid           : mapid,
                     entitysn        : entitysn,
                     entityid        : String(entityid),
-                    entityname      : entityname,
-                    entityelement   : entityelement,
+                    entityhtml      : entityhtml,
+                    entityhandler   : entityhandler,
                     x               : x,
                     y               : y,
-                    spanx           : spanx,
-                    spany           : spany,
                     wall            : wall,
                 };
                 map.entities ??= {};
                 map.entities[entityid] = entity;
-
-                //////////////////////////////////////////////////
-                // if map current displayed, add to display
-                const $map = $(`[data-sn="${mapsn}"]`).first();
-                if ($map.length > 0) {
-                    const $e = create_entity.call(this, {
-                        mapid       : mapid,
-                        entity      : entity,
-                    });
-                    $r.appendTo($map);
-
-                    Macro.get('mapcalculate').handlerJS.call(this, argObj);
-                }
+                
             }
 
             //////////////////////////////////////////////////
@@ -1333,9 +1290,6 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
             }
         },
     });
-
-
-
 
 
 
@@ -1352,17 +1306,16 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
             //////////////////////////////////////////////////
             //////////////////////////////////////////////////
             const argObj = create_argObj.call(this, this.args, {
-                    id: this.name,
-                    mapid: {
-                        type        : 'string',
-                        alias       : 'map',
-                    },
-                    entityid: {   // remember, this gets turned into an array
-                        type        : ['string','array'],
-                        infinite    : true,
-                        alias       : 'id',
-                    },
-                });
+                id: this.name,
+                mapid: {
+                    type        : 'string',
+                    alias       : 'map',
+                },
+                entityid: {
+                    type        : 'string',
+                    alias       : 'entity',
+                },
+            });
             this.self.handlerJS.call(this, argObj);
         },
 
@@ -1373,15 +1326,11 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
             this.name   ??= argObj.id ?? "delentity";
             this.error  ??= function(error) { throw new Error(error) };
             // extract from argObj
-            const { mapid }     = argObj;
-            // turn into array if it isn't
-            const entityid  = TypeSet.id(argObj.entityid) === 'array'
-                                ? argObj.entityid
-                                : [argObj.entityid];
-            validate_required.call(this, {id:this.name, mapid, entityid});
+            const { mapid, entityid } = argObj;
+            check_required.call(this, {id:this.name, mapid, entityid});
             // validate args
             if (! def.skipcheck.sensible) {
-                validate_args.call(this, {
+                check_sensible.call(this, {
                     id: this.name,
                     mapid: {
                         val     : mapid,
@@ -1395,26 +1344,23 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
                     },
                 });
             }
-            // extract from map
+            // extract from entity
             const map = getmap(mapid);
-            const entities = map.entities
+            const entities = map.entities;
 
             try {
-            
-                //////////////////////////////////////////////////
-                for (const e of entityid) {
-                    const entitysn = clone(entities[e].entitysn);
-                    delete entities[e];
+                const entitysn = clone(entities[entityid].entitysn);
+                delete entities[entityid];
                     
-                    //////////////////////////////////////////////////
-                    // if map displayed, remove
-                    const $e = $(`[data-sn="${entitysn}"]`).first();
-                    if ($e) {
-                        $e.remove();
-                        Macro.get('mapcalculate').handlerJS.call(this, argObj);
-                    }
-                    $(`.macro-shownav-nav[data-mapid="${mapid}"]`).trigger(':navupdate');
+                //////////////////////////////////////////////////
+                // if map displayed, remove
+                const $e = $(`[data-sn="${entitysn}"]`).first();
+                if ($e) {
+                    $e.remove();
+                    Macro.get('mapcalculate').handlerJS.call(this, {mapid,diagonal});
                 }
+                $(`.macro-shownav-nav[data-mapid="${mapid}"]`).trigger(':navupdate');
+                
             }
 
             //////////////////////////////////////////////////
@@ -1440,27 +1386,27 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
             //////////////////////////////////////////////////
             //////////////////////////////////////////////////
             const argObj =  create_argObj.call(this, this.args, {
-                    id: this.name,
-                    mapid: {
-                        type        : 'string',
-                        alias       : 'map',
-                    },
-                    entityid: {
-                        type        : 'string',
-                        alias       : 'id',
-                    },
-                    deltax: {
-                        type        : 'number',
-                        alias       : 'x',
-                    },
-                    deltay: {
-                        type        : 'number',
-                        alias       : 'y',
-                    },
-                    ignorewalls: {
-                        type        : 'boolean',
-                    },
-                })
+                id: this.name,
+                mapid: {
+                    type        : 'string',
+                    alias       : 'map',
+                },
+                entityid: {
+                    type        : 'string',
+                    alias       : 'entity',
+                },
+                deltax: {
+                    type        : 'number',
+                    alias       : 'x',
+                },
+                deltay: {
+                    type        : 'number',
+                    alias       : 'y',
+                },
+                ignorewalls: {
+                    type        : 'boolean',
+                },
+            });
             this.self.handlerJS.call(this, argObj);
         },
 
@@ -1472,9 +1418,9 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
             this.error  ??= function(error) { throw new Error(error) };
             // extract from argObj
             const { mapid, entityid, deltax, deltay, ignorewalls } = argObj;
-            validate_required.call(this, {id:this.name, mapid, entityid, deltax, deltay});
+            check_required.call(this, {id:this.name, mapid, entityid, deltax, deltay});
             if (! def.skipcheck.sensible) {
-                validate_args.call(this, {
+                check_sensible.call(this, {
                     id: this.name,
                     mapid: {
                         val     : mapid,
@@ -1498,26 +1444,27 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
             }
             // extract from map
             const map = getmap(mapid);
-            const { columns, traversible, mapsn } = map;
+            const { columns, traversible, diagonal } = map;
+            const mapsn = map.sn;
             const entity = getentity(mapid, entityid);
-            const { x, y, spanx, spany } = entity;
+            const { x, y } = entity;
 
             try {
 
                 //////////////////////////////////////////////////
                 // validate xy
                 if (! def.skipcheck.xybounds) {
-                    validate_xy.call(this, {
+                    check_xy.call(this, {
                         id: this.name,
                         mapid       : mapid,
                         entityid    : entityid,
                         x: {
-                            label   : "combined x position, width (spanx), & delta x",
+                            label   : "new x position after deltax",
                             upper   : x + deltax,
                             lower   : x + deltax,
                         },
                         y: {
-                            label   : "combined y position, height (spany), & delta y",
+                            label   : "new y position after deltay",
                             upper   : y + deltay,
                             lower   : y + deltay,
                         },
@@ -1526,29 +1473,25 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
 
                 //////////////////////////////////////////////////
                 // check traversible
+                const i = convert_xy2i({
+                    x   : x + deltax,
+                    y   : y + deltay,
+                }, columns);
                 if (! (ignorewalls || def.noclip)) {
-                    for (let j = 0; j < spanx; j++) {
-                        for (let k = 0; k < spany; k++) {
-                            const i = convert_xy2i({
-                                x   : x + j + deltax,
-                                y   : y + k + deltay,
-                            }, columns);
-                            if (! traversible[i]) {
-                                if (def.collisionerror) {
-                                    const error = `${this.name} - collision detected for entity "${entityid}" on "${mapid}"`
-                                    return this.error(error)
-                                }
-                                else {
-                                    console.log('collision');
-                                    return
-                                }
-                            }
+                    if (traversible[i].wall) {
+                        if (def.collisionerror) {
+                            const error = `${this.name} - collision detected for entity "${entityid}" on "${mapid}"`
+                            return this.error(error)
+                        }
+                        else {
+                            return
                         }
                     }
                 }
                 entity.x += deltax;
                 entity.y += deltay;
-                Macro.get('mapcalculate').handlerJS.call(this, argObj);
+                console.log(traversible[i].adjacent.filter( e => e !== entityid ));
+                Macro.get('mapcalculate').handlerJS.call(this, {mapid,diagonal});
 
                 $(`[data-sn="${mapsn}"]`).trigger(':mapupdate');
                 $(`.macro-shownav-nav[data-mapid="${mapid}"]`).trigger(':navupdate');
@@ -1565,12 +1508,124 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
 
 
 
+//  ████ █████ █████ █████ █    █ █████ ███ █████ █   █
+// █     █       █   █     ██   █   █    █    █    █ █
+//  ███  ███     █   ███   █ █  █   █    █    █     █
+//     █ █       █   █     █  █ █   █    █    █     █
+// ████  █████   █   █████ █   ██   █   ███   █     █
+// SECTION: setentity / set entity
+
+    Macro.add("setentity", {
+
+        handler() {
+            //////////////////////////////////////////////////
+            //////////////////////////////////////////////////
+            const argObj =  create_argObj.call(this, this.args, {
+                id: this.name,
+                mapid: {
+                    type        : 'string',
+                    alias       : 'map',
+                },
+                entityid: {
+                    type        : 'string',
+                    alias       : 'entity',
+                },
+                x: {
+                    type        : 'number',
+                },
+                y: {
+                    type        : 'number',
+                },
+            });
+            this.self.handlerJS.call(this, argObj);
+        },
+
+        handlerJS(argObj) {
+            //////////////////////////////////////////////////
+            //////////////////////////////////////////////////
+            // necessary definitions
+            this.name   ??= argObj.id ?? "moventity";
+            this.error  ??= function(error) { throw new Error(error) };
+            // extract from argObj
+            const { mapid, entityid, x, y } = argObj;
+            if (! def.skipcheck.sensible) {
+                check_sensible.call(this, {
+                    id: this.name,
+                    mapid: {
+                        val     : mapid,
+                        oneword : true,
+                        extant  : true,
+                    },
+                    entityid: {
+                        val     : entityid,
+                        oneword : true,
+                        extant  : true,
+                    },
+                    x: {
+                        val     : x,
+                        integer : true,
+                    },
+                    y: {
+                        val     : y,
+                        integer : true,
+                    },
+                });
+            }
+            // extract from map
+            const map = getmap(mapid);
+            const { mapsn, traversible, columns, diagonal } = map;
+
+            try {
+
+                const entity = getentity(mapid, entityid);
+
+                //////////////////////////////////////////////////
+                // validate xy
+                if (! def.skipcheck.xybounds) {
+                    check_xy.call(this, {
+                        id: this.name,
+                        mapid       : mapid,
+                        entityid    : entityid,
+                        x: {
+                            label   : "new x position",
+                            upper   : x,
+                            lower   : x,
+                        },
+                        y: {
+                            label   : "new y position",
+                            upper   : y,
+                            lower   : y,
+                        },
+                    });
+                }
+                entity.x = x;
+                entity.y = y;
+
+                console.log(traversible[i].adjacent.filter( e => e !== entityid ));
+
+                Macro.get('mapcalculate').handlerJS.call(this, {mapid,diagonal});
+
+                $(`[data-sn="${mapsn}"]`).trigger(':mapupdate');
+                $(`.macro-shownav-nav[data-mapid="${mapid}"]`).trigger(':navupdate');
+
+            }
+            catch (error) {
+                console.error(`${this.name} - failed to set positition for entity "${entityid}" on map "${mapid}"`);
+                console.error(error);
+            }
+        }
+        
+    });
+
+
+
+
 // █    █  ███  ████   ████  ███  █      ████ █   █ █      ███  █████ █████
 // ██  ██ █   █ █   █ █     █   █ █     █     █   █ █     █   █   █   █
 // █ ██ █ █████ ████  █     █████ █     █     █   █ █     █████   █   ███
 // █    █ █   █ █     █     █   █ █     █     █   █ █     █   █   █   █
 // █    █ █   █ █      ████ █   █ █████  ████  ███  █████ █   █   █   █████
-// SECTION: map calculate
+// SECTION: map calculate / mapcalculate
 
     Macro.add("mapcalculate", {
 
@@ -1583,6 +1638,9 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
                     type        : 'string',
                     alias       : 'map',
                 },
+                diagonal: {
+                    type        : 'boolean',
+                }
             });
             this.self.handlerJS.call(this, argObj);
         },
@@ -1598,8 +1656,8 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
             this.name   ??= argObj.id ?? "mapcalculate";
             this.error  ??= function(error) { throw new Error(error) };
             // extract from argObj
-            const { mapid } = argObj;
-            validate_required.call(this, {id:this.name, mapid});
+            const { mapid, diagonal } = argObj;
+            check_required.call(this, {id:this.name, mapid});
             // extract from 
             const map = getmap(mapid);
             const { columns, arr, traversible, entities } = map;
@@ -1608,37 +1666,43 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
 
                 //////////////////////////////////////////////////
                 // fill in all walltypes
-                const walltype = def.wall.type;
                 for (let i = 0; i < arr.length; i++) {
                     const t = arr[i];
                     const tile = gettile(mapid, t);
-                    traversible[i] = tile.tiletype !== walltype;
+                    traversible[i] = {};
+                    traversible[i].wall = tile.tiletype === def.wall.tiletype;
+                    traversible[i].adjacent = [];
+                    traversible[i].overlap = [];
                 }
 
-                //////////////////////////////////////////////////
+                ////////////////////////////////////////////////
                 // check all entities
                 for (const e in entities) {
-                    const { wall, x, y, spanx, spany } = entities[e];
-                    // skip if not wall
-                    if (! wall) {
-                        continue;
-                    }
-                    // fill in otherwise
-                    for (let j = 0; j < spanx; j++) {
-                        for (let k = 0; k < spany; k++) {
-                            const i = convert_xy2i({
-                                x   : x + j,
-                                y   : y + k,
-                            }, columns);
-                            traversible[i] = false;
-                        }
+                    const { wall, x, y, entityid } = entities[e];
+                    const i = convert_xy2i({x,y}, columns);
+                    // wall
+                    traversible[i].wall = traversible[i].wall
+                                            ? true
+                                        : wall
+                                            ? true
+                                        : false;
+                    // overlap
+                    traversible[i].overlap.push(entityid);
+                    // adjacent
+                    const dirs = diagonal ? dirs_8 : dirs_4;
+                    for (const d in dirs) {
+                        const j = convert_xy2i({
+                            x   : x + dirs[d].deltax,
+                            y   : y + dirs[d].deltay,
+                        }, columns);
+                        traversible[j].adjacent.push(entityid);
                     }
                 }
             }
 
             //////////////////////////////////////////////////
             catch (error) {
-                console.error(`${this.name} - failed to calculate traversible indices for "${mapid}"`);
+                console.error(`${this.name} - failed to calculate traversible indices for map "${mapid}"`);
                 console.error(error);
             }
         },
