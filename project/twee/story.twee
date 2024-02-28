@@ -3,29 +3,45 @@ demo map
 
 
 :: StoryInit [nobr]
-<<set $columns to 6>>
+<<set $columns to 26>>
 <<newmap 
     mapid       'demo'
     columns     $columns
-    diagonal    true
+    diagonal    false
 >>
-    .   .   .   .   .   .
-    G   G   H   K   C   .
-    Y   .   H   K   C   .
-    Y   F   H   L   C   .
-    Y   .   H   .   C   .
-    .   W   H   B   D   .
-    .   .   .   .   .   .
+    x	x	x	.	.	.	.	.	x	x	x	x	x	x	x	x	x	x	x	x	x	.	.	x	x	x
+    x	.	x	.	x	x	.	x	x	.	x	x	x	.	.	.	.	.	x	.	x	.	x	.	x	x
+    x	.	x	.	x	x	.	x	x	.	.	.	x	.	x	.	x	x	x	.	x	.	x	.	x	x
+    x	.	x	.	x	x	.	x	x	.	x	x	x	.	x	.	x	.	x	.	x	.	x	.	x	x
+    x	.	x	.	x	.	.	x	x	.	x	x	x	.	x	.	x	.	x	.	x	.	x	.	x	x
+    x	.	x	.	x	.	.	x	x	.	x	x	x	.	x	.	x	x	x	.	x	.	x	.	x	x
+    x	x	x	x	x	x	x	x	x	x	x	x	x	x	x	x	x	x	x	x	x	x	x	x	x	x
+    x	x	x	x	x	x	x	x	.	.	.	.	.	x	x	x	x	x	x	x	x	x	x	x	x	.
+    .	x	x	.	x	x	x	.	y	y	y	y	.	x	x	.	.	.	.	.	.	.	.	.	x	.
+    .	x	x	.	x	x	x	.	y	y	y	y	.	x	x	.	x	x	x	x	x	x	x	.	x	x
+    .	x	x	.	.	x	x	.	y	y	y	y	.	x	x	.	x	x	.	.	x	x	x	.	x	x
+    .	x	x	.	.	x	x	.	x	.	.	x	.	x	x	x	x	x	x	x	x	x	x	.	x	x
+    .	.	.	.	.	x	x	.	x	x	x	x	.	x	x	x	x	x	x	x	x	x	x	.	x	x
+    x	x	x	x	x	x	x	x	x	x	x	x	x	.	.	.	.	.	x	x	x	x	x	x	x	x
+    x	x	.	x	x	x	.	.	.	x	x	x	x	x	x	x	x	x	x	.	.	.	.	.	x	x
+    x	x	.	x	x	x	.	x	x	x	x	x	.	.	.	.	.	x	x	x	x	x	x	x	x	x
+    x	x	.	x	x	x	.	x	x	x	x	x	x	x	x	x	x	x	x	x	x	x	x	x	x	.
+    .	x	.	x	.	.	.	.	.	.	.	.	.	.	.	x	x	x	.	x	x	.	x	.	.	.
+    .	x	.	x	.	x	.	x	x	x	.	x	x	x	.	x	x	x	.	x	x	.	x	x	x	x
+    .	x	x	x	.	x	x	x	x	x	.	x	x	x	.	x	x	x	.	x	x	.	x	.	x	x
+    .	x	x	x	x	x	x	x	x	x	.	.	x	x	.	x	x	x	.	x	x	.	x	.	x	x
+    .	x	x	x	x	x	x	x	x	x	.	.	x	x	.	x	x	x	.	x	x	.	x	x	x	x
+    x	x	x	.	.	.	.	.	x	x	x	x	x	x	x	x	x	x	x	x	x	x	x	x	x	x
 
 <</newmap>>
-<<newtile 'demo' "Y">>
+<<newtile 'demo' "y">>
         yard
 <</newtile>>
 <<newentity 
     mapid       'demo'
     entityid    'player1'
-    x           5
-    y           3
+    x           1
+    y           1
     wall        true
 >>
     <div style="color:red; font-size: 2rem;">O</div>
@@ -33,11 +49,11 @@ demo map
 <<newentity 
     mapid       'demo'
     entityid    'player2'
-    x           2
-    y           2
+    x           26
+    y           23
     wall        true
 >>
-    <div style="color:blue; font-size: 2rem;">O</div>
+    <div style="color:yellow; font-size: 2rem;">O</div>
 <</newentity>>
 
 /* <<defineplayer 'demo' 2 2>>
@@ -61,15 +77,14 @@ map
     entityid    'player1'
 >>
 <</shownav>>
-<span style="color:blue">player2</span> nav
-<<shownav 
+<span style="color:yellow">player2</span> nav
+/* <<shownav 
     mapid       'demo'
     entityid    'player2'
 >>
-<</shownav>>
+<</shownav>> */
 other stuff
-x: <input type='text' id='xinput' style="display:inline-block; min-width:2rem; width:2rem"> y: <input type='text' id='yinput' style="display:inline-block; min-width:2rem; width:2rem;">
-<<link 'teleport player1'>>
+- <<link 'teleport player1'>>
     <<run
         _x = Number($('#xinput').val());
         _y = Number($('#yinput').val());
@@ -79,10 +94,14 @@ x: <input type='text' id='xinput' style="display:inline-block; min-width:2rem; w
     <<if ! (isNaN(_x) || isNaN(_y))>>
         <<setentity 'demo' 'player1' _x _y>>
     <</if>>
-<</link>>
-go to 
-[[otherpassage]]
+<</link>> <span style="padding-left: 1rem">x: <input type='text' id='xinput'> y: <input type='text' id='yinput'></span>
+- go to [[otherpassage]]
 <style>
+    #xinput, #yinput {
+        display: inline-block; 
+        min-width:2rem; 
+        width:2rem
+    }
     .macro-showmap-map {
         display: grid;
         position: relative;
@@ -144,7 +163,7 @@ go to
             justify-content: center;
             border: 1px dashed blue;
         }
-            .macro-shownav-direction:not([data-disabled="true"]):not([data-id="C"]) {
+            .macro-shownav-direction:not([data-disabled="true"]):not([data-dirid="C"]) {
                 cursor: pointer;
             }
         .macro-shownav-C {

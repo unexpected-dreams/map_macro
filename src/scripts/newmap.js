@@ -42,7 +42,7 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
 // ADVANCED settings
 //  for fancier maps, trickier to work with
 
-    // traversible indices and collision checks
+    // actors indices and collision checks
     config.player.wall        = true;           // true means others collide into it
     config.building.wall      = true;
     config.object.wall        = false;
@@ -78,7 +78,7 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
 
     // guardrails
     config.allowclobbering      = false;        // true allows clobbering maps and entities
-    config.skipcheck.sensible   = false;        // true allows macro inputs that don't make sense
+    config.skipcheck.common     = false;        // check args against common errors
 
     // global object, setup setup namespace, State namespace
     // can't be set via setup settings
@@ -98,6 +98,8 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
 
     setup[config.setupname] ??= {};
     State.variables[config.Statename] ??= {};
+    State.variables[config.Statename].local ??= {};
+    State.variables[config.Statename].global ??= {};
 
     //////////////////////////////////////////////////
     // proxy for setup settings
@@ -137,7 +139,7 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
             this.arr                = arr,
             this.columns            = columns,
             this.rows               = this.arr.length / this.columns;
-            this.traversible        = new Array(this.arr.length);
+            this.actors        = new Array(this.arr.length);
 
             this.tiles = {}
             // write everything floor first
@@ -174,10 +176,10 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
         }
 
         set entities(val) {
-            State.variables[config.Statename][this.mapid] = val;
+            State.variables[config.Statename].local[this.mapid] = val;
         }
         get entities() {
-            return State.variables[config.Statename][this.mapid]
+            return State.variables[config.Statename].local[this.mapid]
         }
 
         // goodie bag
@@ -186,10 +188,10 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
             argObj.source = "JS";
             Macro.get('newmap').handlerJS(argObj); 
         }
-        static maptile(argObj) { 
-            argObj.id = "maptile";
+        static newtile(argObj) { 
+            argObj.id = "newtile";
             argObj.source = "JS";
-            Macro.get('maptile').handlerJS(argObj);
+            Macro.get('newtile').handlerJS(argObj);
         }
         static newentity(argObj) { 
             argObj.id = "newentity";
@@ -205,6 +207,11 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
             argObj.id = "moventity";
             argObj.source = "JS";
             Macro.get('moventity').handlerJS(argObj); 
+        }
+        static setentity(argObj) { 
+            argObj.id = "setentity";
+            argObj.source = "JS";
+            Macro.get('setentity').handlerJS(argObj); 
         }
         static mapcalculate(argObj) { 
             argObj.id = "mapcalculate";
@@ -262,21 +269,21 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
         const mapid = args[0].mapid ?? args[0];
         const entityid = args[0].entityid ?? args[1];
         const map = getmap(mapid);
-        const { columns, traversible } = map;
+        const { columns, actors } = map;
         const entity = getentity(mapid, entityid);
         const { x, y } = entity;
         const i = convert_xy2i({x,y}, columns);
-        return traversible[i].overlap.filter( e => e !== entityid );
+        return actors[i].overlap.filter( e => e !== entityid );
     }
     function getadjacent(...args) {
         const mapid = args[0].mapid ?? args[0];
         const entityid = args[0].entityid ?? args[1];
         const map = getmap(mapid);
-        const { columns, traversible } = map;
+        const { columns, actors } = map;
         const entity = getentity(mapid, entityid);
         const { x, y } = entity;
         const i = convert_xy2i({x,y}, columns);
-        return traversible[i].adjacent.filter( e => e !== entityid );
+        return actors[i].adjacent.filter( e => e !== entityid );
     }
 
     //////////////////////////////////////////////////
@@ -344,7 +351,7 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
     function create_dir(argObj) {
         const { mapid, entityid, dir } = argObj;
         const map = getmap(mapid);
-        const { arr, columns, traversible } = map;
+        const { arr, columns, actors } = map;
         const { dirid, dirname, deltax, deltay } = dir;
         const entity = getentity(mapid, entityid);
         try {
@@ -362,7 +369,7 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
             if (i >= 0) {
                 const tile = gettile(mapid, arr[i]);
                 const { tileid, tilename } = tile;
-                const disabled = traversible[i].wall;
+                const disabled = actors[i].wall;
                 $dir
                     .attr('data-disabled', disabled)
                     .attr('data-tileid', tileid)
@@ -558,8 +565,8 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
 
             //////////////////////////////////////////////////
             // validate args
-            if (! def.skipcheck.sensible) {
-                check_sensible.call(this, {
+            if (! def.skipcheck.common) {
+                check_common.call(this, {
                     id: this.name,
                     mapid: {
                         val         : mapid,
@@ -655,8 +662,8 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
             const { mapid, tileid, tilename, tiletype, tilehtml } = argObj;
             check_required.call(this, {id:this.name, mapid, tileid});
             // validate args
-            if (! def.skipcheck.sensible) {
-                check_sensible.call(this, {
+            if (! def.skipcheck.common) {
+                check_common.call(this, {
                     id: this.name,
                     mapid: {
                         val         : mapid,
@@ -670,7 +677,7 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
                     },
                 });
                 if (tilename) {
-                    check_sensible.call(this, {
+                    check_common.call(this, {
                         id: 'name',
                         name: {
                             val         : tilename,
@@ -679,7 +686,7 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
                     });
                 }   
                 if (tiletype) {
-                   check_sensible.call(this, {
+                   check_common.call(this, {
                         id: 'type',
                         type: {
                             val         : tiletype,
@@ -753,6 +760,9 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
                 unit: {
                     type        : cssunit,
                 },
+                zoom: {
+                    type        : 'object',
+                },
             });
 
             // create map & append
@@ -766,7 +776,7 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
             this.name   ??= argObj.id ?? "showmap";
             this.error  ??= function(error) { throw new Error(error) };
             // extract from argObj
-            const { mapid, sizingmode } = {
+            const { mapid, sizingmode, zoom } = {
                 sizingmode  : def.sizingmode,
                 ...argObj,
             };
@@ -799,8 +809,8 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
                 ...argObj,
             };
             // validate args
-            if (! def.skipcheck.sensible) {
-                check_sensible.call(this, {
+            if (! def.skipcheck.common) {
+                check_common.call(this, {
                     id: this.name,
                     mapid: {
                         val         : mapid,
@@ -830,10 +840,51 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
             const { columns, rows, arr, diagonal } = map;
             const mapsn = map.mapsn;
             const entities = map.entities;
+            // check zoom object
+            if (zoom) {
+                if (! def.skipcheck.common) {
+                    check_common.call(this, {
+                        id: 'zoom',
+                        "zoom.x": {
+                            val         : zoom.x,
+                            positive    : true,
+                            integer     : true,
+                        },
+                        "zoom.y": {
+                            val         : zoom.y,
+                            positive    : true,
+                            integer     : true,
+                        },
+                    });
+                    // ERROR: zoom greater than map size
+                    if (zoom.x > columns) {
+                        const error = `zoom - zoom.x can't be greater than # of columns`;
+                        return this.error(error)
+                    }
+                    if (zoom.y > rows) {
+                        const error = `zoom - zoom.y can't be greater than # of columns`;
+                        return this.error(error)
+                    }
+                }
+                // if (TypeSet.id(zoom.follow) !== 'undefined' && ! def.skipcheck.common) {
+                //     console.log('ran');
+                //     check_common.call(this, {
+                //         id: 'zoom',
+                //         mapid: {
+                //             val         : mapid,
+                //         },
+                //         "zoom.follow": {
+                //             val         : zoom.follow,
+                //             oneword     : true,
+                //             extant      : true,
+                //         },
+                //     });
+                // }
+            }
 
             try {
 
-                // update traversible indices
+                // update actors indices
                 Macro.get('mapcalculate').handlerJS.call(this, {mapid,diagonal});
                 
                 //////////////////////////////////////////////////
@@ -1047,8 +1098,8 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
             const { diagonal } = map;
             
             // validate args
-            if (! def.skipcheck.sensible) {
-                check_sensible.call(this, {
+            if (! def.skipcheck.common) {
+                check_common.call(this, {
                     id: this.name,
                     mapid: {
                         val         : mapid,
@@ -1214,8 +1265,8 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
             const entitysn = window.crypto.randomUUID();
             const entityid = argObj.entityid ?? entitysn;
             // validate args
-            if (! def.skipcheck.sensible) {
-                check_sensible.call(this, {
+            if (! def.skipcheck.common) {
+                check_common.call(this, {
                     id: this.name,
                     mapid: {
                         val         : mapid,
@@ -1329,8 +1380,8 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
             const { mapid, entityid } = argObj;
             check_required.call(this, {id:this.name, mapid, entityid});
             // validate args
-            if (! def.skipcheck.sensible) {
-                check_sensible.call(this, {
+            if (! def.skipcheck.common) {
+                check_common.call(this, {
                     id: this.name,
                     mapid: {
                         val     : mapid,
@@ -1419,8 +1470,8 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
             // extract from argObj
             const { mapid, entityid, deltax, deltay, ignorewalls } = argObj;
             check_required.call(this, {id:this.name, mapid, entityid, deltax, deltay});
-            if (! def.skipcheck.sensible) {
-                check_sensible.call(this, {
+            if (! def.skipcheck.common) {
+                check_common.call(this, {
                     id: this.name,
                     mapid: {
                         val     : mapid,
@@ -1444,7 +1495,7 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
             }
             // extract from map
             const map = getmap(mapid);
-            const { columns, traversible, diagonal } = map;
+            const { columns, actors, diagonal } = map;
             const mapsn = map.sn;
             const entity = getentity(mapid, entityid);
             const { x, y } = entity;
@@ -1472,13 +1523,13 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
                 }
 
                 //////////////////////////////////////////////////
-                // check traversible
+                // check actors
                 const i = convert_xy2i({
                     x   : x + deltax,
                     y   : y + deltay,
                 }, columns);
                 if (! (ignorewalls || def.noclip)) {
-                    if (traversible[i].wall) {
+                    if (actors[i].wall) {
                         if (def.collisionerror) {
                             const error = `${this.name} - collision detected for entity "${entityid}" on "${mapid}"`
                             return this.error(error)
@@ -1490,7 +1541,7 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
                 }
                 entity.x += deltax;
                 entity.y += deltay;
-                console.log(traversible[i].adjacent.filter( e => e !== entityid ));
+                // console.log(actors[i].adjacent.filter( e => e !== entityid ));
                 Macro.get('mapcalculate').handlerJS.call(this, {mapid,diagonal});
 
                 $(`[data-sn="${mapsn}"]`).trigger(':mapupdate');
@@ -1548,8 +1599,8 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
             this.error  ??= function(error) { throw new Error(error) };
             // extract from argObj
             const { mapid, entityid, x, y } = argObj;
-            if (! def.skipcheck.sensible) {
-                check_sensible.call(this, {
+            if (! def.skipcheck.common) {
+                check_common.call(this, {
                     id: this.name,
                     mapid: {
                         val     : mapid,
@@ -1573,7 +1624,7 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
             }
             // extract from map
             const map = getmap(mapid);
-            const { mapsn, traversible, columns, diagonal } = map;
+            const { mapsn, actors, columns, diagonal } = map;
 
             try {
 
@@ -1601,7 +1652,7 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
                 entity.x = x;
                 entity.y = y;
 
-                console.log(traversible[i].adjacent.filter( e => e !== entityid ));
+                // console.log(actors[i].adjacent.filter( e => e !== entityid ));
 
                 Macro.get('mapcalculate').handlerJS.call(this, {mapid,diagonal});
 
@@ -1660,7 +1711,7 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
             check_required.call(this, {id:this.name, mapid});
             // extract from 
             const map = getmap(mapid);
-            const { columns, arr, traversible, entities } = map;
+            const { columns, arr, actors, entities } = map;
 
             try {
 
@@ -1669,10 +1720,15 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
                 for (let i = 0; i < arr.length; i++) {
                     const t = arr[i];
                     const tile = gettile(mapid, t);
-                    traversible[i] = {};
-                    traversible[i].wall = tile.tiletype === def.wall.tiletype;
-                    traversible[i].adjacent = [];
-                    traversible[i].overlap = [];
+                    // reset actors
+                    actors[i] = {};
+                    actors[i].tileid = tile.tileid;
+                    actors[i].wall = [];
+                    actors[i].overlap = [];
+                    actors[i].adjacent = [];
+                    if (tile.tiletype === def.wall.tiletype) {
+                        actors[i].wall.push({tile:tile.tileid});
+                    }
                 }
 
                 ////////////////////////////////////////////////
@@ -1681,13 +1737,11 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
                     const { wall, x, y, entityid } = entities[e];
                     const i = convert_xy2i({x,y}, columns);
                     // wall
-                    traversible[i].wall = traversible[i].wall
-                                            ? true
-                                        : wall
-                                            ? true
-                                        : false;
+                    if (wall) {
+                        actors[i].wall.push({entity:entityid});
+                    }
                     // overlap
-                    traversible[i].overlap.push(entityid);
+                    actors[i].overlap.push({entity:entityid});
                     // adjacent
                     const dirs = diagonal ? dirs_8 : dirs_4;
                     for (const d in dirs) {
@@ -1695,14 +1749,16 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
                             x   : x + dirs[d].deltax,
                             y   : y + dirs[d].deltay,
                         }, columns);
-                        traversible[j].adjacent.push(entityid);
+                        if (j >= 0 && j < arr.length-1) {
+                            actors[j].adjacent.push({entity:entityid});
+                        }
                     }
                 }
             }
 
             //////////////////////////////////////////////////
             catch (error) {
-                console.error(`${this.name} - failed to calculate traversible indices for map "${mapid}"`);
+                console.error(`${this.name} - failed to calculate actors indices for map "${mapid}"`);
                 console.error(error);
             }
         },

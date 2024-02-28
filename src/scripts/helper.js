@@ -23,24 +23,24 @@ function check_required(argObj) {
     }
 }
 
-//  ████ █   █ █████  ████ █   █      ████ █████ █    █  ████ ███ ████  █     █████
-// █     █   █ █     █     █  █      █     █     ██   █ █      █  █   █ █     █
-// █     █████ ███   █     ███        ███  ███   █ █  █  ███   █  ████  █     ███
-// █     █   █ █     █     █  █          █ █     █  █ █     █  █  █   █ █     █
-//  ████ █   █ █████  ████ █   █     ████  █████ █   ██ ████  ███ ████  █████ █████
-// SECTION: check sensible / check_sensible
-function check_sensible(template) {
+//  ████ █   █ █████  ████ █   █      ████  ████  █    █ █    █  ████  █    █
+// █     █   █ █     █     █  █      █     █    █ ██  ██ ██  ██ █    █ ██   █
+// █     █████ ███   █     ███       █     █    █ █ ██ █ █ ██ █ █    █ █ █  █
+// █     █   █ █     █     █  █      █     █    █ █    █ █    █ █    █ █  █ █
+//  ████ █   █ █████  ████ █   █      ████  ████  █    █ █    █  ████  █   ██
+// SECTION: check common / check_common
+function check_common(template) {
     
     //////////////////////////////////////////////////
     // ERROR: missing argument
     if (! template) {
-        const error = `check_sensible - missing required template argument`;
+        const error = `check_common - missing required template argument`;
         return this.error(error)
     }
     // ERROR: missing id
     const id = template.id;
     if (! id) {
-        const error = `check_sensible - missing required id`;
+        const error = `check_common - missing required id`;
         return this.error(error)
     }
 
@@ -172,13 +172,13 @@ function check_xy(template) {
 
     try {
         const map = getmap(mapid);
-        const { arr, columns } = map;
+        const { arr, rows, columns } = map;
         // check upper bound
         if (x.upper > columns) {
             const error = `${id} - ${x.label} for "${entityid}" will exceed upper map boundary on "${mapid}"`;
             return this.error(error)
         }
-        if (y.val > (arr.length / columns)) {
+        if (y.upper > rows) {
             const error = `${id} - ${y.label} for "${entityid}" will exceed upper map boundary on "${mapid}"`;
             return this.error(error)
         }
