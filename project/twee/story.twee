@@ -70,9 +70,9 @@ map
     tilewidth   2
     tileheight  1.5
     unit        'rem'
-    zoomwidth   7
-    zoomheight  7
-    zoomtrack   'player1'
+    viewcolumns 7
+    viewrows    7
+    viewtrack  'player1'
 >>
 <span style="color:red">player1</span> nav
 <<shownav 
@@ -89,19 +89,19 @@ map
 other stuff
 - <<link 'zoom out'>>
     <<run
-        _r = Number($('.macro-showmap-map').attr('data-rows_shown'));
-        $('.macro-showmap-map').attr('data-rows_shown',_r+2);
-        _c = Number($('.macro-showmap-map').attr('data-columns_shown'));
-        $('.macro-showmap-map').attr('data-columns_shown',_c+2);
+        _r = Number($('.macro-showmap-map').attr('data-viewrows'));
+        $('.macro-showmap-map').attr('data-viewrows',_r+2);
+        _c = Number($('.macro-showmap-map').attr('data-viewcolumns'));
+        $('.macro-showmap-map').attr('data-viewcolumns',_c+2);
         $('.macro-showmap-map').trigger(':mapupdate');
     >>
 <</link>>
 - <<link 'zoom in'>>
     <<run
-        _r = Number($('.macro-showmap-map').attr('data-rows_shown'));
-        $('.macro-showmap-map').attr('data-rows_shown',_r-2);
-        _c = Number($('.macro-showmap-map').attr('data-columns_shown'));
-        $('.macro-showmap-map').attr('data-columns_shown',_c-2);
+        _r = Number($('.macro-showmap-map').attr('data-viewrows'));
+        $('.macro-showmap-map').attr('data-viewrows',_r-2);
+        _c = Number($('.macro-showmap-map').attr('data-viewcolumns'));
+        $('.macro-showmap-map').attr('data-viewcolumns',_c-2);
         $('.macro-showmap-map').trigger(':mapupdate');
     >>
 <</link>>

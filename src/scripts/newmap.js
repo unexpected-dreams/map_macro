@@ -400,18 +400,18 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
     //////////////////////////////////////////////////
     // update_map
     const update_map = function(argObj) {
-        const { $map, map, mapheight, mapwidth, tileheight, tilewidth, unit, sizingmode, tracked, rows_shown, columns_shown } = argObj;
+        const { $map, map, mapheight, mapwidth, tileheight, tilewidth, unit, sizingmode, tracked, viewrows, viewcolumns } = argObj;
         const { mapid, columns, rows, arr, entities } = map;
         
         // sizing
         let H, W, sizing;
         if (sizingmode === 'height') {
-            H = mapheight / rows_shown;
+            H = mapheight / viewrows;
             W = H * tilewidth / tileheight;
             sizing = 'height';
         }
         else if (sizingmode === 'width') {
-            W = mapwidth / columns_shown;
+            W = mapwidth / viewcolumns;
             H = W * tileheight / tilewidth;
             sizing = 'width';
         }
@@ -419,15 +419,15 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
             // if map width is greater, ie height is constraint
             if (
                 (mapwidth / mapheight) > 
-                ((columns_shown * tilewidth) / (rows_shown * tileheight))
+                ((viewcolumns * tilewidth) / (viewrows * tileheight))
             ) {
-                H = mapheight / rows_shown;
+                H = mapheight / viewrows;
                 W = H * tilewidth / tileheight;
                 sizing = 'auto-height';
             }
             // width is contraint
             else {
-                W = mapwidth / columns_shown;
+                W = mapwidth / viewcolumns;
                 H = W * tileheight / tilewidth;
                 sizing = 'auto-width';
             }
@@ -443,8 +443,8 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
                     .attr('data-tilewidth',W)
                     .attr('data-tileheight',H)
                     .attr('data-unit',unit)
-                    .attr('data-rows_shown',rows_shown)
-                    .attr('data-columns_shown',columns_shown)
+                    .attr('data-viewrows',viewrows)
+                    .attr('data-viewcolumns',viewcolumns)
                     .css({
                             '--tilewidth'   : String(W) + unit,
                             '--tileheight'  : String(H) + unit,
@@ -453,18 +453,18 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
         console.log(sizingmode);
 
         const x = tracked
-                    ? Math.clamp(1, columns - columns_shown + 1, tracked.x - Math.floor(columns_shown / 2))
+                    ? Math.clamp(1, columns - viewcolumns + 1, tracked.x - Math.floor(viewcolumns / 2))
                     : 1;
         const y = tracked
-                    ? Math.clamp(1, rows - rows_shown + 1, tracked.y - Math.floor(rows_shown / 2))
+                    ? Math.clamp(1, rows - viewrows + 1, tracked.y - Math.floor(viewrows / 2))
                     : 1;
         try {
             // get top left coordinate
             const i0 = convert_xy2i({x,y}, columns);
             const printed = [];
             // iterate through array to width & height
-            for (let j = 0; j < rows_shown; j++) {
-                for (let k = 0; k < columns_shown; k++) {
+            for (let j = 0; j < viewrows; j++) {
+                for (let k = 0; k < viewcolumns; k++) {
                     // track printed coordinates
                     const i = i0 + k + (columns * j);
                     printed.push(i);
@@ -921,13 +921,13 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
                 unit: {
                     type        : cssunit,
                 },
-                zoomheight: {
+                viewrows: {
                     type        : 'number',
                 },
-                zoomwidth: {
+                viewcolumns: {
                     type        : 'number',
                 },
-                zoomtrack: {
+                viewtrack: {
                     type        : 'string',
                 },
             });
@@ -943,7 +943,7 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
             this.name   ??= argObj.id ?? "showmap";
             this.error  ??= function(error) { throw new Error(error) };
             // extract from argObj
-            const { mapid, sizingmode, zoomheight, zoomwidth, zoomtrack } = {
+            const { mapid, sizingmode, viewrows, viewcolumns, viewtrack } = {
                 sizingmode  : def.sizingmode,
                 ...argObj,
             };
@@ -1007,37 +1007,37 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
             const { columns, rows, diagonal } = map;
             const mapsn = map.mapsn;
             // check zoom object
-            if (zoomwidth || zoomheight || zoomtrack) {
-                if (! (zoomwidth || zoomheight)) {
-                    const error = `zoom - both zoomwidth and zoomheight are required to use showmap zoom`;
+            if (viewcolumns || viewrows || viewtrack) {
+                if (! (viewcolumns || viewrows)) {
+                    const error = `zoom - both viewcolumns and viewrows are required to use showmap zoom`;
                     return this.error(error)
                 }
                 if (! def.skipcheck.common) {
                     check_common.call(this, {
                         id: 'zoom',
-                        zoomwidth: {
-                            val         : zoomwidth,
+                        viewcolumns: {
+                            val         : viewcolumns,
                             positive    : true,
                             integer     : true,
                         },
-                        zoomheight: {
-                            val         : zoomheight,
+                        viewrows: {
+                            val         : viewrows,
                             positive    : true,
                             integer     : true,
                         },
                     });
                     // ERROR: zoom greater than map size
-                    if (zoomwidth > columns) {
+                    if (viewcolumns > columns) {
                         const error = `zoom - zoom.x can't be greater than # of columns`;
                         return this.error(error)
                     }
-                    if (zoomheight > rows) {
+                    if (viewrows > rows) {
                         const error = `zoom - zoom.y can't be greater than # of columns`;
                         return this.error(error)
                     }
-                    if (TypeSet.id(zoomtrack) !== 'undefined') {
-                        if (! getentity(mapid, zoomtrack)) {
-                            const error = `zoom - no entity with id "${zoomtrack}" found, "zoomtrack" input must be an entity on map "${mapid}"`;
+                    if (TypeSet.id(viewtrack) !== 'undefined') {
+                        if (! getentity(mapid, viewtrack)) {
+                            const error = `zoom - no entity with id "${viewtrack}" found, "viewtrack" input must be an entity on map "${mapid}"`;
                             return this.error(error)
                         }
                     }
@@ -1052,7 +1052,7 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
                 
                 //////////////////////////////////////////////////
                 // get tracked entity
-                const tracked = getentity(mapid, zoomtrack);
+                const tracked = getentity(mapid, viewtrack);
                 // create map
                 const $map = $(document.createElement('div'));
                 $map
@@ -1061,31 +1061,9 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
                     .attr('data-mapid', mapid)
                     .attr('data-columns', columns)
                     .attr('data-rows', rows)
-                    .attr('data-tracked', tracked?.entityid ?? null)
-                // if (tracked) {
-                //     print_map.call(this, {
-                //         $map    : $map,
-                //         mapid   : mapid,
-                //         x       : Math.max(1, tracked.x - Math.floor(zoomwidth / 2)),
-                //         y       : Math.max(1, tracked.y - Math.floor(zoomheight / 2)),
-                //         width   : zoomwidth,
-                //         height  : zoomheight,
-                //     });
-                // }
-                // else {
-                //     print_map.call(this, {
-                //         $map    : $map,
-                //         mapid   : mapid,
-                //         x       : 1,
-                //         y       : 1,
-                //         width   : columns,
-                //         height  : rows,
-                //     });
-                // }
+                    .attr('data-tracked', tracked?.entityid ?? null);
 
                 //////////////////////////////////////////////////
-                const rows_shown = zoomwidth ?? columns;
-                const columns_shown = zoomheight ?? rows;
                 // update map
                 update_map.call(this, {
                     $map,
@@ -1097,8 +1075,8 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
                     unit,
                     sizingmode,
                     tracked,
-                    rows_shown,
-                    columns_shown,
+                    viewrows: viewrows ?? rows,
+                    viewcolumns: viewcolumns ?? columns,
                 });
 
                 // output
@@ -1119,8 +1097,8 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
                             unit,
                             sizingmode,
                             tracked,
-                            rows_shown      : $(this).attr('data-rows_shown'),
-                            columns_shown   : $(this).attr('data-columns_shown'),
+                            viewrows      : $(this).attr('data-viewrows'),
+                            viewcolumns   : $(this).attr('data-viewcolumns'),
                         });
                     });
                 }, 40)
