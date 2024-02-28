@@ -403,8 +403,15 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
     //////////////////////////////////////////////////
     // update_map
     const update_map = function(argObj) {
-        const { $map, map, mapheight, mapwidth, tileheight, tilewidth, unit, sizingmode, tracked, viewrows, viewcolumns } = argObj;
+        const { $map, map, mapheight, mapwidth, tileheight, tilewidth, unit, sizingmode, tracked } = argObj;
         const { mapid, columns, rows, arr, entities } = map;
+        // if no tracked, do nothing
+        const viewrows      = tracked
+                                ? Math.clamp(1, rows, argObj.viewrows)
+                                : rows;
+        const viewcolumns   = tracked
+                                ? Math.clamp(1, columns, argObj.viewcolumns)
+                                : columns;
         
         // sizing
         let H, W, sizing;
@@ -1068,7 +1075,8 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
                     .attr('data-mapid', mapid)
                     .attr('data-columns', columns)
                     .attr('data-rows', rows)
-                    .attr('data-tracked', tracked?.entityid ?? null);
+                    // when null or undefined, nothing gets set
+                    .attr('data-tracked', tracked?.entityid ?? undefined);
 
                 //////////////////////////////////////////////////
                 // update map
@@ -1937,15 +1945,28 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
             ...argObj
         };
         check_required.call(this, {id:this.name,mapid});
+        const map = getmap(mapid);
+        const { columns, rows } = map;
         const $map = argObj.class
                         ? $(`.macro-showmap-map[data-mapid="${mapid}"]`).filter(`.${argObj.class}`)
                         : $(`.macro-showmap-map[data-mapid="${mapid}"]`);
-        const viewrows = Number($map.attr('data-viewrows'));
-        const viewcolumns = Number($map.attr('data-viewcolumns'));
-        $map
-            .attr('data-viewrows', viewrows + zoom * adjust)
-            .attr('data-viewcolumns',viewcolumns + zoom * adjust)
-            .trigger(':mapupdate');
+        if ($map.attr('data-tracked')) {
+            const viewrows = Number($map.attr('data-viewrows'));
+            const viewcolumns = Number($map.attr('data-viewcolumns'));
+            const newrows = viewrows + zoom * adjust;
+            const newcolumns = viewcolumns + zoom * adjust
+            if (
+                (newrows >= 1)          &&
+                (newrows <= rows)       &&
+                (newcolumns >= 1)       &&
+                (newcolumns <= columns)
+            ) {
+                $map
+                    .attr('data-viewrows', newrows)
+                    .attr('data-viewcolumns', newcolumns)
+                    .trigger(':mapupdate');
+            }
+        }
     }
 
 
