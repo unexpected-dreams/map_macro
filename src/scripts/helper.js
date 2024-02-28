@@ -174,20 +174,20 @@ function check_xy(template) {
         const map = getmap(mapid);
         const { arr, rows, columns } = map;
         // check upper bound
-        if (x.upper > columns) {
+        if (x.val > columns) {
             const error = `${id} - ${x.label} for "${entityid}" will exceed upper map boundary on "${mapid}"`;
             return this.error(error)
         }
-        if (y.upper > rows) {
+        if (y.val > rows) {
             const error = `${id} - ${y.label} for "${entityid}" will exceed upper map boundary on "${mapid}"`;
             return this.error(error)
         }
         // check lower bound
-        if (x.lower < 1) {
+        if (x.val < 1) {
             const error = `${id} - ${x.label} for "${entityid}" will exceed lower map boundary on "${mapid}"`;
             return this.error(error)
         }
-        if (y.lower < 1) {
+        if (y.val < 1) {
             const error = `${id} - ${y.label} for "${entityid}" will exceed lower map boundary on "${mapid}"`;
             return this.error(error)
         }

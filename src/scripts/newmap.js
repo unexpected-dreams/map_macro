@@ -289,12 +289,9 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
     //////////////////////////////////////////////////
     // create elemeents
     function create_tile(argObj) {
-        const { mapid, tile, i }= argObj;
+        const { mapid, tile, i, x, y }= argObj;
         const { tilesn, tileid, tilename, tiletype, tilehtml } = tile;
-        const map = getmap(mapid);
-        const { columns } = map;
         try {
-            const { x, y } = convert_i2xy(i, columns);
             const $t = $(document.createElement('div'))
             $t
                 .addClass(`macro-showmap-tile`)
@@ -322,8 +319,8 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
     }
     //////////////////////////////////////////////////
     function create_entity(argObj) {
-        const { mapid, entity } = argObj;
-        const { entitysn, entityid, entityname, x, y, entityhtml } = entity;
+        const { mapid, entity, x, y } = argObj;
+        const { entitysn, entityid, entityname, entityhtml } = entity;
         try {
             const $e = $(document.createElement('div'));
             $e
@@ -351,7 +348,7 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
     function create_dir(argObj) {
         const { mapid, entityid, dir } = argObj;
         const map = getmap(mapid);
-        const { arr, columns, actors } = map;
+        const { arr, rows, columns, actors } = map;
         const { dirid, dirname, deltax, deltay } = dir;
         const entity = getentity(mapid, entityid);
         try {
@@ -366,10 +363,16 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
             const y = entity.y + deltay;
             const i = convert_xy2i({x,y}, columns);
 
-            if (i >= 0) {
+            if (
+                (i >= 0)        &&
+                (y >= 1)        &&
+                (y <= rows)     &&
+                (x >= 1)        &&
+                (x <= columns)
+            ) {
                 const tile = gettile(mapid, arr[i]);
                 const { tileid, tilename } = tile;
-                const disabled = actors[i].wall;
+                const disabled = actors[i].wall.length > 0;
                 $dir
                     .attr('data-disabled', disabled)
                     .attr('data-tileid', tileid)
@@ -390,6 +393,164 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
         //////////////////////////////////////////////////
         catch (error) {
             console.error(`${this.name} - failed to create nav direction "${dirname}" for map "${mapid}"`);
+            console.error(error);
+        }
+    }
+
+    //////////////////////////////////////////////////
+    // update_map
+    const update_map = function(argObj) {
+        const { $map, map, mapheight, mapwidth, tileheight, tilewidth, unit, sizingmode, tracked, rows_shown, columns_shown } = argObj;
+        const { mapid, columns, rows, arr, entities } = map;
+        
+        // sizing
+        let H, W, sizing;
+        if (sizingmode === 'height') {
+            H = mapheight / rows_shown;
+            W = H * tilewidth / tileheight;
+            sizing = 'height';
+        }
+        else if (sizingmode === 'width') {
+            W = mapwidth / columns_shown;
+            H = W * tileheight / tilewidth;
+            sizing = 'width';
+        }
+        else if (sizingmode === 'auto') {
+            // if map width is greater, ie height is constraint
+            if (
+                (mapwidth / mapheight) > 
+                ((columns_shown * tilewidth) / (rows_shown * tileheight))
+            ) {
+                H = mapheight / rows_shown;
+                W = H * tilewidth / tileheight;
+                sizing = 'auto-height';
+            }
+            // width is contraint
+            else {
+                W = mapwidth / columns_shown;
+                H = W * tileheight / tilewidth;
+                sizing = 'auto-width';
+            }
+        }
+        else if (sizingmode === 'tile') {
+            W = tilewidth;
+            H = tileheight;
+            sizing = 'tile';
+        }
+        if (sizing) {
+            $map
+                    .attr('data-sizing',sizing)
+                    .attr('data-tilewidth',W)
+                    .attr('data-tileheight',H)
+                    .attr('data-unit',unit)
+                    .attr('data-rows_shown',rows_shown)
+                    .attr('data-columns_shown',columns_shown)
+                    .css({
+                            '--tilewidth'   : String(W) + unit,
+                            '--tileheight'  : String(H) + unit,
+                        })
+        }
+        console.log(sizingmode);
+
+        const x = tracked
+                    ? Math.clamp(1, columns - columns_shown + 1, tracked.x - Math.floor(columns_shown / 2))
+                    : 1;
+        const y = tracked
+                    ? Math.clamp(1, rows - rows_shown + 1, tracked.y - Math.floor(rows_shown / 2))
+                    : 1;
+        try {
+            // get top left coordinate
+            const i0 = convert_xy2i({x,y}, columns);
+            const printed = [];
+            // iterate through array to width & height
+            for (let j = 0; j < rows_shown; j++) {
+                for (let k = 0; k < columns_shown; k++) {
+                    // track printed coordinates
+                    const i = i0 + k + (columns * j);
+                    printed.push(i);
+                    const t = arr[i];
+                    // create tile
+                    const $t = create_tile.call(this, {
+                        mapid       : mapid,
+                        tile        : gettile(mapid, t),
+                        i           : i,
+                        x           : k + 1,
+                        y           : j + 1,
+                    });
+                    // append to map
+                    $t.appendTo($map);
+                }
+            }
+            // check entities
+            for (const e in entities) {
+                const entity = entities[e];
+                const i = convert_xy2i({x:entity.x,y:entity.y}, columns);
+                if (printed.includes(i)) {
+                    const $e = create_entity.call(this, {
+                        mapid       : mapid,
+                        entity      : entity,
+                        x           : entity.x - x + 1,
+                        y           : entity.y - y + 1,
+                    });
+                    $e.appendTo($map);
+                }
+            }
+            // output
+            return $map
+        }
+        catch (error) {
+            console.error(`${this.name} - failed to print map for "${mapid}"`);
+            console.error(error);
+        }
+    }
+    // print map
+    const print_map = function(argObj) {
+        const { $map, mapid, x, y, width, height } = argObj;
+        const map = getmap(mapid);
+        const { columns, arr, entities } = map;
+
+        try {
+            // get top left coordinate
+            const i0 = convert_xy2i({x,y}, columns);
+            const printed = [];
+            // iterate through array to width & height
+            for (let j = 0; j < height; j++) {
+                for (let k = 0; k < width; k++) {
+                    // track printed coordinates
+                    const i = i0 + k + (columns*j);
+                    printed.push(i);
+                    const t = arr[i];
+                    // create tile
+                    const $t = create_tile.call(this, {
+                        mapid       : mapid,
+                        tile        : gettile(mapid, t),
+                        i           : i,
+                        x           : k + 1,
+                        y           : j + 1,
+                    });
+                    // append to map
+                    $t.appendTo($map);
+                }
+            }
+            // check entities
+            for (const e in entities) {
+                const entity = entities[e];
+                const i = convert_xy2i({x:entity.x,y:entity.y}, columns);
+                if (printed.includes(i)) {
+                    const $e = create_entity.call(this, {
+                        mapid       : mapid,
+                        entity      : entity,
+                        x           : entity.x - x + 1,
+                        y           : entity.y - y + 1,
+                    });
+                    $e.appendTo($map);
+                }
+            }
+            // output
+            return $map
+        }
+        catch (error) {
+            console.error(`${this.name} - failed to print map for "${mapid}"`);
             console.error(error);
         }
     }
@@ -760,8 +921,14 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
                 unit: {
                     type        : cssunit,
                 },
-                zoom: {
-                    type        : 'object',
+                zoomheight: {
+                    type        : 'number',
+                },
+                zoomwidth: {
+                    type        : 'number',
+                },
+                zoomtrack: {
+                    type        : 'string',
                 },
             });
 
@@ -776,7 +943,7 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
             this.name   ??= argObj.id ?? "showmap";
             this.error  ??= function(error) { throw new Error(error) };
             // extract from argObj
-            const { mapid, sizingmode, zoom } = {
+            const { mapid, sizingmode, zoomheight, zoomwidth, zoomtrack } = {
                 sizingmode  : def.sizingmode,
                 ...argObj,
             };
@@ -837,145 +1004,124 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
             }
             // extract from map
             const map = getmap(mapid);
-            const { columns, rows, arr, diagonal } = map;
+            const { columns, rows, diagonal } = map;
             const mapsn = map.mapsn;
-            const entities = map.entities;
             // check zoom object
-            if (zoom) {
+            if (zoomwidth || zoomheight || zoomtrack) {
+                if (! (zoomwidth || zoomheight)) {
+                    const error = `zoom - both zoomwidth and zoomheight are required to use showmap zoom`;
+                    return this.error(error)
+                }
                 if (! def.skipcheck.common) {
                     check_common.call(this, {
                         id: 'zoom',
-                        "zoom.x": {
-                            val         : zoom.x,
+                        zoomwidth: {
+                            val         : zoomwidth,
                             positive    : true,
                             integer     : true,
                         },
-                        "zoom.y": {
-                            val         : zoom.y,
+                        zoomheight: {
+                            val         : zoomheight,
                             positive    : true,
                             integer     : true,
                         },
                     });
                     // ERROR: zoom greater than map size
-                    if (zoom.x > columns) {
+                    if (zoomwidth > columns) {
                         const error = `zoom - zoom.x can't be greater than # of columns`;
                         return this.error(error)
                     }
-                    if (zoom.y > rows) {
+                    if (zoomheight > rows) {
                         const error = `zoom - zoom.y can't be greater than # of columns`;
                         return this.error(error)
                     }
+                    if (TypeSet.id(zoomtrack) !== 'undefined') {
+                        if (! getentity(mapid, zoomtrack)) {
+                            const error = `zoom - no entity with id "${zoomtrack}" found, "zoomtrack" input must be an entity on map "${mapid}"`;
+                            return this.error(error)
+                        }
+                    }
                 }
-                // if (TypeSet.id(zoom.follow) !== 'undefined' && ! def.skipcheck.common) {
-                //     console.log('ran');
-                //     check_common.call(this, {
-                //         id: 'zoom',
-                //         mapid: {
-                //             val         : mapid,
-                //         },
-                //         "zoom.follow": {
-                //             val         : zoom.follow,
-                //             oneword     : true,
-                //             extant      : true,
-                //         },
-                //     });
-                // }
             }
 
             try {
 
                 // update actors indices
                 Macro.get('mapcalculate').handlerJS.call(this, {mapid,diagonal});
+
                 
                 //////////////////////////////////////////////////
-                // create map container
+                // get tracked entity
+                const tracked = getentity(mapid, zoomtrack);
+                // create map
                 const $map = $(document.createElement('div'));
                 $map
                     .addClass(`macro-${this.name}-map`)
                     .attr('data-sn', mapsn)
                     .attr('data-mapid', mapid)
                     .attr('data-columns', columns)
+                    .attr('data-rows', rows)
+                    .attr('data-tracked', tracked?.entityid ?? null)
+                // if (tracked) {
+                //     print_map.call(this, {
+                //         $map    : $map,
+                //         mapid   : mapid,
+                //         x       : Math.max(1, tracked.x - Math.floor(zoomwidth / 2)),
+                //         y       : Math.max(1, tracked.y - Math.floor(zoomheight / 2)),
+                //         width   : zoomwidth,
+                //         height  : zoomheight,
+                //     });
+                // }
+                // else {
+                //     print_map.call(this, {
+                //         $map    : $map,
+                //         mapid   : mapid,
+                //         x       : 1,
+                //         y       : 1,
+                //         width   : columns,
+                //         height  : rows,
+                //     });
+                // }
 
                 //////////////////////////////////////////////////
-                // sizing
-                let H, W, sizing;
-                if (sizingmode === 'height') {
-                    H = mapheight / rows;
-                    W = H * tilewidth / tileheight;
-                    sizing = 'height';
-                }
-                else if (sizingmode === 'width') {
-                    W = mapwidth / columns;
-                    H = W * tileheight / tilewidth;
-                    sizing = 'width';
-                }
-                else if (sizingmode === 'auto') {
-                    // if map width is greater, ie height is constraint
-                    if (
-                        (mapwidth / mapheight) > 
-                        ((columns * tilewidth) / (rows * tileheight))
-                    ) {
-                        H = mapheight / rows;
-                        W = H * tilewidth / tileheight;
-                        sizing = 'auto-height';
-                    }
-                    // width is contraint
-                    else {
-                        W = mapwidth / columns;
-                        H = W * tileheight / tilewidth;
-                        sizing = 'auto-width';
-                    }
-                }
-                else if (sizingmode === 'tile') {
-                    W = tilewidth;
-                    H = tileheight;
-                    sizing = 'tile';
-                }
-                if (sizing) {
-                    $map
-                            .attr('data-sizing',sizing)
-                            .attr('data-tilewidth',W)
-                            .attr('data-tileheight',H)
-                            .attr('data-unit',unit)
-                            .css({
-                                    '--tilewidth'   : String(W) + unit,
-                                    '--tileheight'  : String(H) + unit,
-                                })
-                }
-
-                //////////////////////////////////////////////////
-                // create tiles
-                for (let i = 0; i < arr.length; i++) {
-                    const t = arr[i];
-                    const $t = create_tile.call(this, {
-                        mapid       : mapid,
-                        tile        : gettile(mapid, t),
-                        i           : i,
-                    });
-                    $t.appendTo($map);
-                }
-                // create entities
-                for (const e in entities) {
-                    const $e = create_entity.call(this, {
-                        mapid       : mapid,
-                        entity      : entities[e],
-                    });
-                    $e.appendTo($map);
-                }
+                const rows_shown = zoomwidth ?? columns;
+                const columns_shown = zoomheight ?? rows;
+                // update map
+                update_map.call(this, {
+                    $map,
+                    map,
+                    mapheight, 
+                    mapwidth, 
+                    tileheight, 
+                    tilewidth, 
+                    unit,
+                    sizingmode,
+                    tracked,
+                    rows_shown,
+                    columns_shown,
+                });
 
                 // output
                 $map.appendTo(this.output);
 
                 setTimeout( function() {
                     $map.on(':mapupdate', function(ev) {
-                        $(this).children(`.macro-showmap-entity`).remove();
-                        for (const e in entities) {
-                            const $e = create_entity.call(this, {
-                                mapid       : mapid,
-                                entity      : entities[e],
-                            });
-                            $e.appendTo($map);
-                        }
+                        $(this).children().remove();
+                        // get row / column for zoom values
+                        // update map
+                        update_map.call(this, {
+                            $map,
+                            map,
+                            mapheight, 
+                            mapwidth, 
+                            tileheight, 
+                            tilewidth, 
+                            unit,
+                            sizingmode,
+                            tracked,
+                            rows_shown      : $(this).attr('data-rows_shown'),
+                            columns_shown   : $(this).attr('data-columns_shown'),
+                        });
                     });
                 }, 40)
 
@@ -1169,7 +1315,7 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
                             }
                         }
                     });
-                    // update functinality
+                    // update nav rose
                     $nav.on(':navupdate', function(ev, d_input) {
                         const mapid = $(this).attr('data-mapid');
                         if (d_input) {
@@ -1305,14 +1451,12 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
                         mapid       : mapid,
                         entityid    : entityid,
                         x: {
+                            val     : x,
                             label   : "entity x position",
-                            upper   : x, 
-                            lower   : x,
                         },
                         y: {
+                            val     : y,
                             label   : "entity y position",
-                            upper   : y,
-                            lower   : y,
                         },
                     });
                 }
@@ -1510,14 +1654,12 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
                         mapid       : mapid,
                         entityid    : entityid,
                         x: {
+                            val     : x + deltax,
                             label   : "new x position after deltax",
-                            upper   : x + deltax,
-                            lower   : x + deltax,
                         },
                         y: {
+                            val     : y + deltay,
                             label   : "new y position after deltay",
-                            upper   : y + deltay,
-                            lower   : y + deltay,
                         },
                     });
                 }
@@ -1529,7 +1671,8 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
                     y   : y + deltay,
                 }, columns);
                 if (! (ignorewalls || def.noclip)) {
-                    if (actors[i].wall) {
+                    // if wall
+                    if (actors[i].wall.length > 0) {
                         if (def.collisionerror) {
                             const error = `${this.name} - collision detected for entity "${entityid}" on "${mapid}"`
                             return this.error(error)
@@ -1638,14 +1781,12 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
                         mapid       : mapid,
                         entityid    : entityid,
                         x: {
+                            val     : x,
                             label   : "new x position",
-                            upper   : x,
-                            lower   : x,
                         },
                         y: {
+                            val     : y,
                             label   : "new y position",
-                            upper   : y,
-                            lower   : y,
                         },
                     });
                 }
