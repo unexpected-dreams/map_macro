@@ -226,8 +226,8 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
         static getmap(...args)      { getmap(...args) }
         static gettile(...args)     { gettile(...args) }
         static getentity(...args)   { getentity(...args) }
-        static map_zoom(...args)    { map_zoom(...args) }
-        static map_pan(...args)     { map_pan(...args) }
+        static mapzoom(...args)     { mapzoom.call(this ?? {}, ...args) }
+        static map_pan(...args)     { map_pan.call(this ?? {}, ...args) }
     }
 
     //////////////////////////////////////////////////
@@ -478,13 +478,16 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
         try {
             // get start position
             const x = tracked
-                        ? Math.clamp(1, columns - viewcolumns + 1, tracked.x - Math.floor(viewcolumns / 2) + panx)
+                        ? Math.clamp(1, columns - viewcolumns + 1, tracked.x - Math.floor(viewcolumns / 2))
                         : 1;
             const y = tracked
-                        ? Math.clamp(1, rows - viewrows + 1, tracked.y - Math.floor(viewrows / 2) + pany)
+                        ? Math.clamp(1, rows - viewrows + 1, tracked.y - Math.floor(viewrows / 2))
                         : 1;
             // get top left coordinate
-            const i0 = convert_xy2i({x,y}, columns);
+            const i0 = convert_xy2i({
+                x   : x + panx,
+                y   : y + pany,
+            }, columns);
             const printed = [];
             // iterate through array to width & height
             for (let j = 0; j < viewrows; j++) {
@@ -528,57 +531,6 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
                 .attr('data-panx', panx)
                 .attr('data-pany', pany);
 
-            // output
-            return $map
-        }
-        catch (error) {
-            console.error(`${this.name} - failed to print map for "${mapid}"`);
-            console.error(error);
-        }
-    }
-    // print map
-    const print_map = function(argObj) {
-        const { $map, mapid, x, y, width, height } = argObj;
-        const map = getmap(mapid);
-        const { columns, arr, entities } = map;
-
-        try {
-            // get top left coordinate
-            const i0 = convert_xy2i({x,y}, columns);
-            const printed = [];
-            // iterate through array to width & height
-            for (let j = 0; j < height; j++) {
-                for (let k = 0; k < width; k++) {
-                    // track printed coordinates
-                    const i = i0 + k + (columns*j);
-                    printed.push(i);
-                    const t = arr[i];
-                    // create tile
-                    const $t = create_tile.call(this, {
-                        mapid       : mapid,
-                        tile        : gettile(mapid, t),
-                        i           : i,
-                        x           : k + 1,
-                        y           : j + 1,
-                    });
-                    // append to map
-                    $t.appendTo($map);
-                }
-            }
-            // check entities
-            for (const e in entities) {
-                const entity = entities[e];
-                const i = convert_xy2i({x:entity.x,y:entity.y}, columns);
-                if (printed.includes(i)) {
-                    const $e = create_entity.call(this, {
-                        mapid       : mapid,
-                        entity      : entity,
-                        x           : entity.x - x + 1,
-                        y           : entity.y - y + 1,
-                    });
-                    $e.appendTo($map);
-                }
-            }
             // output
             return $map
         }
@@ -1704,8 +1656,8 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
                 }
                 entity.x += deltax;
                 entity.y += deltay;
-                // console.log(actors[i].adjacent.filter( e => e !== entityid ));
                 Macro.get('mapcalculate').handlerJS.call(this, {mapid,diagonal});
+                console.log(actors[i]);
 
                 $(`[data-sn="${mapsn}"]`).trigger(':mapupdate');
                 $(`.macro-shownav-nav[data-mapid="${mapid}"]`).trigger(':navupdate');
@@ -1897,14 +1849,20 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
                 for (const e in entities) {
                     const { wall, x, y, entityid } = entities[e];
                     const i = convert_xy2i({x,y}, columns);
+
                     // wall
                     if (wall) {
                         actors[i].wall.push({entity:entityid});
                     }
+
                     // overlap
                     actors[i].overlap.push({entity:entityid});
+
                     // adjacent
-                    const dirs = diagonal ? dirs_8 : dirs_4;
+                    const dirs  = Object.assign({}, diagonal ? dirs_8 : dirs_4);
+                    // remove center
+                    delete dirs.C;
+                    // iterate around
                     for (const d in dirs) {
                         const j = convert_xy2i({
                             x   : x + dirs[d].deltax,
@@ -1952,18 +1910,18 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
                 zoom: {
                     type        : 'number',
                 },
-                '--zoomin': {
-                    type        : 'toggle',
-                },
-                '--zoomout': {
-                    type        : 'toggle',
+                mode: {
+                    type        : {
+                                    label: "exactly the string 'in' or the string 'out' or one of toggles '--zoomin','--zomout'",
+                                    exact: ['--zoomin','--zoomout','in','out'],
+                                },
                 },
             });
 
-            map_zoom.call(this, argObj);
+            mapzoom.call(this, argObj);
         },
     });
-    const map_zoom = function(argObj) {
+    const mapzoom = function(argObj) {
         // necessary definitions
         this.name   ??= argObj.id ?? "zoom";
         this.error  ??= function(error) { throw new Error(error) };
@@ -2000,7 +1958,10 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
         // validate required
         check_required.call(this, {id:this.name,mapid});
         // get zoom in or zoom out
-        if (typeof argObj['--zoomin'] === 'undefined' && typeof argObj['--zoomout'] === 'undefined') {
+        if (
+            typeof argObj['--zoomin'] === 'undefined' && 
+            typeof argObj['--zoomout'] === 'undefined'
+        ) {
             const error = `${this.name} - either "--zoomin" or "--zoomout" toggle required`;
             return this.error(error);
         }
@@ -2063,7 +2024,20 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
                 },
                 pany: {
                     type        : 'number',
-                }
+                },
+                '--left': {
+                    type        : 'toggle',
+                },
+                '--right': {
+                    type        : 'toggle',
+                },
+                '--up': {
+                    type        : 'toggle',
+                },
+                '--down': {
+                    type        : 'toggle',
+                },
+
             });
 
             map_pan.call(this, argObj);

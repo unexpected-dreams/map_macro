@@ -353,6 +353,8 @@ function create_argObj(args_in, template_in, options) {
                 if (! active.splice && keys.includes(alias[arg_this])) {
                     // toggle input
                     if (template[alias[arg_this]].type === 'toggle') {
+                        debug.log('argObj',`entered toggle`);
+                        debug.log('argObj',argObj);
                         argObj[alias[arg_this]] = true;
                         active.splice = 1;
                     }

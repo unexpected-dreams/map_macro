@@ -93,6 +93,12 @@ other stuff
 - <<link 'zoom in'>>
     <<mapzoom --zoomout 'demo'>>
 <</link>>
+- <<link 'pan right'>>
+    <<mappan 'demo' 1>>
+<</link>>
+- <<link 'pan left'>>
+    <<mappan 'demo' -1>>
+<</link>>
 - <<link 'teleport player1'>>
     <<run
         _x = Number($('#xinput').val());
