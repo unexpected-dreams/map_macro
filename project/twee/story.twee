@@ -88,22 +88,10 @@ map
 <</shownav>> */
 other stuff
 - <<link 'zoom out'>>
-    <<run
-        _r = Number($('.macro-showmap-map').attr('data-viewrows'));
-        $('.macro-showmap-map').attr('data-viewrows',_r+2);
-        _c = Number($('.macro-showmap-map').attr('data-viewcolumns'));
-        $('.macro-showmap-map').attr('data-viewcolumns',_c+2);
-        $('.macro-showmap-map').trigger(':mapupdate');
-    >>
+    <<zoomout 'demo'>>
 <</link>>
 - <<link 'zoom in'>>
-    <<run
-        _r = Number($('.macro-showmap-map').attr('data-viewrows'));
-        $('.macro-showmap-map').attr('data-viewrows',_r-2);
-        _c = Number($('.macro-showmap-map').attr('data-viewcolumns'));
-        $('.macro-showmap-map').attr('data-viewcolumns',_c-2);
-        $('.macro-showmap-map').trigger(':mapupdate');
-    >>
+    <<zoomin 'demo'>>
 <</link>>
 - <<link 'teleport player1'>>
     <<run

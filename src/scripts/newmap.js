@@ -42,11 +42,14 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
 // ADVANCED settings
 //  for fancier maps, trickier to work with
 
+    // how much map changes on zoom by default
+    config.map.zoom             = 2;
+
     // actors indices and collision checks
-    config.player.wall        = true;           // true means others collide into it
-    config.building.wall      = true;
-    config.object.wall        = false;
-    config.npc.wall           = false;
+    config.player.wall          = true;           // true means others collide into it
+    config.building.wall        = true;
+    config.object.wall          = false;
+    config.npc.wall             = false;
 
     // make non-square tiles
     config.tile.width           = 2;            // width > height for fat tiles
@@ -896,6 +899,9 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
                     type        : 'string',
                     alias       : 'map',
                 },
+                class: {
+                    type        : 'string',
+                },
                 sizingmode: {
                     type        : [
                                     {exact: 'auto'},
@@ -1057,6 +1063,7 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
                 const $map = $(document.createElement('div'));
                 $map
                     .addClass(`macro-${this.name}-map`)
+                    .addClass(argObj.class ?? '')
                     .attr('data-sn', mapsn)
                     .attr('data-mapid', mapid)
                     .attr('data-columns', columns)
@@ -1882,6 +1889,64 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
             }
         },
     });
+
+
+
+// █████  ████   ████  █    █
+//    █  █    █ █    █ ██  ██
+//   █   █    █ █    █ █ ██ █
+//  █    █    █ █    █ █    █
+// █████  ████   ████  █    █
+// SECTION: zoom
+
+    Macro.add(["zoomout","zoomin"], {
+        
+        handler() {
+            //////////////////////////////////////////////////
+            //////////////////////////////////////////////////
+            // parse args
+            const argObj = create_argObj.call(this, this.args, {
+                id: this.name,
+                mapid: {
+                    type        : 'string',
+                    alias       : 'map',
+                },
+                class: {
+                    type        : 'string',
+                },
+                zoom: {
+                    type        : 'number',
+                }
+            });
+
+            zoom.call(this, argObj);
+        },
+    });
+    const zoom = function(argObj) {
+        // necessary definitions
+        this.name   ??= argObj.id ?? "zoom";
+        this.error  ??= function(error) { throw new Error(error) };
+        // wrap string if necessary
+        if (typeof argObj === 'string') {
+            argObj = {mapid: argObj};
+        }
+        // adjust for zoomin
+        const adjust = this.name === "zoomin" ? -1 : 1;
+        const { mapid, zoom } = {
+            zoom    : def.map.zoom,
+            ...argObj
+        };
+        check_required.call(this, {id:this.name,mapid});
+        const $map = argObj.class
+                        ? $(`.macro-showmap-map[data-mapid="${mapid}"]`).filter(`.${argObj.class}`)
+                        : $(`.macro-showmap-map[data-mapid="${mapid}"]`);
+        const viewrows = Number($map.attr('data-viewrows'));
+        const viewcolumns = Number($map.attr('data-viewcolumns'));
+        $map
+            .attr('data-viewrows', viewrows + zoom * adjust)
+            .attr('data-viewcolumns',viewcolumns + zoom * adjust)
+            .trigger(':mapupdate');
+    }
 
 
 // }());
