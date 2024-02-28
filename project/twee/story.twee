@@ -88,10 +88,10 @@ map
 <</shownav>> */
 other stuff
 - <<link 'zoom out'>>
-    <<zoomout 'demo'>>
+    <<mapzoom --zoomin 'demo'>>
 <</link>>
 - <<link 'zoom in'>>
-    <<zoomin 'demo'>>
+    <<mapzoom --zoomout 'demo'>>
 <</link>>
 - <<link 'teleport player1'>>
     <<run

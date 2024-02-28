@@ -86,3 +86,5 @@ sugarcube-2:
       container: true
     entityhandler:
       name: entityhandler
+    mapzoom:
+      name: mapzoom

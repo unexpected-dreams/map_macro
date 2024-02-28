@@ -127,21 +127,6 @@ function validatation_errors(argObj) {
                 return this.error(error)
             }
         }
-        // ERROR: not a valid css dimension
-        if (template[key].cssunit) {
-            const units = ['cm','mm','Q','in','pc','pt','px','em','ex','ch','rem','lh','rlh','vw','vh','vmin','vmax','vb','vi','svw','svh','lvw','lvh','dvw','dvh','%'];
-            let pass = false;
-            for (const u of units) {
-                if (val === u) {
-                    pass = true;
-                    break;
-                }
-            }
-            if (! pass) {
-                const error = `${id} - input "${val}" for "${key}" is not a valid css unit`;
-                return this.error(error)
-            }
-        }
     }
     catch (error) {
         console.error(`failed to validate macro arguments on key "${key}" with value "${val}" for "${id}"`);
@@ -362,30 +347,38 @@ function create_argObj(args_in, template_in, options) {
                 //////////////////////////////////////////////////
                 // always check infinite first
                 if (keys_infinite[0] && argObj[keys_infinite[0]]) {
-                    argObj_infinite.call(this,active);
+                    argObj_infinite.call(this, active);
+                }
+                // found key
+                if (! active.splice && keys.includes(alias[arg_this])) {
+                    // toggle input
+                    if (template[alias[arg_this]].type === 'toggle') {
+                        argObj[alias[arg_this]] = true;
+                        active.splice = 1;
+                    }
+                    // key value pair input
+                    else {
+                        argObj_kvp.call(this, active);
+                    }
                 }
                 // [[markup]] input
                 if (! active.splice && arg_this.isLink) {
-                    argObj_markup.call(this,active);
-                }
-                // key value pair input
-                if (! active.splice && keys.includes(alias[arg_this])) {
-                    argObj_kvp.call(this,active);
+                    argObj_markup.call(this, active);
                 }
                 // {object} input
                 if (! active.splice && (TypeSet.id(arg_this) === 'object')) {
-                    argObj_obj.call(this,active);
+                    argObj_obj.call(this, active);
                 }
                 // lazy matcher, to turn off: options.strict = true
                 const { strict } = {strict: false, ...active.options};
                 if (! active.splice && ! strict) {
-                    argObj_lazy.call(this,active);
+                    argObj_lazy.call(this, active);
                 }
 
                 //////////////////////////////////////////////////
                 // update args
                 if (active.splice) {
-                    active.args.splice(0,active.splice);
+                    active.args.splice(0, active.splice);
                 }
                 else {
                     // ERROR: anything after this is mystery
@@ -419,8 +412,8 @@ function create_argObj(args_in, template_in, options) {
 // ███ █   ██ █     ███ █   ██ ███   █   █████
 // SECTION: infinite
 function argObj_infinite(active) {
-    debug.log('argObj','entered markup');
-    debug.log('argObj',active);
+    debug.log('argObj', 'entered markup');
+    debug.log('argObj', active);
     const { id, args, template, keys, argObj, alias, options } = active;
     const arg_this = args[0];
     const k = keys.filter( k => template[k].infinite )[0];
@@ -454,8 +447,8 @@ function argObj_infinite(active) {
 // █    █ █   █ █   █ █   █  ███  █
 // SECTION: markup
 function argObj_markup(active) {
-    debug.log('argObj','entered markup');
-    debug.log('argObj',active);
+    debug.log('argObj', 'entered markup');
+    debug.log('argObj', active);
     const { id, args, template, keys, argObj, alias, options } = active;
     const arg_this = args[0];
     // ERROR: [[markup]] when no passage input
@@ -477,8 +470,8 @@ function argObj_markup(active) {
 // █   █   █   █
 // SECTION: kvp
 function argObj_kvp(active) {
-    debug.log('argObj','entered kvp');
-    debug.log('argObj',active);
+    debug.log('argObj', 'entered kvp');
+    debug.log('argObj', active);
     const { id, args, template, keys, argObj, alias, options } = active;
     const arg_this = args[0];
     const arg_next = args[1];
@@ -506,8 +499,8 @@ function argObj_kvp(active) {
 //  ████  ████   ███
 // SECTION: object
 function argObj_obj(active) {
-    debug.log('argObj','entered object parser');
-    debug.log('argObj',active);
+    debug.log('argObj', 'entered object parser');
+    debug.log('argObj', active);
     const { id, args, template, keys, argObj, alias, options } = active;
     const arg_this = args[0];
     for (const a in arg_this) {
@@ -534,8 +527,8 @@ function argObj_obj(active) {
 // █████ █   █ █████   █
 // SECTION: lazy
 function argObj_lazy(active) {
-    debug.log('argObj','entered lazy matcher');
-    debug.log('argObj',active);
+    debug.log('argObj', 'entered lazy matcher');
+    debug.log('argObj', active);
     const { id, args, template, keys, argObj, alias, options } = active;
     const arg_this = args[0];
     const keys_left = keys.filter( k => ! Object.keys(argObj).includes(k) );

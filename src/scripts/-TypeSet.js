@@ -255,7 +255,7 @@ Object.defineProperty(window, 'demo', {
 
 const debug = {
     on: {
-        argObj  : false,
+        argObj  : true,
         proxy   : false,
     },
     log: function(groups,i) {
