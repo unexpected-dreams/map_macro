@@ -43,9 +43,9 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
 //  for fancier maps, trickier to work with
 
     // how much map changes by default when zooming or panning
-    config.map.zoom             = 2;
-    config.map.panx             = 1;
-    config.map.pany             = 1;
+    config.map.zoom             = 2;            // # tiles view expands or shrinks
+    config.map.panx             = 1;            // # tiles panning left or right
+    config.map.pany             = 1;            // # tiles panning up or down
 
     // actors indices and collision checks
     config.player.wall          = true;           // true means others collide into it
@@ -227,7 +227,7 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
         static gettile(...args)     { gettile(...args) }
         static getentity(...args)   { getentity(...args) }
         static mapzoom(...args)     { mapzoom.call(this ?? {}, ...args) }
-        static map_pan(...args)     { map_pan.call(this ?? {}, ...args) }
+        static mappan(...args)      { mappan.call(this ?? {}, ...args) }
     }
 
     //////////////////////////////////////////////////
@@ -296,7 +296,7 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
     //////////////////////////////////////////////////
     // create elemeents
     function create_tile(argObj) {
-        const { mapid, tile, i, x, y }= argObj;
+        const { mapid, tile, i, row, column }= argObj;
         const { tilesn, tileid, tilename, tiletype, tilehtml } = tile;
         try {
             const $t = $(document.createElement('div'))
@@ -309,8 +309,8 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
                 .attr('data-tilename', tilename)
                 .attr('data-tiletype', tiletype)
                 .css({
-                    "grid-column"   : `${x} / span 1`,
-                    "grid-row"      : `${y} / span 1`,
+                    "grid-column"   : `${column} / span 1`,
+                    "grid-row"      : `${row} / span 1`,
                 })
                 .wiki(tilehtml
                         ? tilehtml
@@ -326,7 +326,7 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
     }
     //////////////////////////////////////////////////
     function create_entity(argObj) {
-        const { mapid, entity, x, y } = argObj;
+        const { mapid, entity, column, row } = argObj;
         const { entitysn, entityid, entityname, entityhtml } = entity;
         try {
             const $e = $(document.createElement('div'));
@@ -340,8 +340,8 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
                         : entityid          // use name as fallback
                 )
                 .css({
-                    "grid-column"   : `${x} / span 1`,
-                    "grid-row"      : `${y} / span 1`,
+                    "grid-column"   : `${column} / span 1`,
+                    "grid-row"      : `${row} / span 1`,
                 });
             return $e
         }
@@ -363,7 +363,7 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
             $dir
                 .addClass(`macro-shownav-direction macro-shownav-${dirid}`)
                 .attr('data-dirid', dirid)
-                .attr('data-mapname', dirname)
+                .attr('data-dirname', dirname)
                 .attr('data-mapid', mapid);
 
             const x = entity.x + deltax;
@@ -405,23 +405,29 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
     }
 
     //////////////////////////////////////////////////
-    // update_map
-    const update_map = function(argObj) {
+    // update map
+    const updatemap = function(argObj) {
         const { $map, map, mapheight, mapwidth, tileheight, tilewidth, unit, sizingmode, tracked } = argObj;
         const { mapid, columns, rows, arr, entities } = map;
         // if not tracked, do nothing
+        const zoom          = tracked
+                                ? argObj.zoom
+                                : 0;
+        // how big view area is, zoom is accounted for
         const viewrows      = tracked
-                                ? Math.clamp(1, rows, argObj.viewrows)
+                                ? Math.clamp(
+                                    1, 
+                                    rows, 
+                                    argObj.viewrows + zoom
+                                )
                                 : rows;
         const viewcolumns   = tracked
-                                ? Math.clamp(1, columns, argObj.viewcolumns)
+                                ? Math.clamp(
+                                    1, 
+                                    columns, 
+                                    argObj.viewcolumns + zoom
+                                )
                                 : columns;
-        const panx  = tracked
-                        ? argObj.panx
-                        : 0;
-        const pany  = tracked
-                        ? argObj.pany
-                        : 0;
         
         // sizing
         try {
@@ -477,32 +483,50 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
 
         try {
             // get start position
-            const x = tracked
-                        ? Math.clamp(1, columns - viewcolumns + 1, tracked.x - Math.floor(viewcolumns / 2))
+            // how far we are from center
+            const panx  = tracked
+                            ? argObj.panx
+                            : 0;
+            const pany  = tracked
+                            ? argObj.pany
+                            : 0;
+            // max is far edge minus view size minus extra pan towards edge + 1
+            const x0 = tracked
+                        ? Math.clamp(
+                            1, 
+                            columns - viewcolumns - panx + 1, 
+                            tracked.x - Math.floor((viewcolumns) / 2)  + panx
+                        )
                         : 1;
-            const y = tracked
-                        ? Math.clamp(1, rows - viewrows + 1, tracked.y - Math.floor(viewrows / 2))
+            const y0 = tracked
+                        ? Math.clamp(
+                            1, 
+                            rows - viewrows - pany + 1, 
+                            tracked.y - Math.floor((viewrows) / 2)  + pany
+                        )
                         : 1;
+            console.log({x0,y0});
             // get top left coordinate
+            // convert to i0
             const i0 = convert_xy2i({
-                x   : x + panx,
-                y   : y + pany,
+                x   : x0,
+                y   : y0,
             }, columns);
-            const printed = [];
+            const printed_tiles = [];
             // iterate through array to width & height
-            for (let j = 0; j < viewrows; j++) {
-                for (let k = 0; k < viewcolumns; k++) {
+            for (let row = 1; row <= viewrows; row++) {
+                for (let column = 1; column <= viewcolumns; column++) {
                     // track printed coordinates
-                    const i = i0 + k + (columns * j);
-                    printed.push(i);
+                    const i = i0 + (column-1) + (columns * (row-1));
+                    printed_tiles.push(i);
                     const t = arr[i];
                     // create tile
                     const $t = create_tile.call(this, {
                         mapid       : mapid,
                         tile        : gettile(mapid, t),
                         i           : i,
-                        x           : k + 1,
-                        y           : j + 1,
+                        row         : row,
+                        column      : column,
                     });
                     // append to map
                     $t.appendTo($map);
@@ -511,23 +535,28 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
             // check entities
             for (const e in entities) {
                 const entity = entities[e];
-                const i = convert_xy2i({x:entity.x,y:entity.y}, columns);
-                if (printed.includes(i)) {
+                // get i from xy coordinate of entity
+                const i = convert_xy2i({
+                    x   : entity.x,
+                    y   : entity.y
+                }, columns);
+                // if i is in printed tiles, print
+                if (printed_tiles.includes(i)) {
                     const $e = create_entity.call(this, {
                         mapid       : mapid,
                         entity      : entity,
-                        x           : entity.x - x + 1,
-                        y           : entity.y - y + 1,
+                        // row & column is difference betweeen xy0 and coordinate + 1
+                        row         : entity.y - y0 + 1,
+                        column      : entity.x - x0 + 1,
                     });
                     $e.appendTo($map);
                 }
             }
             // store data
             $map
-                .attr('data-viewrows', viewrows)
-                .attr('data-viewcolumns', viewcolumns)
-                .attr('data-x', x)
-                .attr('data-y', y)
+                .attr('data-zoom', zoom)
+                .attr('data-x0', x0)
+                .attr('data-y0', y0)
                 .attr('data-panx', panx)
                 .attr('data-pany', pany);
 
@@ -877,6 +906,9 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
             // parse args
             const argObj = create_argObj.call(this, this.args, {
                 id: this.name,
+                hidemap: {
+                    type        : {exact: ["--hidemap"]}
+                },
                 mapid: {
                     type        : 'string',
                     alias       : 'map',
@@ -992,7 +1024,7 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
             }
             // extract from map
             const map = getmap(mapid);
-            const { columns, rows, diagonal } = map;
+            const { mapname, columns, rows, diagonal } = map;
             const mapsn = map.mapsn;
             // check zoom object
             if (viewcolumns || viewrows || viewtrack) {
@@ -1025,7 +1057,7 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
                     }
                     if (TypeSet.id(viewtrack) !== 'undefined') {
                         if (! getentity(mapid, viewtrack)) {
-                            const error = `zoom - no entity with id "${viewtrack}" found, "viewtrack" input must be an entity on map "${mapid}"`;
+                            const error = `zoom - no entity with id "${viewtrack}" found on map "${mapid}"`;
                             return this.error(error)
                         }
                     }
@@ -1050,12 +1082,14 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
                     .attr('data-mapid', mapid)
                     .attr('data-columns', columns)
                     .attr('data-rows', rows)
+                    .attr('data-viewrows', viewrows)
+                    .attr('data-viewcolumns', viewcolumns)
                     // when null or undefined, nothing gets set
                     .attr('data-tracked', tracked?.entityid ?? undefined);
 
                 //////////////////////////////////////////////////
                 // update map
-                update_map.call(this, {
+                updatemap.call(this, {
                     $map,
                     map,
                     mapheight, 
@@ -1067,19 +1101,69 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
                     tracked,
                     viewrows    : viewrows ?? rows,
                     viewcolumns : viewcolumns ?? columns,
+                    zoom        : 0,
                     panx        : 0,
                     pany        : 0,
                 });
 
+                // create container
+                const $container = $(document.createElement('div'))
+                $container
+                            .addClass('macro-showmap-container')
+                            .append($map);
+                // title
+                $(document.createElement('div'))
+                            .addClass('macro-showmap-title')
+                            .wiki(mapname ?? '')
+                            .appendTo($container)
+                if (tracked) {
+                    // zoom buttons
+                    $(document.createElement('div'))
+                            .addClass('macro-showmap-topbuttons')
+                            // 
+                            .append(
+                                $(document.createElement('button'))
+                                        .addClass('macro-showmap-recenter')
+                                        .wiki('C')
+                            )
+                            // zoom buttons
+                            .append(
+                                // $(document.createElement('img'))
+                                //         .addClass('macro-showmap-zoombutton')
+                                //         .attr('data-zoom','in')
+                                //         .attr('src',`data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAzMjAgNTEyIj48IS0tIUZvbnQgQXdlc29tZSBGcmVlIDYuNS4xIGJ5IEBmb250YXdlc29tZSAtIGh0dHBzOi8vZm9udGF3ZXNvbWUuY29tIExpY2Vuc2UgLSBodHRwczovL2ZvbnRhd2Vzb21lLmNvbS9saWNlbnNlL2ZyZWUgQ29weXJpZ2h0IDIwMjQgRm9udGljb25zLCBJbmMuLS0+PHBhdGggZD0iTTE4Mi42IDEzNy40Yy0xMi41LTEyLjUtMzIuOC0xMi41LTQ1LjMgMGwtMTI4IDEyOGMtOS4yIDkuMi0xMS45IDIyLjktNi45IDM0LjlzMTYuNiAxOS44IDI5LjYgMTkuOEgyODhjMTIuOSAwIDI0LjYtNy44IDI5LjYtMTkuOHMyLjItMjUuNy02LjktMzQuOWwtMTI4LTEyOHoiLz48L3N2Zz4=`)
+                                $(document.createElement('button'))
+                                        .addClass('macro-showmap-zoombutton')
+                                        .attr('data-mode','in')
+                                        .wiki('+')
+                            )
+                            .append(
+                                $(document.createElement('button'))
+                                        .addClass('macro-showmap-zoombutton')
+                                        .attr('data-mode','out')
+                                        .wiki('-')
+                            )
+                            .appendTo($container);
+                    // pan buttons
+                    for (const d of ["up","down","left","right"]) {
+                        const $d = $(document.createElement('button'))
+                        $d
+                            .addClass('macro-showmap-panbutton')
+                            .attr('data-mode',d)
+                            .wiki(d.first().toUpperCase())
+                            .appendTo($container);
+                    }
+                }
+
                 // output
-                $map.appendTo(this.output);
+                $container.appendTo(this.output);
 
                 setTimeout( function() {
+                    // update functionality
                     $map.on(':mapupdate', function(ev) {
                         $(this).children().remove();
-                        // get row / column for zoom values
-                        // update map
-                        update_map.call(this, {
+                        // get zoom & pan values from $map
+                        updatemap.call(this, {
                             $map,
                             map,
                             mapheight, 
@@ -1089,11 +1173,28 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
                             unit,
                             sizingmode,
                             tracked,
-                            viewrows        : Number($(this).attr('data-viewrows')),
-                            viewcolumns     : Number($(this).attr('data-viewcolumns')),
-                            panx            : Number($(this).attr('data-panx')),
-                            pany            : Number($(this).attr('data-pany')),
+                            viewrows,
+                            viewcolumns,
+                            zoom        : Number($(this).attr('data-zoom')),
+                            panx        : Number($(this).attr('data-panx')),
+                            pany        : Number($(this).attr('data-pany')),
                         });
+                    });
+                    $container.on('click', function(ev) {
+                        // pan button functinoality
+                        if ($(ev.target).hasClass('macro-showmap-panbutton')) {
+                            const mode = $(ev.target).attr('data-mode');
+                            mappan.call(this, {id:this.name,mapid,mode});
+                        }
+                        // zoom button functionality
+                        if ($(ev.target).hasClass('macro-showmap-zoombutton')) {
+                            const mode = $(ev.target).attr('data-mode');
+                            mapzoom.call(this, {id:this.name,mapid,mode});
+                        }
+                        // recenter functionality
+                        if ($(ev.target).hasClass('macro-showmap-recenter')) {
+                            maprecenter.call(this, {id:this.name,mapid});
+                        }
                     });
                 }, 40)
 
@@ -1344,6 +1445,10 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
                     type        : 'string',
                     alias       : 'entity',
                 },
+                entityname: {
+                    type        : 'string',
+                    alias       : 'name',
+                },
                 wall: {
                     type        : 'boolean',
                 },
@@ -1377,7 +1482,7 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
             this.name   ??= argObj.id ?? "newentity";
             this.error  ??= function(error) { throw new Error(error) };
             // extract from argObj
-            const { mapid, x, y, source, wall, entityhtml, entityhandler } = argObj;
+            const { mapid, x, y, source, wall, entityname, entityhtml, entityhandler } = argObj;
             check_required.call(this, {id:this.name, mapid, x, y});
             // assign sn & id
             const entitysn = window.crypto.randomUUID();
@@ -1439,6 +1544,7 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
                     mapid           : mapid,
                     entitysn        : entitysn,
                     entityid        : String(entityid),
+                    entityname      : entityname,
                     entityhtml      : entityhtml,
                     entityhandler   : entityhandler,
                     x               : x,
@@ -1657,7 +1763,6 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
                 entity.x += deltax;
                 entity.y += deltay;
                 Macro.get('mapcalculate').handlerJS.call(this, {mapid,diagonal});
-                console.log(actors[i]);
 
                 $(`[data-sn="${mapsn}"]`).trigger(':mapupdate');
                 $(`.macro-shownav-nav[data-mapid="${mapid}"]`).trigger(':navupdate');
@@ -1764,8 +1869,6 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
                 }
                 entity.x = x;
                 entity.y = y;
-
-                // console.log(actors[i].adjacent.filter( e => e !== entityid ));
 
                 Macro.get('mapcalculate').handlerJS.call(this, {mapid,diagonal});
 
@@ -1900,6 +2003,15 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
             // parse args
             const argObj = create_argObj.call(this, this.args, {
                 id: this.name,
+                mode: {
+                    type        : {
+                                    label: "exactly the string 'in' or exactly the string 'out' or one of keywords '--zoomin' or '--zomout'",
+                                    exact: [
+                                        'in','out',
+                                        '--zoomin','--zoomout'
+                                    ],
+                                },
+                },
                 mapid: {
                     type        : 'string',
                     alias       : 'map',
@@ -1909,12 +2021,6 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
                 },
                 zoom: {
                     type        : 'number',
-                },
-                mode: {
-                    type        : {
-                                    label: "exactly the string 'in' or the string 'out' or one of toggles '--zoomin','--zomout'",
-                                    exact: ['--zoomin','--zoomout','in','out'],
-                                },
                 },
             });
 
@@ -1930,6 +2036,9 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
             zoom    : def.map.zoom,
             ...argObj
         };
+        const mode = argObj?.mode?.replace('--zoom','');
+        // validate required
+        check_required.call(this, {id:this.name,mapid,mode});
         // validate args
         if (! def.skipcheck.common) {
             check_common.call(this, {
@@ -1955,44 +2064,50 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
                 });
             }
         }
-        // validate required
-        check_required.call(this, {id:this.name,mapid});
-        // get zoom in or zoom out
+        // ERROR: invalid mode input
         if (
-            typeof argObj['--zoomin'] === 'undefined' && 
-            typeof argObj['--zoomout'] === 'undefined'
+            typeof mode !== 'undefined' &&
+            mode !== 'in'   &&
+            mode !== 'out'
         ) {
-            const error = `${this.name} - either "--zoomin" or "--zoomout" toggle required`;
-            return this.error(error);
+            const error = `${this.name} - invalid "mode" input, must be exactly the string 'in' or 'out'`;
         }
-        const adjust    = argObj['--zoomin']
+        const adjust    = mode === 'in'
                             ? -1
-                            : 1;
-        // extract fomr map
+                            :  1;
+        // extract from map
         const map = getmap(mapid);
         const { columns, rows } = map;
-        // get map object
-        const $map = argObj.class
-                        ? $(`.macro-showmap-map[data-mapid="${mapid}"]`).filter(`.${argObj.class}`)
-                        : $(`.macro-showmap-map[data-mapid="${mapid}"]`);
-        // only do anything if map is tracking
-        if ($map.attr('data-tracked')) {
-            const viewrows = Number($map.attr('data-viewrows'));
-            const viewcolumns = Number($map.attr('data-viewcolumns'));
-            const newrows = viewrows + zoom * adjust;
-            const newcolumns = viewcolumns + zoom * adjust
-            // only change if new view doesn't exceed bounds
-            if (
-                (newrows >= 1)          &&
-                (newrows <= rows)       &&
-                (newcolumns >= 1)       &&
-                (newcolumns <= columns)
-            ) {
-                $map
-                    .attr('data-viewrows', newrows)
-                    .attr('data-viewcolumns', newcolumns)
-                    .trigger(':mapupdate');
+
+        try {
+            // get map object
+            const $map = argObj.class
+                            ? $(`.macro-showmap-map[data-mapid="${mapid}"]`).filter(`.${argObj.class}`)
+                            : $(`.macro-showmap-map[data-mapid="${mapid}"]`);
+            // only do anything if map is tracking
+            if ($map.attr('data-tracked')) {
+                const viewrows_old      = Number($map.attr('data-viewrows'));
+                const viewcolumns_old   = Number($map.attr('data-viewcolumns'));
+                const zoom_new          = Number($map.attr('data-zoom')) + zoom * adjust;
+                const viewrows_new      = viewrows_old    + zoom_new;
+                const viewcolumns_new   = viewcolumns_old + zoom_new;
+                // only change if new view doesn't exceed bounds
+                if (
+                    (viewrows_new    >= 1)          &&
+                    (viewcolumns_new >= 1)          &&
+                    (viewrows_new    <= rows)       &&
+                    (viewcolumns_new <= columns)
+                ) {
+                    console.log({viewcolumns_new,viewrows_new});
+                    $map
+                        .attr('data-zoom', zoom_new)
+                        .trigger(':mapupdate');
+                }
             }
+        }
+        catch (error) {
+            console.error(`${this.name} - failed to zoom ${mode} for map "${mapid}"`);
+            console.error(error);
         }
     }
 
@@ -2012,6 +2127,15 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
             // parse args
             const argObj = create_argObj.call(this, this.args, {
                 id: this.name,
+                mode: {
+                    type        : {
+                                    label: "exactly one of strings 'left' or 'right' or 'up' or 'down' or one of corresponding keywords '--panleft' or '--panright' or '--panup' or '--pandown'",
+                                    exact: [
+                                        'left','right','up','down',
+                                        '--left','--right','--up','--down',
+                                    ],
+                                },
+                },
                 mapid: {
                     type        : 'string',
                     alias       : 'map',
@@ -2025,69 +2149,188 @@ const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},objec
                 pany: {
                     type        : 'number',
                 },
-                '--left': {
-                    type        : 'toggle',
-                },
-                '--right': {
-                    type        : 'toggle',
-                },
-                '--up': {
-                    type        : 'toggle',
-                },
-                '--down': {
-                    type        : 'toggle',
-                },
-
             });
 
-            map_pan.call(this, argObj);
+            mappan.call(this, argObj);
         },
     });
-    const map_pan = function(argObj) {
+    const mappan = function(argObj) {
+        //////////////////////////////////////////////////
+        //////////////////////////////////////////////////
         // necessary definitions
         this.name   ??= argObj.id ?? "pan";
         this.error  ??= function(error) { throw new Error(error) };
-        // wrap string if necessary
-        if (typeof argObj === 'string') {
-            argObj = {mapid: argObj};
-        }
-        const { mapid, panx, pany } = {
-            panx    : def.map.panx,
-            pany    : def.map.pany,
-            ...argObj
-        };
-        console.log('ran');
+        // extract from argObj
+        const { mapid } = argObj;
+        const mode = argObj?.mode?.replace("--pan","");
         check_required.call(this, {id:this.name,mapid});
+        // ERROR: no pan or mode input
+        if (! argObj.panx && ! argObj.pany && ! mode) {
+            const error = `${this.name} - missing required value for one of 'panx' or 'pany' or 'mode', or use of one of keywords '--left' or '--right' or '--up' or '--down'`;
+            return this.error(error)
+        }
+        // ERROR: invalid mode input
+        if (
+            typeof mode !== "undefined" && 
+            mode !== "right"    && 
+            mode !== "left"     && 
+            mode !== "up"       && 
+            mode !== "down"
+        ) {
+            const error = `${this.name} - invalid "mode" input, if used it must be exactly the string 'left' or 'right' or 'up' or 'down'`;
+            return this.error(error)
+        }
+        // check unused
+        if (! def.skipcheck.unused) {
+            // ERROR: unused pany
+            if ((mode === "left" || mode === "right") && argObj.pany) {
+                const error = `${this.name} - 'pany' value is not used when panning left or right`;
+                return this.error(error)
+            }
+            // ERROR: unused panx
+            if ((mode === "up" || mode === "down") && argObj.panx) {
+                const error = `${this.name} - 'panx' value is not used when panning up or down`;
+                return this.error(error)
+            }
+        }
+        // get pan
+        const panx  = mode === "up" || mode === "down"
+                        ?  0
+                    : mode === "left"
+                        ? -1 * Math.abs(argObj.panx ?? def.map.panx)
+                    : mode === "right"
+                        ?  1 * Math.abs(argObj.panx ?? def.map.panx)
+                    : argObj.panx ?? 0;
+        const pany  = mode === "left" || mode === "right"
+                        ?  0
+                    : mode === "up"
+                        ? -1 * Math.abs(argObj.pany ?? def.map.pany)
+                    : mode === "down"
+                        ?  1 * Math.abs(argObj.pany ?? def.map.pany)
+                    : argObj.pany ?? 0;
+        // validate args
+        if (! def.skipcheck.common) {
+            check_common.call(this, {
+                id: this.name,
+                panx: {
+                    val         : panx,
+                    integer     : true,
+                },
+                pany: {
+                    val         : pany,
+                    integer     : true,
+                },
+            });
+        }
+        // extract from map
         const map = getmap(mapid);
         const { columns, rows } = map;
-        const $map = argObj.class
-                        ? $(`.macro-showmap-map[data-mapid="${mapid}"]`).filter(`.${argObj.class}`)
-                        : $(`.macro-showmap-map[data-mapid="${mapid}"]`);
-        if ($map.attr('data-tracked')) {
-            const x_old = Number($map.attr('data-x'));
-            const y_old = Number($map.attr('data-y'));
-            const viewrows = Number($map.attr('data-viewrows'));
-            const viewcolumns = Number($map.attr('data-viewcolumns'));
-            const panx_old = Number($map.attr('data-panx'));
-            const pany_old = Number($map.attr('data-pany'));
-            const panx_new = panx_old + panx;
-            const pany_new = pany_old + pany;
-            const x_new = x_old + panx_new;
-            const y_new = y_old + pany_new;
-            // console.log({x,y});
-            if (
-                (x_new > 0)                             &&      
-                (y_new > 0)                             &&
-                (y_new < (rows - viewrows + 1))         &&
-                (x_new < (columns - viewcolumns + 1))
-            ) {
-                $map
-                    .attr('data-panx', panx_new)
-                    .attr('data-pany', pany_new)
-                    .trigger(':mapupdate');
+
+        try {
+            const $map = argObj.class
+                            ? $(`.macro-showmap-map[data-mapid="${mapid}"]`).filter(`.${argObj.class}`)
+                            : $(`.macro-showmap-map[data-mapid="${mapid}"]`);
+            // only do anything if tracked
+            if ($map.attr('data-tracked')) {
+                // calculate new view position
+                const viewrows      = Number($map.attr('data-viewrows'));
+                const viewcolumns   = Number($map.attr('data-viewcolumns'));
+                const zoom          = Number($map.attr('data-zoom'));
+                const panx_new      = Number($map.attr('data-panx')) + panx;
+                const pany_new      = Number($map.attr('data-pany')) + pany;
+                const x0_new        = Number($map.attr('data-x0'))   + panx_new;
+                const y0_new        = Number($map.attr('data-y0'))   + pany_new;
+                // make sure it's valid
+                if (
+                    (x0_new >= 1)       &&      
+                    (y0_new >= 1)       &&
+                    (y0_new <= (rows    - viewrows    - zoom + 1))  &&
+                    (x0_new <= (columns - viewcolumns - zoom + 1))
+                ) {
+                    // update
+                    $map
+                        .attr('data-panx', panx_new)
+                        .attr('data-pany', pany_new)
+                        .trigger(':mapupdate');
+                }
             }
+        }
+        catch (error) {
+            console.error(`${this.name} - failed to pan {panx: ${panx}}, pany: ${pany}} for map "${mapid}"`);
+            console.error(error);
         }
     }
 
 
+
+// ████  █████  ████ █████ █    █ █████ █████ ████
+// █   █ █     █     █     ██   █   █   █     █   █
+// ████  ███   █     ███   █ █  █   █   ███   ████
+// █   █ █     █     █     █  █ █   █   █     █   █
+// █   █ █████  ████ █████ █   ██   █   █████ █   █
+// SECTION: recenter
+
+    Macro.add("maprecenter", {
+
+        handler() {
+            //////////////////////////////////////////////////
+            //////////////////////////////////////////////////
+            const argObj = create_argObj.call(this, this.args, {
+                id: this.name,
+                mapid: {
+                    type        : 'string',
+                    alias       : 'map',
+                },
+                class: {
+                },
+            });
+
+            maprecenter.call(this, argObj);
+        }
+    });
+
+    function maprecenter(argObj) {
+        //////////////////////////////////////////////////
+        //////////////////////////////////////////////////
+        // necessary definitions
+        this.name   ??= argObj.id ?? "pan";
+        this.error  ??= function(error) { throw new Error(error) };
+        // extract from argObj
+        const { mapid } = argObj;
+        check_required.call(this, {id:this.name,mapid});
+        if (! def.skipcheck.common) {
+            check_common.call(this, {
+                id: this.name,
+                mapid: {
+                    val     : mapid,
+                    extant  : true,
+                    oneword : true,
+                },
+            });
+            if (argObj.class) {
+                check_common.call(this, {
+                    id: this.name,
+                    class: {
+                        val     : argObj.class,
+                        oneword : true,
+                    },
+                });
+            }
+        }
+
+        try {
+            const $map = argObj.class
+                            ? $(`.macro-showmap-map[data-mapid="${mapid}"]`).filter(`.${argObj.class}`)
+                            : $(`.macro-showmap-map[data-mapid="${mapid}"]`);
+            $map
+                    .attr('data-panx', 0)
+                    .attr('data-pany', 0)
+                    .attr('data-zoom', 0)
+                    .trigger(':mapupdate');
+        }
+        catch (error) {
+            console.error(`${this.name} - failed to recenter map "${mapid}"`);
+            console.error(error);
+        }
+    }
 // }());

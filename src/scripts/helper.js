@@ -349,19 +349,9 @@ function create_argObj(args_in, template_in, options) {
                 if (keys_infinite[0] && argObj[keys_infinite[0]]) {
                     argObj_infinite.call(this, active);
                 }
-                // found key
+                // kvp input
                 if (! active.splice && keys.includes(alias[arg_this])) {
-                    // toggle input
-                    if (template[alias[arg_this]].type === 'toggle') {
-                        debug.log('argObj',`entered toggle`);
-                        debug.log('argObj',argObj);
-                        argObj[alias[arg_this]] = true;
-                        active.splice = 1;
-                    }
-                    // key value pair input
-                    else {
-                        argObj_kvp.call(this, active);
-                    }
+                    argObj_kvp.call(this, active);
                 }
                 // [[markup]] input
                 if (! active.splice && arg_this.isLink) {

@@ -6,6 +6,7 @@ demo map
 <<set $columns to 26>>
 <<newmap 
     mapid       'demo'
+    mapname     'Demo Test Map'
     columns     $columns
     diagonal    false
 >>
@@ -34,12 +35,16 @@ demo map
     x	x	x	.	.	.	.	.	x	x	x	x	x	x	x	x	x	x	x	x	x	x	x	x	x	x
 
 <</newmap>>
-<<newtile 'demo' "y">>
-        yard
+<<newtile 'demo' ".">>
+        X
+<</newtile>>
+<<newtile 'demo' 'x'>>
+    <div></div>
 <</newtile>>
 <<newentity 
     mapid       'demo'
     entityid    'player1'
+    entityname  'Player 1'
     x           3
     y           3
     wall        true
@@ -65,10 +70,10 @@ demo map
 map
 <<showmap 
     mapid       'demo'
-    mapwidth    15
-    mapheight   20
+    mapwidth    40
+    mapheight   30
     tilewidth   2
-    tileheight  1.5
+    tileheight  2
     unit        'rem'
     viewcolumns 7
     viewrows    7
@@ -87,17 +92,17 @@ map
 >>
 <</shownav>> */
 other stuff
-- <<link 'zoom out'>>
+- <<link 'zoom in'>>
     <<mapzoom --zoomin 'demo'>>
 <</link>>
-- <<link 'zoom in'>>
+- <<link 'zoom out'>>
     <<mapzoom --zoomout 'demo'>>
 <</link>>
 - <<link 'pan right'>>
-    <<mappan 'demo' 1>>
+    <<mappan --right 'demo' 1 0>>
 <</link>>
 - <<link 'pan left'>>
-    <<mappan 'demo' -1>>
+    <<mappan --left 'demo' 1 0>>
 <</link>>
 - <<link 'teleport player1'>>
     <<run
@@ -117,53 +122,119 @@ other stuff
         min-width:2rem; 
         width:2rem
     }
-    .macro-showmap-map {
+    .macro-showmap-container {
         display: grid;
-        position: relative;
-        box-sizing: border-box;
+        grid-template-columns: auto 1fr auto;
+        grid-template-rows: auto auto 1fr auto;
         height: fit-content;
         width: fit-content;
-        overflow: hidden;
-        align-items: center;
-        justify-content: center;
+        gap: 0.2rem;
     }
-        .macro-showmap-map > * {
+        .macro-showmap-title {
+            font-size: 1.5rem;
+            font-weight: bold;
+            grid-row: 1;
+            grid-column: 1 / span 2;
+            text-shadow: 0 0 0.8rem #0040ff;
+            color: #fdfdff;
+        }
+        .macro-showmap-topbuttons {
+            grid-column: 2 / span 2;
+            grid-row: 1;
+            display: flex;
+            align-content: center;
+            justify-content: flex-end;
+            gap: 0.2rem;
+        }
+            .macro-showmap-recenter {
+                height: 2rem;
+                width: 2rem;
+                margin: 0 0.25rem;
+                border-radius: 1rem;
+            }
+            .macro-showmap-zoombutton {
+                height: 2rem;
+                width: 2rem;
+            }
+        .macro-showmap-panbutton {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: auto;
+        }
+            .macro-showmap-panbutton[data-mode="up"] {
+                grid-row: 2;
+                grid-column: 2;
+                height: 1.5rem;
+                width: 7rem;
+            }
+            .macro-showmap-panbutton[data-mode="down"] {
+                grid-row: 4;
+                grid-column: 2;
+                height: 1.5rem;
+                width: 7rem;
+            }
+            .macro-showmap-panbutton[data-mode="left"] {
+                grid-row: 3;
+                grid-column: 1;
+                height: 7rem;
+                width: 1.5rem;
+            }
+            .macro-showmap-panbutton[data-mode="right"] {
+                grid-row: 3;
+                grid-column: 3;
+                height: 7rem;
+                width: 1.5rem;
+            }
+        .macro-showmap-map {
+            grid-row: 3;
+            grid-column: 2;
+            display: grid;
+            position: relative;
             box-sizing: border-box;
+            height: fit-content;
+            width: fit-content;
+            overflow: hidden;
+            align-items: center;
+            justify-content: center;
         }
-    .macro-showmap-tile {
-        width: var(--tilewidth);
-        height: var(--tileheight);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        text-align: center;
-        border: 1px dashed #80808087;
-        color:
-    }
-        .macro-showmap-tile img {
-            width: 100%;
-            height: 100%;
-        }
-    .macro-showmap-entity {
-        position: absolute;
-        z-index: 2;
-        transition: all 0.5s;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        text-align: center;
-        width: var(--tilewidth);
-        height: var(--tileheight);
-    }
-        .macro-showmap-entity > * {
-            width: 100%;
-            height: 100%;
+            .macro-showmap-map > * {
+                box-sizing: border-box;
+            }
+        .macro-showmap-tile {
+            width: var(--tilewidth);
+            height: var(--tileheight);
             display: flex;
             align-items: center;
             justify-content: center;
             text-align: center;
-            line-height: 1;
+            border: 1px dashed #80808087;
+            color:
         }
+            .macro-showmap-tile img {
+                width: 100%;
+                height: 100%;
+            }
+        .macro-showmap-entity {
+            position: absolute;
+            z-index: 2;
+            transition: all 0.5s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            width: var(--tilewidth);
+            height: var(--tileheight);
+        }
+            .macro-showmap-entity > * {
+                width: 100%;
+                height: 100%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                text-align: center;
+                line-height: 1;
+            }
     .macro-shownav-nav {
         display: grid;
         grid-template-columns: repeat(3,calc(var(--width) / 3));
