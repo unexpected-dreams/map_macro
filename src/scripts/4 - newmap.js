@@ -817,47 +817,50 @@
                     },
                 },
             });
-            const payObj = create_payObj.call(this, this.payload, {
+            const payObj = create_payObj.call(this, {
                 id: this.name,
-                north: {
-                    tagname     : 'nav-north',
-                    unique      : true,
-                    noargs      : true,
-                },
-                east: {
-                    tagname     : 'nav-east',
-                    unique      : true,
-                    noargs      : true,
-                },
-                south: {
-                    tagname     : 'nav-south',
-                    unique      : true,
-                    noargs      : true,
-                },
-                west: {
-                    tagname     : 'nav-west',
-                    unique      : true,
-                    noargs      : true,
-                },
-                northwest: {
-                    tagname     : 'nav-northwest',
-                    unique      : true,
-                    noargs      : true,
-                },
-                northeast: {
-                    tagname     : 'nav-northeast',
-                    unique      : true,
-                    noargs      : true,
-                },
-                southeast: {
-                    tagname     : 'nav-southeast',
-                    unique      : true,
-                    noargs      : true,
-                },
-                southwest: {
-                    tagname     : 'nav-southwest',
-                    unique      : true,
-                    noargs      : true,
+                pays_toparse: this.payload,
+                pays_tofill: {
+                    north: {
+                        tagname     : 'nav-north',
+                        unique      : true,
+                        noargs      : true,
+                    },
+                    east: {
+                        tagname     : 'nav-east',
+                        unique      : true,
+                        noargs      : true,
+                    },
+                    south: {
+                        tagname     : 'nav-south',
+                        unique      : true,
+                        noargs      : true,
+                    },
+                    west: {
+                        tagname     : 'nav-west',
+                        unique      : true,
+                        noargs      : true,
+                    },
+                    northwest: {
+                        tagname     : 'nav-northwest',
+                        unique      : true,
+                        noargs      : true,
+                    },
+                    northeast: {
+                        tagname     : 'nav-northeast',
+                        unique      : true,
+                        noargs      : true,
+                    },
+                    southeast: {
+                        tagname     : 'nav-southeast',
+                        unique      : true,
+                        noargs      : true,
+                    },
+                    southwest: {
+                        tagname     : 'nav-southwest',
+                        unique      : true,
+                        noargs      : true,
+                    },
                 },
             });
             
@@ -1038,10 +1041,13 @@
                     },
                 },
             });
-            const payObj = create_payObj.call(this, this.payload, {
+            const payObj = create_payObj.call(this, {
                 id: this.name,
-                entityhtml: {
-                    tagname     : this.name,
+                pays_toparse: this.payload,
+                pays_tofill: {
+                    entityhtml: {
+                        tagname     : this.name,
+                    },
                 },
             });
             payObj.entitytrigger

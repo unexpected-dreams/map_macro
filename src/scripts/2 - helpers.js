@@ -106,6 +106,7 @@ State.variables[config.Statename].local ??= {};
 State.variables[config.Statename].global ??= {};
 
 //////////////////////////////////////////////////
+//////////////////////////////////////////////////
 // proxy for setup settings
 const def = new Proxy(config, get_controller(setup[config.setupname]));
 function get_controller(control) {
@@ -130,6 +131,7 @@ function get_controller(control) {
 }
 
 //////////////////////////////////////////////////
+//////////////////////////////////////////////////
 // convert between xy & i
 function convert_i2xy(i, cols) {
     const x = (i % cols) + 1;
@@ -145,6 +147,7 @@ function convert_xy2i(xy, cols) {
     return i
 }
 
+//////////////////////////////////////////////////
 //////////////////////////////////////////////////
 // retrieve data
 function get_map(...args) {
@@ -198,6 +201,8 @@ function get_adjacent(...args) {
 const navmaps = {};
 setup.navmaps = navmaps;
 
+//////////////////////////////////////////////////
+//////////////////////////////////////////////////
 // Navmap class object
 class Navmap {
     constructor(mapid,arr,cols) {
@@ -281,6 +286,9 @@ if (! config.disableglobal) {
 // █     █   █  █  █  █ █   █
 // █     █   █ ███ █   ██   █
 // SECTION: print elements
+
+//////////////////////////////////////////////////
+//////////////////////////////////////////////////
 function print_tile(argObj) {
     const { mapid, tile, i, row, col }= argObj;
     const { tilesn, tileid, tilename, tiletype, tilehtml } = tile;
@@ -310,6 +318,8 @@ function print_tile(argObj) {
         console.error(error);
     }
 }
+
+//////////////////////////////////////////////////
 //////////////////////////////////////////////////
 function print_entity(argObj) {
     const { mapid, entity, col, row } = argObj;
@@ -337,6 +347,8 @@ function print_entity(argObj) {
         console.error(error);
     }
 }
+
+//////////////////////////////////////////////////
 //////////////////////////////////////////////////
 function print_dir(argObj) {
     const { mapid, entityid, dir } = argObj;
@@ -398,6 +410,9 @@ function print_dir(argObj) {
 // █   █ █     █          █ █  █   █ █     █   █ █         █
 // █   █ █████ █           █   █   █ █████  ███  █████ ████
 // SECTION: ref values / reference values
+
+//////////////////////////////////////////////////
+//////////////////////////////////////////////////
 const cssunit = {
     exact: ['cm','mm','Q','in','pc','pt','px','em','ex','ch','rem','lh','rlh','vw','vh','vmin','vmax','vb','vi','svw','svh','lvh','dvw','dvh','%'],
     label: "any valid 'CSS unit'",
