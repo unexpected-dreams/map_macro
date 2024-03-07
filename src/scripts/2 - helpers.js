@@ -133,18 +133,54 @@ function get_controller(control) {
 //////////////////////////////////////////////////
 //////////////////////////////////////////////////
 // convert between xy & i
-function convert_i2xy(i, cols) {
+function convert_i2xy(i, mapid) {
+    const map = get_map(mapid);
+    const { cols } = map;
     const x = (i % cols) + 1;
     const y = (i - x + 1) / cols + 1;
     return {x, y}
 }
-function convert_xy2i(xy, cols) {
+function convert_xy2i(xy, mapid) {
+    const map = get_map(mapid);
+    const { cols } = map;
     const {x,y} = xy;
     if (x < 1 || y < 1) {
         return -1
     }
     const i = (y - 1) * cols + x - 1;
     return i
+}
+function calculate_newbox(argObj) {
+    const { mapid, displayid, delta } = argObj;
+    const map = get_map(mapid);
+    const { rows, cols } = map;
+    const box_old   = map.boxes[displayid];
+
+    const x0_old    = box_old.x0;
+    const y0_old    = box_old.y0;
+    const cols_old  = box_old.cols;
+    const rows_old  = box_old.rows;
+
+    const cols_new  = Math.clamp(1, cols, 
+                        cols_old + (delta.cols ?? 0)
+                    );
+    const rows_new  = Math.clamp(1, rows, 
+                        rows_old + (delta.rows ?? 0)
+                    );
+    const x0_new    = Math.clamp(1, cols - cols_new + 1, 
+                        x0_old + Math.floor((cols_old - cols_new) / 2) + (delta.x ?? 0)
+                    );
+    const y0_new    = Math.clamp(1, rows - rows_new + 1, 
+                        y0_old + Math.floor((rows_old - rows_new) / 2) + (delta.y ?? 0)
+                    );
+
+    return {
+        x0      : x0_new,
+        y0      : y0_new,
+        cols    : cols_new,
+        rows    : rows_new,
+    }
+
 }
 
 //////////////////////////////////////////////////
@@ -166,6 +202,18 @@ function get_entity(...args) {
     const map = get_map(mapid);
     return map.entities[entityid]
 }
+function get_display(...args) {
+    const mapid = args[0].mapid ?? args[0];
+    const displayid = args[0].displayid ?? args[1];
+    const map = get_map(mapid);
+    return map.displays[displayid]
+}
+function get_box(...args) {
+    const mapid = args[0].mapid ?? args[0];
+    const displayid = args[0].displayid ?? args[1];
+    const map = get_map(mapid);
+    return map.boxes[displayid]
+}
 function get_overlap(...args) {
     const mapid = args[0].mapid ?? args[0];
     const entityid = args[0].entityid ?? args[1];
@@ -173,7 +221,7 @@ function get_overlap(...args) {
     const { cols, actors } = map;
     const entity = get_entity(mapid, entityid);
     const { x, y } = entity;
-    const i = convert_xy2i({x,y}, cols);
+    const i = convert_xy2i({x,y}, mapid);
     return actors[i].overlap.filter( e => e !== entityid );
 }
 function get_adjacent(...args) {
@@ -183,7 +231,7 @@ function get_adjacent(...args) {
     const { cols, actors } = map;
     const entity = get_entity(mapid, entityid);
     const { x, y } = entity;
-    const i = convert_xy2i({x,y}, cols);
+    const i = convert_xy2i({x,y}, mapid);
     return actors[i].adjacent.filter( e => e !== entityid );
 }
 
@@ -221,6 +269,8 @@ class Navmap {
         this.cols           = cols,
         this.rows           = this.arr.length / this.cols;
         this.actors         = new Array(this.arr.length);
+        this.displays       = {};
+        this.displaycount   = 0;
 
         //////////////////////////////////////////////////
         // write everything floor first
@@ -255,17 +305,24 @@ class Navmap {
         
         //////////////////////////////////////////////////
         // create only if non-existent, otherwise use State data
-        this.entities ??= {};
-
+        State.variables[config.Statename][this.mapid] ??= {};
+        this.entities       ??= {};
+        this.boxes          ??= {};
     }
 
     //////////////////////////////////////////////////
-    // make it so getting setting retrieves from State
-    set entities(val) {
-        State.variables[config.Statename].local[this.mapid] = val;
-    }
+    // make it so entities & displays retrieve from & set to State
     get entities() {
-        return State.variables[config.Statename].local[this.mapid]
+        return State.variables[config.Statename][this.mapid].entities
+    }
+    set entities(val) {
+        State.variables[config.Statename][this.mapid].entities = val;
+    }
+    get boxes() {
+        return State.variables[config.Statename][this.mapid].boxes
+    }
+    set boxes(val) {
+        State.variables[config.Statename][this.mapid].boxes = val;
     }
 }
 
@@ -293,15 +350,18 @@ function print_tile(argObj) {
     const { mapid, tile, i, row, col }= argObj;
     const { tilesn, tileid, tilename, tiletype, tilehtml } = tile;
     try {
+        const xy = convert_i2xy(i, mapid);
         const $t = $(document.createElement('div'))
         $t
-            .addClass(`macro-showmap-tile`)
+            .addClass(`macro-newdisplay-tile`)
             .addClass(tiletype)
             .attr('title', tilename)
             .attr('data-tilesn', tilesn)
             .attr('data-tileid', tileid)
             .attr('data-tilename', tilename)
             .attr('data-tiletype', tiletype)
+            .attr('data-x', xy.x)
+            .attr('data-y', xy.y)
             .css({
                 "grid-column"   : `${col} / span 1`,
                 "grid-row"      : `${row} / span 1`,
@@ -327,7 +387,7 @@ function print_entity(argObj) {
     try {
         const $e = $(document.createElement('div'));
         $e
-            .addClass(`macro-showmap-entity`)
+            .addClass(`macro-newdisplay-entity`)
             .attr('title', entityname)
             .attr('data-sn', entitysn)
             .attr('data-entityid', entityid)
@@ -366,7 +426,7 @@ function print_dir(argObj) {
 
         const x = entity.x + deltax;
         const y = entity.y + deltay;
-        const i = convert_xy2i({x,y}, cols);
+        const i = convert_xy2i({x,y}, mapid);
 
         if (
             (i >= 0)        &&

@@ -12,18 +12,18 @@ function check_required(argObj) {
 
     // ERROR: missing input
     if (typeof argObj === 'undefined') {
-        const error = `${this.name} - missing input for auxfn check_required`;
+        const error = `${this.name} - failed, missing input (check_required)`;
         return this.error(error)
     }
     const { id, args_tocheck } = argObj;
     // ERROR: missing id
     if (typeof id === 'undefined') {
-        const error = `${this.name} - missing required id for auxfn check_required`;
+        const error = `${this.name} - failed, missing required id (check_required)`;
         return this.error(error)
     }
     // ERROR: missing args to check
     if (typeof args_tocheck === 'undefined') {
-        const error = `${id} - missing required args_tocheck for auxfn check_required`;
+        const error = `${id} - failed, missing required args_tocheck (check_required)`;
         return this.error(error)
     }
 
@@ -36,7 +36,7 @@ function check_required(argObj) {
         }
     }
     catch (error) {
-        console.error(`${id} - auxfn check_required failed to check for required arguments`);
+        console.error(`${id} - failed to check for required arguments (check_required)`);
         console.error(error);
     }
 }
@@ -47,7 +47,7 @@ function check_common(argObj) {
     
     // ERROR: missing input
     if (typeof argObj === 'undefined') {
-        const error = `${this.name} - missing input for auxfn check_common`;
+        const error = `${this.name} - failed, missing input (check_common)`;
         return this.error(error)
     }
     const { id, args_tocheck } = argObj;
@@ -55,12 +55,12 @@ function check_common(argObj) {
     //////////////////////////////////////////////////
     // ERROR: missing id
     if (typeof id === 'undefined') {
-        const error = `${this.name} - missing required id for auxfn check_common`;
+        const error = `${this.name} - failed, missing required id (check_common)`;
         return this.error(error)
     }
     // ERROR: missing args to check
     if (typeof args_tocheck === 'undefined') {
-        const error = `${id} - missing required args_tocheck for auxfn check_common`;
+        const error = `${id} - failed, missing required args_tocheck (check_common)`;
         return this.error(error)
     }
 
@@ -91,13 +91,13 @@ function check_common(argObj) {
         }
     }
     catch (error) {
-        console.error(`${id} - auxfn check_common failed to check for common errors`);
+        console.error(`${id} - failed to check for common errors (check_common)`);
         console.error(error);
     }
 }
 //////////////////////////////////////////////////
 function errors_common(argObj) {
-    const { id, args_tocheck, key, val  } = argObj;
+    const { id, args_tocheck, key, val } = argObj;
 
     try {
 
@@ -111,12 +111,12 @@ function errors_common(argObj) {
                 const error = `${id} - no map with id "${val}" found`;
                 return this.error(error)
             }
-            const mapid = args_tocheck.mapid.val;
             // ERROR: mapid not provided but needed
-            if (typeof mapid === 'undefined') {
-                const error = `${id} - missing required mapid for auxfn check_common`;
+            if (typeof args_tocheck.mapid === 'undefined') {
+                const error = `${id} - failed, missing required mapid (check_common)`;
                 return this.error(error)
             }
+            const mapid = args_tocheck.mapid.val;
             // ERROR: tile doesn't exist in map
             if (
                 (key === "tileid")      &&
@@ -141,7 +141,7 @@ function errors_common(argObj) {
             (args_tocheck[key].integer)  &&
             (! Number.isInteger(val)) 
         ) {
-            const error = `${id} - argument "${key}" must be an integer`;
+            const error = `${id} - argument "${args_tocheck[key].label ?? key}" must be an integer`;
             return this.error(error)
         }
         
@@ -150,7 +150,7 @@ function errors_common(argObj) {
             (args_tocheck[key].positive) &&
             (val <= 0)
         ) {
-            const error = `${id} - argument "${key}" must be greater than zero`;
+            const error = `${id} - argument "${args_tocheck[key].label ?? key}" must be greater than zero`;
             return this.error(error)
         }
 
@@ -160,12 +160,12 @@ function errors_common(argObj) {
             (args_tocheck[key].oneword)  &&
             (val.includes(" "))
         ) {
-            const error = `${id} - argument "${key}" must be one word, no spaces`;
+            const error = `${id} - argument "${args_tocheck[key].label ?? key}" must be one word, no spaces`;
             return this.error(error)
         }
     }
     catch (error) {
-        console.error(`${id} - auxfn check_common failed to check for common errors, specifically on key "${key}" and value "${val}"`);
+        console.error(`${id} - failed to check for common errors, specifically on key "${key}" and value "${val}" (errors_common)`);
         console.error(error);
     }
 }
@@ -176,7 +176,7 @@ function check_xy(argObj) {
 
     // ERROR: missing input
     if (typeof argObj === 'undefined') {
-        const error = `${this.name} - missing input for auxfn check_xy`;
+        const error = `${this.name} - failed, missing input (check_xy)`;
         return this.error(error)
     }
     const { id, mapid, entityid, x, y } = argObj;
@@ -184,27 +184,27 @@ function check_xy(argObj) {
     //////////////////////////////////////////////////
     // ERROR: missing id
     if (typeof id === 'undefined') {
-        const error = `${this.name} - missing required id for auxfn check_xy`;
+        const error = `${this.name} - failed, missing required id (check_xy)`;
         return this.error(error)
     }
     // ERROR: missing mapid
     if (typeof mapid === 'undefined') {
-        const error = `${id} - missing required mapid for auxfn check_xy`;
+        const error = `${id} - failed, missing required mapid (check_xy)`;
         return this.error(error)
     }
     // ERROR: missing entityid
     if (typeof entityid === 'undefined') {
-        const error = `${id} - missing required entityid for auxfn check_xy`;
+        const error = `${id} - failed, missing required entityid (check_xy)`;
         return this.error(error)
     }
     // ERROR: missing x
     if (typeof x === 'undefined') {
-        const error = `${id} - missing required x for auxfn check_xy`;
+        const error = `${id} - failed, missing required x (check_xy)`;
         return this.error(error)
     }
     // ERROR: missing y
     if (typeof y === 'undefined') {
-        const error = `${id} - missing required y for auxfn check_xy`;
+        const error = `${id} - failed, missing required y (check_xy)`;
         return this.error(error)
     }
 
@@ -234,7 +234,7 @@ function check_xy(argObj) {
         }
     }
     catch (error) {
-        console.error(`${id} - auxfn check_xy failed to check xy bounds on { "${x.label}" : "${x.val}", "${y.label}" : "${y.val}" } for "${mapid}"`);
+        console.error(`${id} - failed to check xy bounds on { "${x.label}" : "${x.val}", "${y.label}" : "${y.val}" } for "${mapid}" (check_xy)`);
         console.error(error);
     }
 }
@@ -253,7 +253,7 @@ function create_payObj(argObj) {
 
     // ERROR: no payload input
     if (typeof argObj === 'undefined') {
-        const error = `${this.name} - missing input for auxfn create_payObj`;
+        const error = `${this.name} - failed, missing input (create_payObj)`;
         return this.error(error)
     }
     const { id, pays_toparse, pays_tofill } = argObj;
@@ -261,23 +261,23 @@ function create_payObj(argObj) {
     //////////////////////////////////////////////////
     // ERROR: missing id
     if (typeof id === 'undefined') {
-        const error = `${this.name} - missing required id for auxfn create_payObj`;
+        const error = `${this.name} - failed, missing required id (create_payObj)`;
         return this.error(error);
     }
     // ERROR: missing pays_toparse
     if (typeof pays_toparse === 'undefined') {
-        const error = `${id} - missing required pays_toparse for auxfn create_payObj`;
+        const error = `${id} - failed, missing required pays_toparse (create_payObj)`;
         return this.error(error)
     }
     // ERROR: missing pays_toparse
     if (typeof pays_tofill === 'undefined') {
-        const error = `${id} - missing required pays_tofill for auxfn create_payObj`;
+        const error = `${id} - failed, missing required pays_tofill (create_payObj)`;
         return this.error(error)
     }
     // ERROR: empty pays_tofill
     const keys = Object.keys(pays_tofill);
     if (! keys.length) {
-        const error = `${id} - pays_tofill can't be empty for auxfn create_payObj`;
+        const error = `${id} - failed, pays_tofill can't be empty (create_payObj)`;
         return this.error(error);
     }
 
@@ -326,7 +326,7 @@ function create_payObj(argObj) {
         return payObj
     }
     catch (error) {
-        console.error(`${id} - auxfn create_payObj failed to parse payloads`);
+        console.error(`${id} - failed to parse payloads (create_payObj)`);
         console.error(error);
     }
 }
@@ -348,30 +348,30 @@ function create_argObj(argObj) {
     //////////////////////////////////////////////////
     // ERROR: no args input
     if (typeof argObj === 'undefined') {
-        const error = `${this.name} - missing input for auxfn create_argObj`;
+        const error = `${this.name} - failed, missing input (create_argObj)`;
         return this.error(error);
     }
     const { id, args_tofill, options } = argObj;
     const args_toparse = clone(argObj.args_toparse);
     // ERROR: no id
     if (typeof id === 'undefined') {
-        const error = `${this.name} - missing required id for auxfn create_argObj`;
+        const error = `${this.name} - failed, missing required id (create_argObj)`;
         return this.error(error);
     }
     // ERROR: no args_tofill
     if (typeof args_tofill === 'undefined') {
-        const error = `${id} - missing required args_tofill for auxfn create_argObj`;
+        const error = `${id} - failed, missing required args_tofill (create_argObj)`;
         return this.error(error);
     }
     // ERROR: no args_toparse
     if (typeof args_toparse === 'undefined') {
-        const error = `${id} - missing required args_toparse for auxfn create_argObj`;
+        const error = `${id} - failed, missing required args_toparse (create_argObj)`;
         return this.error(error);
     }
     // ERROR: empty template
     const keys = Object.keys(args_tofill);
     if (! keys.length) {
-        const error = `${id} - args_tofill can't be empty for auxfn create_argObj`;
+        const error = `${id} - failed, args_tofill can't be empty (create_argObj)`;
         return this.error(error);
     }
 
@@ -398,7 +398,7 @@ function create_argObj(argObj) {
         }
     }
     catch (error) {
-        console.error(`${id} - auxfn create_argObj failed to create aliases while parsing macro arguments`);
+        console.error(`${id} - failed to create aliases while parsing macro arguments (create_argObj)`);
         console.error(error);
     }
 
@@ -471,7 +471,7 @@ function create_argObj(argObj) {
                 }
             }
             catch (error) {
-                console.error(`${id} - auxfn create_argObj failed to create argObj at "${arg_this}" for "${id}"`);
+                console.error(`${id} - failed to create argObj at "${arg_this}" for "${id}" (create_payObj)`);
                 console.error(error);
             }
         }
@@ -480,7 +480,7 @@ function create_argObj(argObj) {
 
     }
     catch (error) {
-        console.error(`${id} - auxfn create_argObj failed to create argObj from macro arguments`);
+        console.error(`${id} - failed to create argObj from macro arguments (create_payObj)`);
         console.error(error);
     }
 }
@@ -509,7 +509,7 @@ function argObj_markup(active) {
         return active
     }
     catch (error) {
-        console.error(`${id} - auxfn create_argObj failed to parse macro arguments inside [[markup]] parser`);
+        console.error(`${id} - failed to parse macro arguments inside [[markup]] parser (argObj_markup)`);
         console.error(error);
     }
 }
@@ -543,7 +543,7 @@ function argObj_kvp(active) {
         return active
     }
     catch (error) {
-        console.error(`${id} - auxfn create_argObj failed to parse macro arguments inside KVP parser`);
+        console.error(`${id} - failed to parse macro arguments inside KVP parser (argObj_kvp)`);
         console.error(error);
     }
 }
@@ -577,7 +577,7 @@ function argObj_obj(active) {
         return active
     }
     catch (error) {
-        console.error(`${id} - auxfn create_argObj failed to parse macro arguments inside object parser`);
+        console.error(`${id} - failed to parse macro arguments inside object parser (argObj_obj)`);
         console.error(error);
     }
 }
@@ -611,7 +611,7 @@ function argObj_lazy(active) {
         return active
     }
     catch (error) {
-        console.error(`${id} - auxfn create_argObj failed to parse macro arguments inside lazy parser`);
+        console.error(`${id} - failed to parse macro arguments inside lazy parser (argObj_lazy)`);
         console.error(error);
     }
 }

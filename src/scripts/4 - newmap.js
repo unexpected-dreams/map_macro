@@ -1,177 +1,3 @@
-
-
-
-
-
-
-    //////////////////////////////////////////////////
-    // update map
-    const update_map = function(argObj) {
-        const { $map, map, mapheight, mapwidth, tileheight, tilewidth, unit, sizingmode, tracked } = argObj;
-        const { mapid, cols, rows, arr, entities } = map;
-        // if not tracked, do nothing
-        const zoom          = tracked
-                                ? argObj.zoom
-                                : 0;
-        // how big view area is, zoom is accounted for
-        const viewrows      = tracked
-                                ? Math.clamp(
-                                    1, 
-                                    rows, 
-                                    argObj.viewrows + zoom
-                                )
-                                : rows;
-        const viewcols   = tracked
-                                ? Math.clamp(
-                                    1, 
-                                    cols, 
-                                    argObj.viewcols + zoom
-                                )
-                                : cols;
-        
-        // sizing
-        try {
-            let H, W, sizing;
-            if (sizingmode === 'height') {
-                H = mapheight / viewrows;
-                W = H * tilewidth / tileheight;
-                sizing = 'height';
-            }
-            else if (sizingmode === 'width') {
-                W = mapwidth / viewcols;
-                H = W * tileheight / tilewidth;
-                sizing = 'width';
-            }
-            else if (sizingmode === 'auto') {
-                // if map width is greater, ie height is constraint
-                if (
-                    (mapwidth / mapheight) > 
-                    ((viewcols * tilewidth) / (viewrows * tileheight))
-                ) {
-                    H = mapheight / viewrows;
-                    W = H * tilewidth / tileheight;
-                    sizing = 'auto-height';
-                }
-                // width is contraint
-                else {
-                    W = mapwidth / viewcols;
-                    H = W * tileheight / tilewidth;
-                    sizing = 'auto-width';
-                }
-            }
-            else if (sizingmode === 'tile') {
-                W = tilewidth;
-                H = tileheight;
-                sizing = 'tile';
-            }
-            if (sizing) {
-                $map
-                        .attr('data-sizing', sizing)
-                        .attr('data-tilewidth', W)
-                        .attr('data-tileheight', H)
-                        .attr('data-unit', unit)
-                        .css({
-                                '--tilewidth'   : String(W) + unit,
-                                '--tileheight'  : String(H) + unit,
-                            })
-            }
-        }
-        catch (error) {
-            console.error(`${this.name} - failed to size showmap map output for map "${mapid}"`);
-            console.error(error);
-        }
-
-        try {
-            // get start position
-            // how far we are from center
-            const panx  = tracked
-                            ? argObj.panx
-                            : 0;
-            const pany  = tracked
-                            ? argObj.pany
-                            : 0;
-            // max is far edge minus view size minus extra pan towards edge + 1
-            const x0 = tracked
-                        ? Math.clamp(
-                            1, 
-                            cols - viewcols - panx + 1, 
-                            tracked.x - Math.floor((viewcols) / 2) + panx
-                        )
-                        : 1;
-            const y0 = tracked
-                        ? Math.clamp(
-                            1, 
-                            rows - viewrows - pany + 1, 
-                            tracked.y - Math.floor((viewrows) / 2)  + pany
-                        )
-                        : 1;
-            console.log({x0,y0});
-            // get top left coordinate
-            // convert to i0
-            const i0 = convert_xy2i({
-                x   : x0,
-                y   : y0,
-            }, cols);
-            const printed_tiles = [];
-            // iterate through array to width & height
-            for (let row = 1; row <= viewrows; row++) {
-                for (let col = 1; col <= viewcols; col++) {
-                    // track printed coordinates
-                    const i = i0 + (col-1) + (cols * (row-1));
-                    printed_tiles.push(i);
-                    const t = arr[i];
-                    // create tile
-                    const $t = print_tile.call(this, {
-                        mapid       : mapid,
-                        tile        : get_tile(mapid, t),
-                        i           : i,
-                        row         : row,
-                        col      : col,
-                    });
-                    // append to map
-                    $t.appendTo($map);
-                }
-            }
-            // check entities
-            for (const e in entities) {
-                const entity = entities[e];
-                // get i from xy coordinate of entity
-                const i = convert_xy2i({
-                    x   : entity.x,
-                    y   : entity.y
-                }, cols);
-                // if i is in printed tiles, print
-                if (printed_tiles.includes(i)) {
-                    const $e = print_entity.call(this, {
-                        mapid       : mapid,
-                        entity      : entity,
-                        // row & col is difference betweeen xy0 and coordinate + 1
-                        row         : entity.y - y0 + 1,
-                        col      : entity.x - x0 + 1,
-                    });
-                    $e.appendTo($map);
-                }
-            }
-            // store data
-            $map
-                .attr('data-zoom', zoom)
-                .attr('data-x0', x0)
-                .attr('data-y0', y0)
-                .attr('data-panx', x0 - (tracked.x - Math.floor(viewcols / 2)))
-                .attr('data-pany', y0 - (tracked.y - Math.floor(viewrows / 2)));
-
-            // output
-            return $map
-        }
-        catch (error) {
-            console.error(`${this.name} - failed to print map for "${mapid}"`);
-            console.error(error);
-        }
-    }
-
-    
-
-
 // █    █ █████ █     █ █    █  ███  ████
 // ██   █ █     █     █ ██  ██ █   █ █   █
 // █ █  █ ███   █  █  █ █ ██ █ █████ ████
@@ -179,150 +5,159 @@
 // █   ██ █████  █   █  █    █ █   █ █
 // SECTION: newmap / new map
 
-    /*  creates new navmap
-        input: 
-            mapid       (required)
-            inputmap    (required, macro payload / array)
-            inputtype   (required, macro source / type)
-            cols
-            diagonal
-    */
-    Macro.add("newmap", {
+/*  creates new navmap
+    input: 
+        mapid       (required)
+        inputmap    (required, macro payload / array)
+        inputtype   (required, macro source / type)
+        cols
+        diagonal
+*/
 
-        tags    : [null],
-        maps    : {},
+//////////////////////////////////////////////////
+//////////////////////////////////////////////////
+Macro.add(["newnavmap", "new_navmap"], {
 
-        handler() {
-            //////////////////////////////////////////////////
-            //////////////////////////////////////////////////
-            // parse args
-            const argObj = create_argObj.call(this, {
-                id: this.name,
-                args_toparse: this.args,
-                args_tofill: {
-                    // map identifiers
-                    mapid: {
-                        type        : 'string',
-                        alias       : 'map',
-                    },
-                    mapname: {
-                        type        : 'string',
-                        alias       : 'name',
-                    },
-                    // map properties
-                    cols: {
-                        type        : 'number',
-                        alias       : 'columns',
-                    },
-                    diagonal: {
-                        type        : 'boolean',
-                    },
+    tags    : [null],
+    maps    : {},
+
+    handler() {
+        // parse args
+        const argObj = create_argObj.call(this, {
+            id: this.name,
+            args_toparse: this.args,
+            args_tofill: {
+                // map identifiers
+                mapid: {
+                    type        : 'string',
+                    alias       : 'map',
                 },
-            });
-            // parse macro payload into array
-            argObj.source    = 'macro';
-            argObj.inputtype = 'array';
-            argObj.inputmap  = this.payload[0].contents.trim().split(/[\s\n]+/g);
-            this.self.handlerJS.call(this, argObj);
-        },
+                mapname: {
+                    type        : 'string',
+                    alias       : 'name',
+                },
+                // map properties
+                cols: {
+                    type        : 'number',
+                    alias       : 'columns',
+                },
+                diagonal: {
+                    type        : 'boolean',
+                },
+            },
+        });
+        // parse macro payload into array
+        argObj.source    = 'macro';
+        argObj.inputtype = 'array';
+        argObj.inputmap  = this.payload[0].contents.trim().split(/[\s\n]+/g);
+        new_navmap.call(this, argObj);
+    },
+});
 
-        handlerJS(argObj) {
-            //////////////////////////////////////////////////
-            //////////////////////////////////////////////////
-            // necessary definitions
-            this.name   ??= argObj.id ?? "newmap";
-            this.error  ??= function(error) { throw new Error(error) };
-            // extract from argObj
-            const { source, mapid, mapname, diagonal, inputtype, inputmap } = {
-                diagonal        : def.nav.diagonal,
-                ...argObj,
-            };
-            check_required.call(this, {
-                id: this.name, 
-                args_tocheck: {mapid, inputtype},
-            });
-            // ERROR: missing inputmap
-            if (! inputmap) {
-                const error = source === 'macro'
-                                ? `${this.name} - missing required macro payload`
-                                : `${this.name} - missing required input "inputmap"`;
-                return this.error(error);
-            }
+//////////////////////////////////////////////////
+//////////////////////////////////////////////////
+function new_navmap(argObj) {
+    
+    // necessary definitions
+    this.name   ??= argObj.id ?? "new_navmap";
+    this.error  ??= function(error) { throw new Error(error) };
+    // extract from argObj
+    const { source, mapid, mapname, diagonal, inputtype, inputmap } = {
+        diagonal        : def.nav.diagonal,
+        ...argObj,
+    };
 
-            //////////////////////////////////////////////////
-            // parse mapinput input into array
-            try {
-                if (inputtype === 'array') {
-                    argObj.arr = inputmap;
-                }
-                else if (inputtype === '2D array') {
-                    argObj.cols = inputmap[0].length;
-                    argObj.arr = inputmap.flat();
-                }
-                // ERROR: invalid inputtype
-                else {
-                    const error = `${this.name} - invalid inputtype, currently only supports macro payload or 'array' or '2D array'`;
-                    return this.error(error)
-                }
-            }
-            catch (error) {
-                console.error(`${this.name} - failed to parse input for inputtype "${inputtype}" and inputmap:+`);
-                console.error(inputmap);
-                console.error(error);
-            }
-
-            const { arr, cols } = argObj;
-
-            // ERROR: missing cols
-            if (! cols) {
-                const error = inputtype = 'array'
-                                ? `${this.name} - missing required input "cols"`
-                                : `${this.name} - invalid 2D array inputmap, first array is empty`;
-                return this.error(error);
-            }
-
-            //////////////////////////////////////////////////
-            // validate args
-            if (! def.skipcheck.common) {
-                check_common.call(this, {
-                    id: this.name,
-                    args_tocheck: {
-                        mapid: {
-                            val         : mapid,
-                            oneword     : true,
-                        },
-                        cols: {
-                            val         : cols,
-                            integer     : true,
-                            positive    : true,
-                        },
-                    },
-                });
-            }
-            
-            //////////////////////////////////////////////////
-            try {
-                // ERROR: map not rectangular
-                if (arr.length % cols) {
-                    const error = `${this.name} - inputmap is not rectangular`;
-                    return this.error(error)
-                }
-
-                const map = new Navmap(mapid, arr, cols);
-                map.mapname     = mapname;
-                map.diagonal    = diagonal;
-            }
-            catch (error) {
-                console.error(`${this.name} - failed to create Navmap object for map "${mapid}"`);
-                console.error(error);
-            }
-
-            
-            //////////////////////////////////////////////////
-            Macro.get('mapcalculate').handlerJS.call(this, {mapid,diagonal});
-        },
+    check_required.call(this, {
+        id: this.name, 
+        args_tocheck: {mapid, inputtype},
     });
 
+    // ERROR: missing inputmap
+    if (! inputmap) {
+        const error = source === 'macro'
+                        ? `${this.name} - missing required macro payload`
+                        : `${this.name} - missing required input "inputmap"`;
+        return this.error(error);
+    }
+
+    //////////////////////////////////////////////////
+    // parse mapinput input into array
+    try {
+        if (inputtype === 'array') {
+            argObj.arr = inputmap;
+        }
+        else if (inputtype === '2D array') {
+            argObj.cols = inputmap[0].length;
+            argObj.arr = inputmap.flat();
+        }
+        // ERROR: invalid inputtype
+        else {
+            const error = `${this.name} - invalid inputtype, currently only supports macro payload or 'array' or '2D array'`;
+            return this.error(error)
+        }
+    }
+    catch (error) {
+        console.error(`${this.name} - failed to parse input for inputtype "${inputtype}" and inputmap (new_map)`);
+        console.error(inputmap);
+        console.error(error);
+    }
+
+    const { arr, cols } = argObj;
+
+    // ERROR: missing cols
+    if (! cols) {
+        const error = inputtype = 'array'
+                        ? `${this.name} - missing required input "cols"`
+                        : `${this.name} - invalid 2D array inputmap, first array is empty`;
+        return this.error(error);
+    }
+
+    //////////////////////////////////////////////////
+    if (! def.skipcheck.common) {
+        check_common.call(this, {
+            id: this.name,
+            args_tocheck: {
+                mapid: {
+                    val         : mapid,
+                    oneword     : true,
+                },
+                cols: {
+                    val         : cols,
+                    integer     : true,
+                    positive    : true,
+                },
+            },
+        });
+    }
+    
+    //////////////////////////////////////////////////
+    try {
+        // ERROR: map not rectangular
+        if (arr.length % cols) {
+            const error = `${this.name} - inputmap is not rectangular`;
+            return this.error(error)
+        }
+
+        const map = new Navmap(mapid, arr, cols);
+        map.mapname     = mapname;
+        map.diagonal    = diagonal;
+    }
+    catch (error) {
+        console.error(`${this.name} - failed to create Navmap object for map "${mapid}" (new_map)`);
+        console.error(error);
+    }
+
+    // calculate actors
+    calculate_actors.call(this, {mapid,diagonal});
+
+}
+//////////////////////////////////////////////////
+// save box data to session
+$(window).on('beforeunload', function(ev) {
+    for (const mapid in navmaps) {
+        session.set(mapid, {boxes:navmaps[mapid].boxes});
+    }
+});
 
 
 
@@ -333,449 +168,647 @@
 // █   ██ █████  █   █    █   ███ █████ █████
 // SECTION: new tile / newtile
 
-    /*  defines map tiles
-        input:
-            mapid       (required)
-            name
-            type
-            element
-    */
-    Macro.add("newtile", {
+/*  defines map tiles
+    input:
+        mapid       (required)
+        name
+        type
+        element
+*/
 
-        tags: null,
+//////////////////////////////////////////////////
+//////////////////////////////////////////////////
+Macro.add(["newtile","new_tile"], {
 
-        handler() {
-            //////////////////////////////////////////////////
-            //////////////////////////////////////////////////
-            const argObj = create_argObj.call(this, {
-                id: this.name,
-                args_toparse: this.args,
-                args_tofill: {
-                    mapid: {
-                        type        : 'string',
-                        alias       : 'map',
+    tags: null,
+
+    handler() {
+        const argObj = create_argObj.call(this, {
+            id: this.name,
+            args_toparse: this.args,
+            args_tofill: {
+                mapid: {
+                    type        : 'string',
+                    alias       : 'map',
+                },
+                tileid: {
+                    type        : 'string',
+                    alias       : 'tile',
+                },
+                tilename: {
+                    type        : 'string',
+                    alias       : 'name',
+                },
+                tiletype: {
+                    type        : 'string',
+                    alias       : 'type',
+                },
+            },
+        });
+        argObj.tilehtml = this.payload[0].contents.trim();
+        new_tile.call(this, argObj);
+    },
+});
+
+//////////////////////////////////////////////////
+//////////////////////////////////////////////////
+function new_tile(argObj) {
+
+    // necessary definitions
+    this.name   ??= argObj.id ?? "new_tile";
+    this.error  ??= function(error) { throw new Error(error) }  
+    // extract from argObj
+    const { mapid, tileid, tilename, tiletype, tilehtml } = argObj;
+
+    check_required.call(this, {
+        id: this.name, 
+        args_tocheck: {mapid, tileid},
+    });
+    
+    //////////////////////////////////////////////////
+    if (! def.skipcheck.common) {
+        check_common.call(this, {
+            id: this.name,
+            args_tocheck: {
+                mapid: {
+                    val         : mapid,
+                    oneword     : true,
+                    extant      : true,
+                },
+                tileid: {
+                    val         : tileid,
+                    oneword     : true,
+                },
+            },
+        });
+        if (tilename) {
+            check_common.call(this, {
+                id: 'tilename',
+                args_tocheck: {
+                    name: {
+                        val     : tilename,
+                        oneword : true,
                     },
-                    tileid: {
-                        type        : 'string',
-                        alias       : 'tile',
-                    },
-                    tilename: {
-                        type        : 'string',
-                        alias       : 'name',
-                    },
-                    tiletype: {
-                        type        : 'string',
-                        alias       : 'type',
+                }
+            });
+        }   
+        if (tiletype) {
+            check_common.call(this, {
+                id: 'tiletype',
+                args_tocheck: {
+                    type: {
+                        val     : tiletype,
+                        oneword : true,
                     },
                 },
             });
-            argObj.tilehtml = this.payload[0].contents.trim();
-            this.self.handlerJS.call(this, argObj);
-        },
+        }   
+    }
 
-        handlerJS(argObj) {
-            //////////////////////////////////////////////////
-            //////////////////////////////////////////////////
-            // necessary definitions
-            this.name   ??= argObj.id ?? "newtile";
-            this.error  ??= function(error) { throw new Error(error) }  
+    //////////////////////////////////////////////////
+    try {
+        const tile = get_tile(mapid, tileid);
+        if (tilename) {
+            tile.tilename = tilename;
+        }
+        if (tiletype) {
+            tile.tiletype = tiletype;
+        }
+        if (tilehtml) {
+            tile.tilehtml = tilehtml;
+        }
+    }
+    catch (error) {
+        console.error(`${this.name} - failed to create new tile definition for "${tileid}" on map "${mapid}" (new_tile)`);
+        console.error(error);
+    }
+}
 
-            //////////////////////////////////////////////////
-            // extract from argObj
-            const { mapid, tileid, tilename, tiletype, tilehtml } = argObj;
-            check_required.call(this, {
-                id: this.name, 
-                args_tocheck: {mapid, tileid},
-            });
-            // validate args
-            if (! def.skipcheck.common) {
-                check_common.call(this, {
-                    id: this.name,
-                    args_tocheck: {
-                        mapid: {
-                            val         : mapid,
-                            oneword     : true,
-                            extant      : true,
-                        },
-                        tileid: {
-                            val         : tileid,
-                            oneword     : true,
-                            extant      : true,
-                        },
-                    },
-                });
-                if (tilename) {
-                    check_common.call(this, {
-                        id: 'name',
-                        args_tocheck: {
-                            name: {
-                                val         : tilename,
-                                oneword     : true,
-                            },
-                        }
-                    });
-                }   
-                if (tiletype) {
-                   check_common.call(this, {
-                        id: 'type',
-                        args_tocheck: {
-                            type: {
-                                val         : tiletype,
-                                oneword     : true,
-                            },
-                        },
-                    });
-                }   
-            }
 
-            //////////////////////////////////////////////////
-            try {
-                const tile = get_tile(mapid,tileid);
-                if (tilename) {
-                    tile.tilename = tilename;
-                }
-                if (tiletype) {
-                    tile.tiletype = tiletype;
-                }
-                if (tilehtml) {
-                    tile.tilehtml = tilehtml;
-                }
-            }
-            catch (error) {
-                console.error(`${this.name} - failed to create new tile definition for "${tileid}" on map "${mapid}"`);
-                console.error(error);
-            }
-        },
+
+// █    █ █████ █     █ ████  ███  ████ ████  █      ███  █   █
+// ██   █ █     █     █ █   █  █  █     █   █ █     █   █  █ █
+// █ █  █ ███   █  █  █ █   █  █   ███  ████  █     █████   █
+// █  █ █ █     █ █ █ █ █   █  █      █ █     █     █   █   █
+// █   ██ █████  █   █  ████  ███ ████  █     █████ █   █   █
+// SECTION: newdisplay / new display
+
+//////////////////////////////////////////////////
+//////////////////////////////////////////////////
+Macro.add(["new_display","newdisplay"], {
+
+    handler() {
+        // parse args
+        const argObj = create_argObj.call(this, {
+            id: this.name,
+            args_toparse: this.args, 
+            args_tofill: {
+                mapid: {
+                    type        : 'string',
+                    alias       : 'map',
+                },
+                displayid: {
+                    type        : 'string',
+                    alias       : 'display',
+                },
+                sizingmode: {
+                    type        : [
+                                    {exact: 'auto'},
+                                    {exact: 'height'},
+                                    {exact: 'width'},
+                                    {exact: 'tile'},
+                                    {exact: 'off'},
+                                ],
+                    alias       : 'mode',
+                },
+                mapwidth: {
+                    type        : 'number',
+                },
+                mapheight: {
+                    type        : 'number',
+                },
+                tilewidth: {
+                    type        : 'number',
+                },
+                tileheight: {
+                    type        : 'number',
+                },
+                unit: {
+                    type        : cssunit,
+                },
+                rows_view: {
+                    type        : 'number',
+                    alias       : 'viewrows',
+                },
+                cols_view: {
+                    type        : 'number',
+                    alias       : 'viewcolumns',
+                },
+                entityid_view: {
+                    type        : 'string',
+                    alias       : ['viewentity','entityid'],
+                },
+            },
+        });
+        new_display.call(this, argObj);
+    },
+});
+
+//////////////////////////////////////////////////
+//////////////////////////////////////////////////
+function new_display(argObj) {
+
+    // necessary definitions
+    this.name   ??= argObj.id ?? "new_display";
+    this.error  ??= function(error) { throw new Error(error) };
+    // extract from argObj
+    const { mapid, sizingmode, rows_view, cols_view, entityid_view } = {
+        sizingmode  : def.sizingmode,
+        ...argObj,
+    };
+    const displayid = argObj.displayid ?? mapid;
+
+    check_required.call(this, {
+        id: this.name,
+        args_tocheck: {mapid},
     });
 
+    // ERROR: clobbering
+    if (
+        (! def.skipcheck.allowclobbering)   && 
+        get_display(mapid, displayid)
+    ) {
+        const error = `${this.name} - display with id "${displayid}" already exists for map "${mapid}"`;
+        return this.error(error)
+    }
 
+    //////////////////////////////////////////////////
+    if (! def.skipcheck.unused) {
+        if ((sizingmode === "height") && argObj.mapwidth) {
+            const error = `${this.name} - map width can't be specified when map sizing mode is set to "height"`;
+            return this.error(error)
+        }
+        else if ((sizingmode === "width") && argObj.mapheight) {
+            const error = `${this.name} - map height can't be specified when map sizing mode is set to "with"`;
+            return this.error(error)
+        }
+        else if ((sizingmode === "tile") && (argObj.mapwidth || argObj.mapheight)) {
+            const error = `${this.name} - map height and width can't be specified when map sizing mode is set to "tile"`;
+            return this.error(error)
+        }
+        else if ((sizingmode === "off") && (argObj.mapwidth || argObj.mapheight || argObj.unit)) {
+            const error = `${this.name} - map height, width, and units can't be specified when sizing mode is set to "off"`;
+            return this.error(error)
+        }
+    }
 
-//  ████ █   █  ████  █     █ █    █  ███  ████
-// █     █   █ █    █ █     █ ██  ██ █   █ █   █
-//  ███  █████ █    █ █  █  █ █ ██ █ █████ ████
-//     █ █   █ █    █ █ █ █ █ █    █ █   █ █
-// ████  █   █  ████   █   █  █    █ █   █ █
-// SECTION: showmap
+    const { mapheight, mapwidth, tileheight, tilewidth, unit } = {
+        mapheight   : def.map.height,
+        mapwidth    : def.map.width,
+        tileheight  : def.tile.height,
+        tilewidth   : def.tile.width,
+        unit        : def.map.unit,
+        ...argObj,
+    };
 
-    Macro.add("showmap", {
+    //////////////////////////////////////////////////
+    if (! def.skipcheck.common) {
+        check_common.call(this, {
+            id: this.name,
+            args_tocheck: {
+                mapid: {
+                    val         : mapid,
+                    oneword     : true,
+                    extant      : true,
+                },
+                mapwidth: {
+                    val         : mapwidth,
+                    positive    : true,
+                },
+                mapheight: {
+                    val         : mapheight,
+                    positive    : true,
+                },
+                tilewidth: {
+                    val         : tilewidth,
+                    positive    : true,
+                },
+                tileheight: {
+                    val         : tileheight,
+                    positive    : true,
+                },
+            },
+        });
+    }
 
-        handler() {
-            // parse args
-            const argObj = create_argObj.call(this, {
+    // extract from map
+    const map = get_map(mapid);
+    const { mapname, cols, rows, diagonal } = map;
+    const mapsn = map.mapsn;
+
+    //////////////////////////////////////////////////
+    // check zoom properties
+    if (rows_view || cols_view) {
+        if (! (rows_view && cols_view)) {
+            const error = `zoom - both viewcols and viewrows are required to use newdisplay zoom`;
+            return this.error(error)
+        }
+        if (! def.skipcheck.common) {
+            check_common.call(this, {
                 id: this.name,
-                args_toparse: this.args, 
-                args_tofill: {
-                    hidemap: {
-                        type        : {exact: ["--hidemap"]}
+                args_tocheck: {
+                    cols_view: {
+                        val         : cols_view,
+                        label       : 'view columns',
+                        positive    : true,
+                        integer     : true,
                     },
-                    mapid: {
-                        type        : 'string',
-                        alias       : 'map',
-                    },
-                    class: {
-                        type        : 'string',
-                    },
-                    sizingmode: {
-                        type        : [
-                                        {exact: 'auto'},
-                                        {exact: 'height'},
-                                        {exact: 'width'},
-                                        {exact: 'tile'},
-                                        {exact: 'off'},
-                                    ],
-                        alias       : 'mode',
-                    },
-                    mapwidth: {
-                        type        : 'number',
-                    },
-                    mapheight: {
-                        type        : 'number',
-                    },
-                    tilewidth: {
-                        type        : 'number',
-                    },
-                    tileheight: {
-                        type        : 'number',
-                    },
-                    unit: {
-                        type        : cssunit,
-                    },
-                    viewrows: {
-                        type        : 'number',
-                    },
-                    viewcols: {
-                        type        : 'number',
-                        alias       : 'viewcolumns',
-                    },
-                    viewtrack: {
-                        type        : 'string',
+                    rows_view: {
+                        val         : rows_view,
+                        label       : 'view rows',
+                        positive    : true,
+                        integer     : true,
                     },
                 },
             });
-
-            // create map & append
-            this.self.handlerJS.call(this, argObj);
-        },
-
-        handlerJS(argObj) {
-            //////////////////////////////////////////////////
-            //////////////////////////////////////////////////
-            // necessary definitions
-            this.name   ??= argObj.id ?? "showmap";
-            this.error  ??= function(error) { throw new Error(error) };
-            // extract from argObj
-            const { mapid, sizingmode, viewrows, viewcols, viewtrack } = {
-                sizingmode  : def.sizingmode,
-                ...argObj,
-            };
-            check_required.call(this, {
-                id: this.name,
-                args_tocheck: {mapid},
-            });
-            // check for unused inputs
-            if (! def.skipcheck.unused) {
-                if ((sizingmode === "height") && argObj.mapwidth) {
-                    const error = `${this.name} - map width can't be specified when map sizing mode is set to "height"`;
-                    return this.error(error)
-                }
-                else if ((sizingmode === "width") && argObj.mapheight) {
-                    const error = `${this.name} - map height can't be specified when map sizing mode is set to "with"`;
-                    return this.error(error)
-                }
-                else if ((sizingmode === "tile") && (argObj.mapwidth || argObj.mapheight)) {
-                    const error = `${this.name} - map height and width can't be specified when map sizing mode is set to "tile"`;
-                    return this.error(error)
-                }
-                else if ((sizingmode === "off") && (argObj.mapwidth || argObj.mapheight || argObj.unit)) {
-                    const error = `${this.name} - map height, width, and units can't be specified when sizing mode is set to "off"`;
-                    return this.error(error)
-                }
+            // ERROR: zoom greater than map size
+            if (cols_view > cols) {
+                const error = `${this.name} - view columns can't be greater than total # of columns on map "${mapid}"`;
+                return this.error(error)
             }
-            const { mapheight, mapwidth, tileheight, tilewidth, unit } = {
-                mapheight   : def.map.height,
-                mapwidth    : def.map.width,
-                tileheight  : def.tile.height,
-                tilewidth   : def.tile.width,
-                unit        : def.map.unit,
-                ...argObj,
-            };
-            // validate args
-            if (! def.skipcheck.common) {
-                check_common.call(this, {
-                    id: this.name,
-                    args_tocheck: {
-                        mapid: {
-                            val         : mapid,
-                            oneword     : true,
-                            extant      : true,
-                        },
-                        mapwidth: {
-                            val         : mapwidth,
-                            positive    : true,
-                        },
-                        mapheight: {
-                            val         : mapheight,
-                            positive    : true,
-                        },
-                        tilewidth: {
-                            val         : tilewidth,
-                            positive    : true,
-                        },
-                        tileheight: {
-                            val         : tileheight,
-                            positive    : true,
-                        },
-                    },
-                });
+            if (rows_view > rows) {
+                const error = `${this.name} - view rows can't be greater than total # of rows on map "${mapid}"`;
+                return this.error(error)
             }
-            // extract from map
-            const map = get_map(mapid);
-            const { mapname, cols, rows, diagonal } = map;
-            const mapsn = map.mapsn;
-            // check zoom object
-            if (viewcols || viewrows || viewtrack) {
-                if (! (viewcols || viewrows)) {
-                    const error = `zoom - both viewcols and viewrows are required to use showmap zoom`;
-                    return this.error(error)
-                }
-                if (! def.skipcheck.common) {
-                    check_common.call(this, {
-                        id: 'zoom',
-                        args_tocheck: {
-                            viewcols: {
-                                val         : viewcols,
-                                positive    : true,
-                                integer     : true,
-                            },
-                            viewrows: {
-                                val         : viewrows,
-                                positive    : true,
-                                integer     : true,
-                            },
-                        },
-                    });
-                    // ERROR: zoom greater than map size
-                    if (viewcols > cols) {
-                        const error = `zoom - zoom.x can't be greater than # of cols`;
-                        return this.error(error)
-                    }
-                    if (viewrows > rows) {
-                        const error = `zoom - zoom.y can't be greater than # of cols`;
-                        return this.error(error)
-                    }
-                    if (TypeSet.id(viewtrack) !== 'undefined') {
-                        if (! get_entity(mapid, viewtrack)) {
-                            const error = `zoom - no entity with id "${viewtrack}" found on map "${mapid}"`;
-                            return this.error(error)
-                        }
-                    }
-                }
-            }
+        }
+    }
+    if (entityid_view && ! def.skipcheck.common) {
+        check_common.call(this, {
+            id: this.name,
+            args_tocheck: {
+                mapid: {
+                    val     : mapid,
+                },
+                entityid: {
+                    val     : entityid_view,
+                    label   : 'id of entity to track',
+                    extant  : true,
+                    oneword : true,
+                },
+            },
+        });
+    }
+    const entity_view = get_entity(mapid, entityid_view);
 
-            try {
+    // store data
+    map.displays[displayid] = {
+        mapid, 
+        displayid,
+        sizingmode, 
+        mapheight, 
+        mapwidth, 
+        tileheight, 
+        tilewidth, 
+        unit,
+        rows_view, 
+        cols_view, 
+        entityid_view,
+    };
 
-                // update actors indices
-                Macro.get('mapcalculate').handlerJS.call(this, {mapid,diagonal});
+    //////////////////////////////////////////////////
+    // retrieve & set box data
+    try {
+        // session data
+        const boxes = session.get(mapid)?.boxes;
+        if (
+            (typeof boxes !== 'undefined')  &&
+            (typeof boxes[displayid] !== 'undefined')
+        ) {
+            map.boxes[displayid] = boxes[displayid];
+        }
+        else if (
+            (typeof map.boxes[displayid] === 'undefined')
+        ) {
+            const x0    = typeof entity_view === 'undefined'
+                            ? 1
+                            : Math.clamp(1, cols - cols_view, 
+                                entity_view.x - Math.floor(rows_view / 2)
+                            );
+            const y0    = typeof entity_view === 'undefined'
+                            ? 1
+                            : Math.clamp(1, rows - cols_view, 
+                                entity_view.y - Math.floor(cols_view / 2)
+                            );
+            map.boxes[displayid] = {x0, y0, cols: cols_view, rows: rows_view};
+        }
+    }
+    catch (error) {
+        console.error(`${this.name} - failed to create or retrieve display box data (new_display)`);
+        console.error(error);
+    }
 
-                
-                //////////////////////////////////////////////////
-                // get tracked entity
-                const tracked = get_entity(mapid, viewtrack);
-                // create map
-                const $map = $(document.createElement('div'));
-                $map
-                    .addClass(`macro-${this.name}-map`)
-                    .addClass(argObj.class ?? '')
-                    .attr('data-sn', mapsn)
-                    .attr('data-mapid', mapid)
-                    .attr('data-cols', cols)
-                    .attr('data-rows', rows)
-                    .attr('data-viewrows', viewrows)
-                    .attr('data-viewcols', viewcols)
-                    // when null or undefined, nothing gets set
-                    .attr('data-tracked', tracked?.entityid ?? undefined);
+    //////////////////////////////////////////////////
+    // create $map
+    const $map = $(document.createElement('div'));
+    try {
+        const box = get_box(mapid, displayid);
+        const display = get_display(mapid, displayid);
+        const { x0, y0, cols, rows } = box;
+        const { entityid_view } = display
 
-                //////////////////////////////////////////////////
-                // update map
-                update_map.call(this, {
-                    $map,
-                    map,
-                    mapheight, 
-                    mapwidth, 
-                    tileheight, 
-                    tilewidth, 
-                    unit,
-                    sizingmode,
-                    tracked,
-                    viewrows    : viewrows ?? rows,
-                    viewcols : viewcols ?? cols,
-                    zoom        : 0,
-                    panx        : 0,
-                    pany        : 0,
-                });
+        $map
+            .addClass(`macro-${this.name}-map`)
+            .attr('data-displayid',displayid)
+            .attr('data-mapid', mapid)
+            .attr('data-x0-root', x0)
+            .attr('data-y0-root', y0)
+            .attr('data-cols-root', cols)
+            .attr('data-rows-root', rows)
+            // when null or undefined, nothing gets set
+            .attr('data-entity', entityid_view ?? undefined);
 
-                // create container
-                const $container = $(document.createElement('div'))
-                $container
-                            .addClass('macro-showmap-container')
-                            .append($map);
-                // title
-                $(document.createElement('div'))
-                            .addClass('macro-showmap-title')
-                            .wiki(mapname ?? '')
-                            .appendTo($container)
-                if (tracked) {
+    }
+    catch (error) {
+        console.error(`${this.name} - failed to intialize $map jQuery object`);
+        console.error(error);
+    }
+
+    refresh_display.call(this, {mapid,displayid,$map});
+
+    //////////////////////////////////////////////////
+    // create $container
+    const $container = $(document.createElement('div'));
+    try {
+        $container
+                    .addClass('macro-newdisplay-container')
+                    .append($map);
+        // title
+        $(document.createElement('div'))
+                    .addClass('macro-newdisplay-title')
+                    .wiki(mapname ?? '')
+                    .appendTo($container)
+        if (entityid_view) {
+            // zoom buttons
+            $(document.createElement('div'))
+                    .addClass('macro-newdisplay-topbuttons')
+                    // 
+                    .append(
+                        $(document.createElement('button'))
+                                .addClass('macro-newdisplay-recenter')
+                                .wiki('C')
+                    )
                     // zoom buttons
-                    $(document.createElement('div'))
-                            .addClass('macro-showmap-topbuttons')
-                            // 
-                            .append(
-                                $(document.createElement('button'))
-                                        .addClass('macro-showmap-recenter')
-                                        .wiki('C')
-                            )
-                            // zoom buttons
-                            .append(
-                                // $(document.createElement('img'))
-                                //         .addClass('macro-showmap-zoombutton')
-                                //         .attr('data-zoom','in')
-                                //         .attr('src',`data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAzMjAgNTEyIj48IS0tIUZvbnQgQXdlc29tZSBGcmVlIDYuNS4xIGJ5IEBmb250YXdlc29tZSAtIGh0dHBzOi8vZm9udGF3ZXNvbWUuY29tIExpY2Vuc2UgLSBodHRwczovL2ZvbnRhd2Vzb21lLmNvbS9saWNlbnNlL2ZyZWUgQ29weXJpZ2h0IDIwMjQgRm9udGljb25zLCBJbmMuLS0+PHBhdGggZD0iTTE4Mi42IDEzNy40Yy0xMi41LTEyLjUtMzIuOC0xMi41LTQ1LjMgMGwtMTI4IDEyOGMtOS4yIDkuMi0xMS45IDIyLjktNi45IDM0LjlzMTYuNiAxOS44IDI5LjYgMTkuOEgyODhjMTIuOSAwIDI0LjYtNy44IDI5LjYtMTkuOHMyLjItMjUuNy02LjktMzQuOWwtMTI4LTEyOHoiLz48L3N2Zz4=`)
-                                $(document.createElement('button'))
-                                        .addClass('macro-showmap-zoombutton')
-                                        .attr('data-mode','in')
-                                        .wiki('+')
-                            )
-                            .append(
-                                $(document.createElement('button'))
-                                        .addClass('macro-showmap-zoombutton')
-                                        .attr('data-mode','out')
-                                        .wiki('-')
-                            )
-                            .appendTo($container);
-                    // pan buttons
-                    for (const d of ["up","down","left","right"]) {
-                        const $d = $(document.createElement('button'))
-                        $d
-                            .addClass('macro-showmap-panbutton')
-                            .attr('data-mode',d)
-                            .wiki(d.first().toUpperCase())
-                            .appendTo($container);
-                    }
-                }
-
-                // output
-                $container.appendTo(this.output);
-
-                setTimeout( function() {
-                    // update functionality
-                    $map.on(':update_map', function(ev) {
-                        $(this).children().remove();
-                        // get zoom & pan values from $map
-                        update_map.call(this, {
-                            $map,
-                            map,
-                            mapheight, 
-                            mapwidth, 
-                            tileheight, 
-                            tilewidth, 
-                            unit,
-                            sizingmode,
-                            tracked,
-                            viewrows,
-                            viewcols,
-                            zoom        : Number($(this).attr('data-zoom')),
-                            panx        : Number($(this).attr('data-panx')),
-                            pany        : Number($(this).attr('data-pany')),
-                        });
-                    });
-                    $container.on('click', function(ev) {
-                        // pan button functinoality
-                        if ($(ev.target).hasClass('macro-showmap-panbutton')) {
-                            const mode = $(ev.target).attr('data-mode');
-                            map_pan.call(this, {id:this.name,mapid,mode});
-                        }
-                        // zoom button functionality
-                        if ($(ev.target).hasClass('macro-showmap-zoombutton')) {
-                            const mode = $(ev.target).attr('data-mode');
-                            map_zoom.call(this, {id:this.name,mapid,mode});
-                        }
-                        // recenter functionality
-                        if ($(ev.target).hasClass('macro-showmap-recenter')) {
-                            maprecenter.call(this, {id:this.name,mapid});
-                        }
-                    });
-                }, 40)
-
-                
+                    .append(
+                        $(document.createElement('button'))
+                                .addClass('macro-newdisplay-zoombutton')
+                                .attr('data-mode','in')
+                                .wiki('+')
+                    )
+                    .append(
+                        $(document.createElement('button'))
+                                .addClass('macro-newdisplay-zoombutton')
+                                .attr('data-mode','out')
+                                .wiki('-')
+                    )
+                    .appendTo($container);
+            // pan buttons
+            for (const d of ["up","down","left","right"]) {
+                const $d = $(document.createElement('button'))
+                $d
+                    .addClass('macro-newdisplay-panbutton')
+                    .attr('data-mode',d)
+                    .wiki(d.first().toUpperCase())
+                    .appendTo($container);
             }
+        }
+        
+        $container.appendTo(this.output);
 
-            //////////////////////////////////////////////////
-            catch (error) {
-                console.error(`${this.name} - failed to create showmap element for map "${mapid}"`);
-                console.error(error);
-            }
-        },
+    }
+    catch (error) {
+        console.log(`${this.name} - failed to create and append container for $map for "${mapid}" (new_display)`);
+        console.error(error);
+    }
+
+    try {
+        setTimeout( function() {
+            // update functionality
+            $map.on(':update_map', function(ev) {
+                $(this).children().remove();
+                refresh_display.call(this, {mapid,displayid,$map});
+            });
+            // $container.on('click', function(ev) {
+            //     // pan button functinoality
+            //     if ($(ev.target).hasClass('macro-newdisplay-panbutton')) {
+            //         const mode = $(ev.target).attr('data-mode');
+            //         map_pan.call(this, {id:this.name,mapid,mode});
+            //     }
+            //     // zoom button functionality
+            //     if ($(ev.target).hasClass('macro-newdisplay-zoombutton')) {
+            //         const mode = $(ev.target).attr('data-mode');
+            //         map_zoom.call(this, {id:this.name,mapid,mode});
+            //     }
+            //     // recenter functionality
+            //     if ($(ev.target).hasClass('macro-newdisplay-recenter')) {
+            //         maprecenter.call(this, {id:this.name,mapid});
+            //     }
+            // });
+        }, 40)
+    }
+    catch (error) {
+        console.error(`${this.name} - failed to assign $map listeners`);
+        console.error(error);
+    }
+}
+//////////////////////////////////////////////////
+function refresh_display(argObj) {
+
+    // necessary definitions
+    this.name   ??= argObj.id ?? "refresh_display";
+    this.error  ??= function(error) { throw new Error(error) };
+    // extract from argObj
+    const { mapid, $map } = argObj;
+    const displayid = argObj.displayid ?? mapid;
+
+    check_required.call(this, {
+        id: this.name,
+        args_tocheck: {mapid,displayid},
     });
+
+    // extract from map
+    const map = get_map(mapid);
+    const { arr, entities } = map;
+    const display = get_display(mapid, displayid);
+    const { sizingmode, mapheight, mapwidth, tileheight, tilewidth, unit } = display;
+    const box = get_box(mapid, displayid);
+    const { x0, y0, rows, cols } = box;
+
+    try {
+        //////////////////////////////////////////////////
+        let H, W, sizing;
+        if (sizingmode === 'height') {
+            H = mapheight / rows;
+            W = H * tilewidth / tileheight;
+            sizing = 'height';
+        }
+        else if (sizingmode === 'width') {
+            W = mapwidth / cols;
+            H = W * tileheight / tilewidth;
+            sizing = 'width';
+        }
+        else if (sizingmode === 'auto') {
+            // if map width is greater, ie height is constraint
+            if (
+                (mapwidth / mapheight) > 
+                ((cols * tilewidth) / (rows * tileheight))
+            ) {
+                H = mapheight / rows;
+                W = H * tilewidth / tileheight;
+                sizing = 'auto-height';
+            }
+            // width is contraint
+            else {
+                W = mapwidth / cols;
+                H = W * tileheight / tilewidth;
+                sizing = 'auto-width';
+            }
+        }
+        else if (sizingmode === 'tile') {
+            W = tilewidth;
+            H = tileheight;
+            sizing = 'tile';
+        }
+        //////////////////////////////////////////////////
+        if (sizing) {
+            $map
+                    .attr('data-sizing', sizing)
+                    .attr('data-tilewidth', W)
+                    .attr('data-tileheight', H)
+                    .attr('data-unit', unit)
+                    .css({
+                            '--tilewidth'   : String(W) + unit,
+                            '--tileheight'  : String(H) + unit,
+                        })
+        }
+    }
+    catch (error) {
+        console.error(`${this.name} - failed to size display for map "${mapid}" (print_display)`);
+        console.error(error);
+    }
+
+    
+    //////////////////////////////////////////////////
+    const printed_tiles = [];
+    try {
+        // convert top left x0 y0 to i0
+        const i0 = convert_xy2i({
+            x   : x0,
+            y   : y0,
+        }, mapid);
+        // iterate through array to width & height
+        for (let r = 1; r <= rows; r++) {
+            for (let c = 1; c <= cols; c++) {
+                const i = i0 + (c-1) + (map.cols * (r-1));
+                console.log(i);
+                // track printed coordinates
+                printed_tiles.push(i);
+                const t = arr[i];
+                // print tile
+                const $t = print_tile.call(this, {
+                    mapid       : mapid,
+                    tile        : get_tile(mapid, t),
+                    i           : i,
+                    row         : r,
+                    col         : c,
+                });
+                // append to map
+                $t.appendTo($map);
+            }
+        }
+    }
+    catch (error) {
+        console.error(`${this.name} - failed to print tiles for map display "${displayid}" (refresh_display)`);
+        console.error(error);
+    }
+    
+    //////////////////////////////////////////////////
+    try {
+        // check entities
+        for (const e in entities) {
+            const entity = entities[e];
+            // get i from xy coordinate of entity
+            const i = convert_xy2i({
+                x   : entity.x,
+                y   : entity.y
+            }, mapid);
+            // if i is in printed tiles, print
+            if (printed_tiles.includes(i)) {
+                const $e = print_entity.call(this, {
+                    mapid       : mapid,
+                    entity      : entity,
+                    // row & col is difference betweeen xy0 and coordinate + 1
+                    row         : entity.y - y0 + 1,
+                    col         : entity.x - x0 + 1,
+                });
+                $e.appendTo($map);
+            }
+        }
+        // store data
+        $map
+            .attr('data-x0', x0)
+            .attr('data-y0', y0)
+            .attr('data-cols', cols)
+            .attr('data-rows', rows);
+    }
+    catch (error) {
+        console.error(`${this.name} - failed to print entities for map display "${displayid}" (refresh_display)`);
+        console.error(error);
+    }
+
+    // output
+    return $map
+}
+
 
 
 
@@ -893,7 +926,7 @@
             const map = get_map(mapid);
             const { diagonal } = map;
             
-            // validate args
+            // check common
             if (! def.skipcheck.common) {
                 check_common.call(this, {
                     id: this.name,
@@ -1075,7 +1108,7 @@
             // assign sn & id
             const entitysn = window.crypto.randomUUID();
             const entityid = argObj.entityid ?? entitysn;
-            // validate args
+            // check common
             if (! def.skipcheck.common) {
                 check_common.call(this, {
                     id: this.name,
@@ -1197,7 +1230,7 @@
                 id: this.name, 
                 args_tocheck: {mapid, entityid},
             });
-            // validate args
+            // check common
             if (! def.skipcheck.common) {
                 check_common.call(this, {
                     id: this.name,
@@ -1228,7 +1261,7 @@
                 const $e = $(`[data-sn="${entitysn}"]`).first();
                 if ($e) {
                     $e.remove();
-                    Macro.get('mapcalculate').handlerJS.call(this, {mapid,diagonal});
+                    calculate_actors.call(this, {mapid,diagonal});
                 }
                 $(`.macro-shownav-nav[data-mapid="${mapid}"]`).trigger(':update_nav');
                 
@@ -1353,7 +1386,7 @@
                 const i = convert_xy2i({
                     x   : x + deltax,
                     y   : y + deltay,
-                }, cols);
+                }, mapid);
                 if (! (ignorewalls || def.noclip)) {
                     // if wall
                     if (actors[i].wall.length > 0) {
@@ -1368,7 +1401,7 @@
                 }
                 entity.x += deltax;
                 entity.y += deltay;
-                Macro.get('mapcalculate').handlerJS.call(this, {mapid,diagonal});
+                calculate_actors.call(this, {mapid,diagonal});
 
                 $(`[data-sn="${mapsn}"]`).trigger(':update_map');
                 $(`.macro-shownav-nav[data-mapid="${mapid}"]`).trigger(':update_nav');
@@ -1481,7 +1514,7 @@
                 entity.x = x;
                 entity.y = y;
 
-                Macro.get('mapcalculate').handlerJS.call(this, {mapid,diagonal});
+                calculate_actors.call(this, {mapid,diagonal});
 
                 $(`[data-sn="${mapsn}"]`).trigger(':update_map');
                 $(`.macro-shownav-nav[data-mapid="${mapid}"]`).trigger(':update_nav');
@@ -1505,103 +1538,103 @@
 // █    █ █   █ █      ████ █   █ █████  ████  ███  █████ █   █   █   █████
 // SECTION: map calculate / mapcalculate
 
-    Macro.add("mapcalculate", {
+//////////////////////////////////////////////////
+//////////////////////////////////////////////////
+Macro.add("mapcalculate", {
 
-        handler() {
-            //////////////////////////////////////////////////
-            //////////////////////////////////////////////////
-            const argObj = create_argObj.call(this, {
-                id: this.name,
-                args_toparse: this.args,
-                args_tofill: {
-                    mapid: {
-                        type        : 'string',
-                        alias       : 'map',
-                    },
-                    diagonal: {
-                        type        : 'boolean',
-                    }
+    handler() {
+        const argObj = create_argObj.call(this, {
+            id: this.name,
+            args_toparse: this.args,
+            args_tofill: {
+                mapid: {
+                    type        : 'string',
+                    alias       : 'map',
                 },
-            });
-            this.self.handlerJS.call(this, argObj);
-        },
-
-        handlerJS(argObj) {
-            //////////////////////////////////////////////////
-            //////////////////////////////////////////////////
-            // shortcut handling for if only given mapid as string
-            if (typeof argObj === 'string') {
-                argObj = {mapid: argObj};
-            }
-            // necessary definitions
-            this.name   ??= argObj.id ?? "mapcalculate";
-            this.error  ??= function(error) { throw new Error(error) };
-            // extract from argObj
-            const { mapid, diagonal } = argObj;
-            check_required.call(this, {
-                id: this.name, 
-                args_tocheck: {mapid},
-            });
-            // extract from 
-            const map = get_map(mapid);
-            const { cols, arr, actors, entities } = map;
-
-            try {
-
-                //////////////////////////////////////////////////
-                // fill in all walltypes
-                for (let i = 0; i < arr.length; i++) {
-                    const t = arr[i];
-                    const tile = get_tile(mapid, t);
-                    // reset actors
-                    actors[i] = {};
-                    actors[i].tileid = tile.tileid;
-                    actors[i].wall = [];
-                    actors[i].overlap = [];
-                    actors[i].adjacent = [];
-                    if (tile.tiletype === def.wall.tiletype) {
-                        actors[i].wall.push({tile:tile.tileid});
-                    }
+                diagonal: {
+                    type        : 'boolean',
                 }
+            },
+        });
+        calculate_actors.call(this, argObj);
+    },
+});
 
-                ////////////////////////////////////////////////
-                // check all entities
-                for (const e in entities) {
-                    const { wall, x, y, entityid } = entities[e];
-                    const i = convert_xy2i({x,y}, cols);
-
-                    // wall
-                    if (wall) {
-                        actors[i].wall.push({entity:entityid});
-                    }
-
-                    // overlap
-                    actors[i].overlap.push({entity:entityid});
-
-                    // adjacent
-                    const dirs  = Object.assign({}, diagonal ? dirs_8 : dirs_4);
-                    // remove center
-                    delete dirs.C;
-                    // iterate around
-                    for (const d in dirs) {
-                        const j = convert_xy2i({
-                            x   : x + dirs[d].deltax,
-                            y   : y + dirs[d].deltay,
-                        }, cols);
-                        if (j >= 0 && j < arr.length-1) {
-                            actors[j].adjacent.push({entity:entityid});
-                        }
-                    }
-                }
-            }
-
-            //////////////////////////////////////////////////
-            catch (error) {
-                console.error(`${this.name} - failed to calculate actors indices for map "${mapid}"`);
-                console.error(error);
-            }
-        },
+//////////////////////////////////////////////////
+//////////////////////////////////////////////////
+function calculate_actors(argObj) {
+    // shortcut handling for if only given mapid as string
+    if (typeof argObj === 'string') {
+        argObj = {mapid: argObj};
+    }
+    // necessary definitions
+    this.name   ??= argObj.id ?? "mapcalculate";
+    this.error  ??= function(error) { throw new Error(error) };
+    // extract from argObj
+    const { mapid, diagonal } = argObj;
+    check_required.call(this, {
+        id: this.name, 
+        args_tocheck: {mapid},
     });
+    // extract from 
+    const map = get_map(mapid);
+    const { cols, arr, actors, entities } = map;
+
+    try {
+
+        //////////////////////////////////////////////////
+        // fill in all walltypes
+        for (let i = 0; i < arr.length; i++) {
+            const t = arr[i];
+            const tile = get_tile(mapid, t);
+            // reset actors
+            actors[i] = {};
+            actors[i].tileid = tile.tileid;
+            actors[i].wall = [];
+            actors[i].overlap = [];
+            actors[i].adjacent = [];
+            if (tile.tiletype === def.wall.tiletype) {
+                actors[i].wall.push({tile:tile.tileid});
+            }
+        }
+
+        ////////////////////////////////////////////////
+        // check all entities
+        for (const e in entities) {
+            const { wall, x, y, entityid } = entities[e];
+            const i = convert_xy2i({x,y}, mapid);
+
+            // wall
+            if (wall) {
+                actors[i].wall.push({entity:entityid});
+            }
+
+            // overlap
+            actors[i].overlap.push({entity:entityid});
+
+            // adjacent
+            const dirs  = Object.assign({}, diagonal ? dirs_8 : dirs_4);
+            // remove center
+            delete dirs.C;
+            // iterate around
+            for (const d in dirs) {
+                const j = convert_xy2i({
+                    x   : x + dirs[d].deltax,
+                    y   : y + dirs[d].deltay,
+                }, mapid);
+                if (j >= 0 && j < arr.length-1) {
+                    actors[j].adjacent.push({entity:entityid});
+                }
+            }
+        }
+    }
+
+    //////////////////////////////////////////////////
+    catch (error) {
+        console.error(`${this.name} - failed to calculate actors indices for map "${mapid}"`);
+        console.error(error);
+    }
+}
 
 
 
@@ -1674,7 +1707,7 @@
             id: this.name,
             args_tocheck: {mapid, mode},
         });
-        // validate args
+        // check common
         if (! def.skipcheck.common) {
             check_common.call(this, {
                 id: this.name,
@@ -1721,8 +1754,8 @@
         try {
             // get map object
             const $map = argObj.class
-                            ? $(`.macro-showmap-map[data-mapid="${mapid}"]`).filter(`.${argObj.class}`)
-                            : $(`.macro-showmap-map[data-mapid="${mapid}"]`);
+                            ? $(`.macro-newdisplay-map[data-mapid="${mapid}"]`).filter(`.${argObj.class}`)
+                            : $(`.macro-newdisplay-map[data-mapid="${mapid}"]`);
             // only do anything if map is tracking
             if ($map.attr('data-tracked')) {
                 const viewrows_old      = Number($map.attr('data-viewrows'));
@@ -1869,7 +1902,7 @@
                     : mode === "down"
                         ?  1 * Math.abs(argObj.pany ?? def.map.pany)
                     : argObj.pany ?? 0;
-        // validate args
+        // check common
         if (! def.skipcheck.common) {
             check_common.call(this, {
                 id: this.name,
@@ -1891,8 +1924,8 @@
 
         try {
             const $map = argObj.class
-                            ? $(`.macro-showmap-map[data-mapid="${mapid}"]`).filter(`.${argObj.class}`)
-                            : $(`.macro-showmap-map[data-mapid="${mapid}"]`);
+                            ? $(`.macro-newdisplay-map[data-mapid="${mapid}"]`).filter(`.${argObj.class}`)
+                            : $(`.macro-newdisplay-map[data-mapid="${mapid}"]`);
             // only do anything if tracked
             if ($map.attr('data-tracked')) {
                 // calculate new view position
@@ -1993,8 +2026,8 @@
 
         try {
             const $map = argObj.class
-                            ? $(`.macro-showmap-map[data-mapid="${mapid}"]`).filter(`.${argObj.class}`)
-                            : $(`.macro-showmap-map[data-mapid="${mapid}"]`);
+                            ? $(`.macro-newdisplay-map[data-mapid="${mapid}"]`).filter(`.${argObj.class}`)
+                            : $(`.macro-newdisplay-map[data-mapid="${mapid}"]`);
             $map
                     .attr('data-panx', 0)
                     .attr('data-pany', 0)
