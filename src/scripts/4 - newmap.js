@@ -58,41 +58,61 @@ Macro.add(["newnavmap", "new_navmap"], {
 //////////////////////////////////////////////////
 function new_navmap(argObj) {
     
-    // necessary definitions
-    this.name   ??= argObj.id ?? "new_navmap";
-    this.error  ??= function(error) { throw new Error(error) };
     // extract from argObj
     const { source, mapid, mapname, diagonal, inputtype, inputmap } = {
         diagonal        : def.nav.diagonal,
         ...argObj,
     };
 
+    //////////////////////////////////////////////////
     check_required.call(this, {
         id: this.name, 
         args_tocheck: {mapid, inputtype},
-    });
-
+    }); 
     // ERROR: missing inputmap
     if (! inputmap) {
-        const error = source === 'macro'
-                        ? `${this.name} - missing required macro payload`
-                        : `${this.name} - missing required input "inputmap"`;
-        return this.error(error);
+        return this.error(source === 'macro'
+                            ? `${this.name} - missing required macro payload`
+                            : `${this.name} - missing required input "inputmap"`);
     }
 
     //////////////////////////////////////////////////
     // parse mapinput input into array
     try {
+        // macro payload or 1D array
         if (inputtype === 'array') {
             argObj.arr = inputmap;
+            // ERROR: missing cols
+            if (! argObj.col) {
+                const error = `${this.name} - missing required input "cols" for map "${mapid}"`;
+                return this.error(error);
+            }
         }
+        // 2D array, grab column # as length of first array
         else if (inputtype === '2D array') {
-            argObj.cols = inputmap[0].length;
-            argObj.arr = inputmap.flat();
+            const cols = inputmap[0].length;
+
+            for (const a of inputmap) {
+                // ERROR: non-array input
+                if (TypeSet.id(a) !== 'array') {
+                    const error = `${this.name} - invalid inputmap, non-array detected for map "${mapid}"`;
+                    console.error(a);
+                    return this.error(error);
+                }
+                // ERROR: non-square 2D array
+                if (a?.length !== cols || a?.length === 0) {
+                    const error = `${this.name} - invalid inputmap, non-rectangular input detected for map "${mapid}"`;
+                    console.error(a);
+                    return this.error(error);
+                }
+            }
+            
+            argObj.cols = cols;
+            argObj.arr  = inputmap.flat();
         }
         // ERROR: invalid inputtype
         else {
-            const error = `${this.name} - invalid inputtype, currently only supports macro payload or 'array' or '2D array'`;
+            const error = `${this.name} - invalid inputtype for map "${mapid}", only macro payload or 'array' or '2D array' is supported`;
             return this.error(error)
         }
     }
@@ -104,15 +124,8 @@ function new_navmap(argObj) {
 
     const { arr, cols } = argObj;
 
-    // ERROR: missing cols
-    if (! cols) {
-        const error = inputtype = 'array'
-                        ? `${this.name} - missing required input "cols"`
-                        : `${this.name} - invalid 2D array inputmap, first array is empty`;
-        return this.error(error);
-    }
-
     //////////////////////////////////////////////////
+    // check common errors
     if (! def.skipcheck.common) {
         check_common.call(this, {
             id: this.name,
@@ -131,9 +144,13 @@ function new_navmap(argObj) {
     }
     
     //////////////////////////////////////////////////
+    // create new Navmap
     try {
         // ERROR: map not rectangular
-        if (arr.length % cols) {
+        if (
+            (inputtype === "array") &&
+            (arr.length % cols) 
+        ) {
             const error = `${this.name} - inputmap is not rectangular`;
             return this.error(error)
         }
@@ -151,6 +168,7 @@ function new_navmap(argObj) {
     calculate_actors.call(this, {mapid,diagonal});
 
 }
+
 //////////////////////////////////////////////////
 // save box data to session
 $(window).on('beforeunload', function(ev) {
@@ -214,9 +232,6 @@ Macro.add(["newtile","new_tile"], {
 //////////////////////////////////////////////////
 function new_tile(argObj) {
 
-    // necessary definitions
-    this.name   ??= argObj.id ?? "new_tile";
-    this.error  ??= function(error) { throw new Error(error) }  
     // extract from argObj
     const { mapid, tileid, tilename, tiletype, tilehtml } = argObj;
 
@@ -226,6 +241,7 @@ function new_tile(argObj) {
     });
     
     //////////////////////////////////////////////////
+    // check common errors
     if (! def.skipcheck.common) {
         check_common.call(this, {
             id: this.name,
@@ -266,8 +282,16 @@ function new_tile(argObj) {
     }
 
     //////////////////////////////////////////////////
+    // assign tile data
     try {
         const tile = get_tile(mapid, tileid);
+
+        // ERROR: no tile found
+        if (typeof tile === 'undefined') {
+            const error = `${this.name} - no tile with id "${tileid}" found in map "${mapid}"`;
+            return this.error(error);
+        }
+
         if (tilename) {
             tile.tilename = tilename;
         }
@@ -358,14 +382,12 @@ Macro.add(["new_display","newdisplay"], {
 //////////////////////////////////////////////////
 function new_display(argObj) {
 
-    // necessary definitions
-    this.name   ??= argObj.id ?? "new_display";
-    this.error  ??= function(error) { throw new Error(error) };
     // extract from argObj
     const { mapid, sizingmode, rows_view, cols_view, entityid_view } = {
         sizingmode  : def.sizingmode,
         ...argObj,
     };
+    // if no displayid given, use mapid
     const displayid = argObj.displayid ?? mapid;
 
     check_required.call(this, {
@@ -383,6 +405,7 @@ function new_display(argObj) {
     }
 
     //////////////////////////////////////////////////
+    // check for unused inputs
     if (! def.skipcheck.unused) {
         if ((sizingmode === "height") && argObj.mapwidth) {
             const error = `${this.name} - map width can't be specified when map sizing mode is set to "height"`;
