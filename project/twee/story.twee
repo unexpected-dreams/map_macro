@@ -46,7 +46,7 @@ demo map
     entityid    'player1'
     entityname  'Player 1'
     x           3
-    y           3
+    y           5
     wall        true
 >>
     <div style="color:red; font-size: 2rem;">O</div>
@@ -70,21 +70,18 @@ demo map
 map
 <<newdisplay 
     mapid       'demo'
-    mapwidth    40
-    mapheight   30
-    tilewidth   2
-    tileheight  2
-    unit        'rem'
     viewcolumns 7
     viewrows    7
-    viewtrack  'player1'
 >>
 <span style="color:red">player1</span> nav
-<<shownav 
+<<link 'test'>>
+    <<delentity 'demo' 'player1'>>
+<</link>>
+<<newrose 
     mapid       'demo'
     entityid    'player1'
 >>
-<</shownav>>
+<</newrose>>
 <span style="color:yellow">player2</span> nav
 /* <<shownav 
     mapid       'demo'
@@ -117,11 +114,22 @@ other stuff
 <</link>> <span style="padding-left: 1rem">x: <input type='text' id='xinput'> y: <input type='text' id='yinput'></span>
 - go to [[otherpassage]]
 <style>
+    :root {
+        --mapwidth: 40rem;
+        --mapheight: 30rem;
+        --rosewidth: 25rem;
+        --roseheight: 20rem;
+    }
     #xinput, #yinput {
         display: inline-block; 
         min-width:2rem; 
         width:2rem
     }
+    .macro-newdisplay-container,
+    .macro-newdisplay-container * {
+        box-sizing: border-box;
+    }
+    /*
     .macro-newdisplay-container {
         display: grid;
         grid-template-columns: auto 1fr auto;
@@ -186,47 +194,45 @@ other stuff
                 height: 7rem;
                 width: 1.5rem;
             }
-        .macro-newdisplay-map {
+    */
+        .Navmap-display {
             grid-row: 3;
             grid-column: 2;
             display: grid;
             position: relative;
-            box-sizing: border-box;
-            height: fit-content;
-            width: fit-content;
+            height: var(--mapheight);
+            width: var(--mapwidth);
+            padding: 0.5rem;
             overflow: hidden;
             align-items: center;
             justify-content: center;
         }
-            .macro-newdisplay-map > * {
-                box-sizing: border-box;
-            }
-        .macro-newdisplay-tile {
-            width: var(--tilewidth);
-            height: var(--tileheight);
+        .Navmap-tile {
+            width: 100%;
+            height: 100%;
+            line-height: 1;
             display: flex;
             align-items: center;
             justify-content: center;
             text-align: center;
             border: 1px dashed #80808087;
-            color:
         }
-            .macro-newdisplay-tile img {
+            .Navmap img {
                 width: 100%;
                 height: 100%;
             }
-        .macro-newdisplay-entity {
+        .Navmap-entity {
             position: absolute;
             z-index: 2;
+            width: 100%;
+            height: 100%;
             transition: all 0.5s;
             display: flex;
             align-items: center;
             justify-content: center;
             text-align: center;
-            width: var(--tilewidth);
-            height: var(--tileheight);
         }
-            .macro-newdisplay-entity > * {
+            .Navmap-entity > * {
                 width: 100%;
                 height: 100%;
                 display: flex;
@@ -235,59 +241,60 @@ other stuff
                 text-align: center;
                 line-height: 1;
             }
-    .macro-shownav-nav {
-        display: grid;
-        grid-template-columns: repeat(3,calc(var(--width) / 3));
-        grid-template-rows: repeat(3,calc(var(--height) / 3));
-        width: fit-content;
-        height: fit-content;
+    
+    .Navmap-rose,
+    .Navmap-rose * {
         box-sizing: border-box;
     }
-        .macro-shownav-nav > * {
-            box-sizing: border-box;
-        }
-        .macro-shownav-direction {
+    .Navmap-rose {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        grid-template-rows: repeat(3, 1fr);
+        width: var(--rosewidth);
+        height: var(--roseheight);
+    }
+        .Navmap-dir {
             display: flex;
             align-items: center;
             justify-content: center;
             border: 1px dashed blue;
         }
-            .macro-shownav-direction:not([data-disabled="true"]):not([data-dirid="C"]) {
+            .Navmap-dir:not([data-disabled="true"]):not([data-dirid="C"]) {
                 cursor: pointer;
             }
-        .macro-shownav-C {
+        .Navmap-dir[data-dirid="C"] {
             grid-row:       2;
             grid-column:    2;
         }
-        .macro-shownav-N {
+        .Navmap-dir[data-dirid="N"] {
             grid-row:       1;
             grid-column:    2;
         }
-        .macro-shownav-E {
+        .Navmap-dir[data-dirid="E"] {
             grid-row:       2;
             grid-column:    3;
         }
-        .macro-shownav-S {
+        .Navmap-dir[data-dirid="S"] {
             grid-row:       3;
             grid-column:    2;
         }
-        .macro-shownav-W {
+        .Navmap-dir[data-dirid="W"] {
             grid-row:       2;
             grid-column:    1;
         }
-        .macro-shownav-NW {
+        .Navmap-dir[data-dirid="NW"] {
             grid-row:       1;
             grid-column:    1;
         }
-        .macro-shownav-NE {
+        .Navmap-dir[data-dirid="NE"] {
             grid-row:       1;
             grid-column:    3;
         }
-        .macro-shownav-SE {
+        .Navmap-dir[data-dirid="SE"] {
             grid-row:       3;
             grid-column:    3;
         }
-        .macro-shownav-SW {
+        .Navmap-dir[data-dirid="SW"] {
             grid-row:       3;
             grid-column:    1;
         }

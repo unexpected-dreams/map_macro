@@ -135,52 +135,75 @@ function get_controller(control) {
 // convert between xy & i
 function convert_i2xy(i, mapid) {
     const map = get_map(mapid);
-    const { cols } = map;
+    const { arr, cols } = map;
+    if (
+        i < 0       ||
+        i > arr.length
+    ) {
+        return {}
+    }
     const x = (i % cols) + 1;
     const y = (i - x + 1) / cols + 1;
     return {x, y}
 }
 function convert_xy2i(xy, mapid) {
     const map = get_map(mapid);
-    const { cols } = map;
-    const {x,y} = xy;
-    if (x < 1 || y < 1) {
+    const { rows, cols } = map;
+    const { x, y } = xy;
+    if (
+        x < 1       || 
+        x > rows    ||
+        y < 1       ||
+        y > cols
+    ) {
         return -1
     }
     const i = (y - 1) * cols + x - 1;
     return i
 }
-function calculate_newbox(argObj) {
+function update_box(argObj) {
+
+    // extract from argObj
     const { mapid, displayid, delta } = argObj;
+    // extract from map
     const map = get_map(mapid);
     const { rows, cols } = map;
-    const box_old   = map.boxes[displayid];
+    // extract from box
+    const box = get_box(mapid, displayid);
+    const x0_old    = box.x0;
+    const y0_old    = box.y0;
+    const cols_old  = box.cols_view;
+    const rows_old  = box.rows_view;
 
-    const x0_old    = box_old.x0;
-    const y0_old    = box_old.y0;
-    const cols_old  = box_old.cols;
-    const rows_old  = box_old.rows;
-
-    const cols_new  = Math.clamp(1, cols, 
+    // calculate new values
+    const cols_new  = Math.clamp(
+                        1, 
+                        cols, 
                         cols_old + (delta.cols ?? 0)
                     );
-    const rows_new  = Math.clamp(1, rows, 
+    const rows_new  = Math.clamp(
+                        1, 
+                        rows, 
                         rows_old + (delta.rows ?? 0)
                     );
-    const x0_new    = Math.clamp(1, cols - cols_new + 1, 
+    const x0_new    = Math.clamp(
+                        1, 
+                        cols - cols_new + 1, 
                         x0_old + Math.floor((cols_old - cols_new) / 2) + (delta.x ?? 0)
                     );
-    const y0_new    = Math.clamp(1, rows - rows_new + 1, 
+    const y0_new    = Math.clamp(
+                        1, 
+                        rows - rows_new + 1, 
                         y0_old + Math.floor((rows_old - rows_new) / 2) + (delta.y ?? 0)
                     );
 
-    return {
-        x0      : x0_new,
-        y0      : y0_new,
-        cols    : cols_new,
-        rows    : rows_new,
-    }
-
+    // write new values
+    map.boxes[displayid] = {
+        x0          : x0_new,
+        y0          : y0_new,
+        cols_view   : cols_new,
+        rows_view   : rows_new,
+    };
 }
 
 //////////////////////////////////////////////////
@@ -263,7 +286,6 @@ class Navmap {
         // create
         navmaps[String(mapid)] = this;
         // fill in data
-        this.mapsn          = window.crypto.randomUUID();
         this.mapid          = String(mapid);
         this.arr            = arr,
         this.cols           = cols,
@@ -278,7 +300,6 @@ class Navmap {
         for (const t of new Set(this.arr)) {
             this.tiles[String(t)] = {
                 mapid       : this.mapid,
-                tilesn      : window.crypto.randomUUID(),
                 tileid      : String(t),
                 tilename    : t,
                 tiletype    : def.floor.tiletype,
@@ -288,7 +309,6 @@ class Navmap {
         // then write from default
         this.tiles[String(def.wall.tileid)] = {
             mapid           : this.mapid,
-            tilesn          : window.crypto.randomUUID(),
             tileid          : String(def.wall.tileid),
             tilename        : def.wall.tileid,
             tiletype        : def.wall.tiletype,
@@ -296,7 +316,6 @@ class Navmap {
         };
         this.tiles[String(def.floor.tileid)] = {
             mapid           : this.mapid,
-            tilesn          : window.crypto.randomUUID(),
             tileid          : String(def.floor.tileid),
             tilename        : def.floor.tileid,
             tiletype        : def.floor.tiletype,
@@ -306,23 +325,31 @@ class Navmap {
         //////////////////////////////////////////////////
         // create only if non-existent, otherwise use State data
         State.variables[config.Statename][this.mapid] ??= {};
+        
+        // create entities if non-existent
         this.entities       ??= {};
-        this.boxes          ??= {};
+        // retrieve session data
+        // TODO: overwriting boxes is allowed, entitites not allowed, perhaps some way to store entitiy xy into session?
+        const map_session   = session.get(mapid);
+        this.boxes          = map_session?.boxes
+                                ? map_session.boxes
+                            : this.boxes
+                                ?? {};
     }
 
     //////////////////////////////////////////////////
     // make it so entities & displays retrieve from & set to State
     get entities() {
-        return State.variables[config.Statename][this.mapid].entities
+        return  State.variables[config.Statename][this.mapid].entities
     }
     set entities(val) {
-        State.variables[config.Statename][this.mapid].entities = val;
+                State.variables[config.Statename][this.mapid].entities = val;
     }
     get boxes() {
-        return State.variables[config.Statename][this.mapid].boxes
+        return  State.variables[config.Statename][this.mapid].boxes
     }
     set boxes(val) {
-        State.variables[config.Statename][this.mapid].boxes = val;
+                State.variables[config.Statename][this.mapid].boxes = val;
     }
 }
 
@@ -347,21 +374,17 @@ if (! config.disableglobal) {
 //////////////////////////////////////////////////
 //////////////////////////////////////////////////
 function print_tile(argObj) {
-    const { mapid, tile, i, row, col }= argObj;
-    const { tilesn, tileid, tilename, tiletype, tilehtml } = tile;
+    const { mapid, tile, row, col }= argObj;
+    const { tileid, tilename, tiletype, tilehtml } = tile;
     try {
-        const xy = convert_i2xy(i, mapid);
         const $t = $(document.createElement('div'))
         $t
-            .addClass(`macro-newdisplay-tile`)
+            .addClass(`Navmap-tile`)
             .addClass(tiletype)
             .attr('title', tilename)
-            .attr('data-tilesn', tilesn)
             .attr('data-tileid', tileid)
             .attr('data-tilename', tilename)
             .attr('data-tiletype', tiletype)
-            .attr('data-x', xy.x)
-            .attr('data-y', xy.y)
             .css({
                 "grid-column"   : `${col} / span 1`,
                 "grid-row"      : `${row} / span 1`,
@@ -383,13 +406,12 @@ function print_tile(argObj) {
 //////////////////////////////////////////////////
 function print_entity(argObj) {
     const { mapid, entity, col, row } = argObj;
-    const { entitysn, entityid, entityname, entityhtml } = entity;
+    const { entityid, entityname, entityhtml } = entity;
     try {
         const $e = $(document.createElement('div'));
         $e
-            .addClass(`macro-newdisplay-entity`)
+            .addClass(`Navmap-entity`)
             .attr('title', entityname)
-            .attr('data-sn', entitysn)
             .attr('data-entityid', entityid)
             .wiki(entityhtml       
                     ? entityhtml
@@ -414,18 +436,18 @@ function print_dir(argObj) {
     const { mapid, entityid, dir } = argObj;
     const map = get_map(mapid);
     const { arr, rows, cols, actors } = map;
-    const { dirid, dirname, deltax, deltay } = dir;
+    const { dirid, dirname, delta } = dir;
     const entity = get_entity(mapid, entityid);
     try {
         const $dir = $(document.createElement('div'));
         $dir
-            .addClass(`macro-shownav-direction macro-shownav-${dirid}`)
+            .addClass(`Navmap-dir`)
             .attr('data-dirid', dirid)
             .attr('data-dirname', dirname)
             .attr('data-mapid', mapid);
 
-        const x = entity.x + deltax;
-        const y = entity.y + deltay;
+        const x = entity.x + delta.x;
+        const y = entity.y + delta.y;
         const i = convert_xy2i({x,y}, mapid);
 
         if (
@@ -481,32 +503,42 @@ const dirs_4 = {
     C: {
         dirid   : 'C',
         dirname : 'center',
-        deltax  : 0,
-        deltay  : 0,
+        delta: {
+            x  :  0,
+            y  :  0,
+        },
     },
     N: {
         dirid   : 'N',
         dirname : 'north',
-        deltax  : 0,
-        deltay  : -1,
+        delta: {
+            x  :  0,
+            y  : -1,
+        },
     },
     E: {
         dirid   : 'E',
         dirname : 'east',
-        deltax  : 1,
-        deltay  : 0,
+        delta: {
+            x  :  1,
+            y  :  0,
+        },
     },
     S: {
         dirid   : 'S',
         dirname : 'south',
-        deltax  : 0,
-        deltay  : 1,
+        delta: {
+            x  :  0,
+            y  :  1,
+        },
     },
     W: {
         dirid   : 'W',
         dirname : 'west',
-        deltax  : -1,
-        deltay  : 0,
+        delta: {
+            x  : -1,
+            y  :  0,
+        },
     },
 };
 const dirs_8 = {
@@ -514,25 +546,33 @@ const dirs_8 = {
     NW: {
         dirid   : 'NW',
         dirname : 'northwest',
-        deltax  : -1,
-        deltay  : -1,
+        delta: {
+            x  : -1,
+            y  : -1,
+        },
     },
     NE: {
         dirid   : 'NE',
         dirname  : 'northeast',
-        deltax  : 1,
-        deltay  : -1,
+        delta: {
+            x  :  1,
+            y  : -1,
+        },
     },
     SE: {
         dirid   : 'SE',
         dirname  : 'southeast',
-        deltax  : 1,
-        deltay  : 1,
+        delta: {
+            x  :  1,
+            y  :  1,
+        },
     },
     SW: {
         dirid   : 'SW',
         dirname : 'southwest',
-        deltax  : -1,
-        deltay  : 1,
+        delta: {
+            x  : -1,
+            y  :  1,
+        },
     },
 };    

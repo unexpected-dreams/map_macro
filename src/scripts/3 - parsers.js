@@ -29,8 +29,9 @@ function check_required(argObj) {
 
     try {
         for (const a in args_tocheck) {
+            console.log(args_tocheck);
             if (typeof args_tocheck[a] === 'undefined') {
-                const error = `${id} - missing required argument "${a}"`;
+                const error = `${id} - missing required argument "${args_tocheck[a].label ?? a}"`;
                 return this.error(error)
             }
         }
@@ -102,6 +103,16 @@ function errors_common(argObj) {
     try {
 
         //////////////////////////////////////////////////
+        // ERROR: word contains spaces
+        if (
+            (args_tocheck[key].oneword)  &&
+            (val.includes(" "))
+        ) {
+            const error = `${id} - argument "${args_tocheck[key].label ?? key}" must be one word, no spaces`;
+            return this.error(error)
+        }
+
+        //////////////////////////////////////////////////
         if (args_tocheck[key].extant) {
             // ERROR: map doesn't exist
             if (
@@ -151,16 +162,6 @@ function errors_common(argObj) {
             (val <= 0)
         ) {
             const error = `${id} - argument "${args_tocheck[key].label ?? key}" must be greater than zero`;
-            return this.error(error)
-        }
-
-        //////////////////////////////////////////////////
-        // ERROR: word contains spaces
-        if (
-            (args_tocheck[key].oneword)  &&
-            (val.includes(" "))
-        ) {
-            const error = `${id} - argument "${args_tocheck[key].label ?? key}" must be one word, no spaces`;
             return this.error(error)
         }
     }
@@ -214,27 +215,27 @@ function check_xy(argObj) {
     try {
         // ERROR: x is less than 1
         if (x.val < 1) {
-            const error = `${id} - ${x.label} for "${entityid}" will exceed lower map boundary on "${mapid}"`;
+            const error = `${id} - ${x.label ?? "x"} for "${entityid}" will exceed lower map boundary on "${mapid}"`;
             return this.error(error)
         }
         // ERROR: x exceeds column #
         if (x.val > cols) {
-            const error = `${id} - ${x.label} for "${entityid}" will exceed upper map boundary on "${mapid}"`;
+            const error = `${id} - ${x.label ?? "x"} for "${entityid}" will exceed upper map boundary on "${mapid}"`;
             return this.error(error)
         }
         // ERROR: y is less than 1
         if (y.val < 1) {
-            const error = `${id} - ${y.label} for "${entityid}" will exceed lower map boundary on "${mapid}"`;
+            const error = `${id} - ${y.label ?? "y"} for "${entityid}" will exceed lower map boundary on "${mapid}"`;
             return this.error(error)
         }
         // ERROR: y exceeds row #
         if (y.val > rows) {
-            const error = `${id} - ${y.label} for "${entityid}" will exceed upper map boundary on "${mapid}"`;
+            const error = `${id} - ${y.label ?? "y"} for "${entityid}" will exceed upper map boundary on "${mapid}"`;
             return this.error(error)
         }
     }
     catch (error) {
-        console.error(`${id} - failed to check xy bounds on { "${x.label}" : "${x.val}", "${y.label}" : "${y.val}" } for "${mapid}" (check_xy)`);
+        console.error(`${id} - failed to check xy bounds on { "${x.label ?? "x"}" : "${x.val}", "${y.label ?? "y"}" : "${y.val}" } for "${mapid}" (check_xy)`);
         console.error(error);
     }
 }
@@ -280,6 +281,22 @@ function create_payObj(argObj) {
         const error = `${id} - failed, pays_tofill can't be empty (create_payObj)`;
         return this.error(error);
     }
+
+    // // create aliases
+    // const alias = {};
+    // for (const p in pays_tofill) {
+    //     alias[pays_tofill[p].tagname] = p;
+    //     if (pays_tofill[p].alias) {
+    //         if (Array.isArray(pays_tofill[p].alias)) {
+    //             for (const a of pays_tofill[p].alias) {
+    //                 alias[a] = p;
+    //             }
+    //         }
+    //         else {
+    //             alias[pays_tofill[p].alias] = p;
+    //         }
+    //     }
+    // }
 
     //////////////////////////////////////////////////
     const payObj = {};
