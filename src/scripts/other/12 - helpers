@@ -292,7 +292,7 @@ class Navmap {
         this.rows           = this.arr.length / this.cols;
         this.actors         = new Array(this.arr.length);
         this.displays       = {};
-        this.displaycount   = 0;
+        this.roses          = {};
 
         //////////////////////////////////////////////////
         // write everything floor first
@@ -330,11 +330,7 @@ class Navmap {
         this.entities       ??= {};
         // retrieve session data
         // TODO: overwriting boxes is allowed, entitites not allowed, perhaps some way to store entitiy xy into session?
-        const map_session   = session.get(mapid);
-        this.boxes          = map_session?.boxes
-                                ? map_session.boxes
-                            : this.boxes
-                                ?? {};
+        this.boxes          ??= {};
     }
 
     //////////////////////////////////////////////////

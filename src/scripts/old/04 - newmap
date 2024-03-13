@@ -1,0 +1,1525 @@
+// █    █ █████ █     █ █    █  ███  ████
+// ██   █ █     █     █ ██  ██ █   █ █   █
+// █ █  █ ███   █  █  █ █ ██ █ █████ ████
+// █  █ █ █     █ █ █ █ █    █ █   █ █
+// █   ██ █████  █   █  █    █ █   █ █
+// SECTION: newmap / new map
+
+/*  creates new navmap
+    input: 
+        mapid       (required)
+        inputmap    (required, macro payload / array)
+        inputtype   (required, macro source / type)
+        cols
+        diagonal
+*/
+
+//////////////////////////////////////////////////
+//////////////////////////////////////////////////
+Macro.add(["newnavmap", "new_navmap"], {
+
+    tags: null,
+
+    handler() {
+        // parse args
+        const argObj = create_argObj.call(this, {
+            id: this.name,
+            args_toparse: this.args,
+            args_tofill: {
+                // map identifiers
+                mapid: {
+                    type        : 'string',
+                    alias       : 'map',
+                },
+                mapname: {
+                    type        : 'string',
+                    alias       : 'name',
+                },
+                // map properties
+                cols: {
+                    type        : 'number',
+                    alias       : 'columns',
+                },
+                diagonal: {
+                    type        : 'boolean',
+                },
+            },
+        });
+        // parse macro payload into array
+        argObj.inputtype = 'array';
+        argObj.inputmap  = this.payload[0].contents.trim().split(/[\s\n]+/g);
+        argObj.source    = 'macro';
+        new_navmap.call(this, argObj);
+    },
+});
+
+//////////////////////////////////////////////////
+//////////////////////////////////////////////////
+function new_navmap(argObj) {
+
+    // necessary definitions
+    this.name   ??= argObj.id ?? "new_navmap";
+    this.error  ??= function(error) { throw new Error(error) };
+    
+    // extract from argObj
+    const { source, mapid, mapname, diagonal, inputtype, inputmap } = {
+        diagonal        : def.nav.diagonal,
+        ...argObj,
+    };
+
+    //////////////////////////////////////////////////
+    check_required.call(this, {
+        id: this.name, 
+        args_tocheck: {mapid, inputtype},
+    }); 
+    // ERROR: missing inputmap
+    if (! inputmap) {
+        return this.error(source === 'macro'
+                            ? `${this.name} - missing required macro payload`
+                            : `${this.name} - missing required input "inputmap"`);
+    }
+
+    const { cols } = argObj;
+
+    //////////////////////////////////////////////////
+    // check common errors
+    if (! def.skipcheck.common) {
+        check_common.call(this, {
+            id: this.name,
+            args_tocheck: {
+                mapid: {
+                    val         : mapid,
+                    oneword     : true,
+                },
+            },
+        });
+        if (cols) {
+            check_common.call(this, {
+                id: this.name,
+                args_tocheck: {
+                    cols: {
+                        val         : cols,
+                        integer     : true,
+                        positive    : true,
+                    },
+                }
+            });
+        }
+    }
+    
+    //////////////////////////////////////////////////
+    // create new Navmap
+    try {
+        const navmap = new Navmap(mapid, inputtype, inputmap, cols);
+        navmap.mapname     = mapname;
+        navmap.diagonal    = diagonal;
+    }
+    catch (error) {
+        console.error(`${this.name} - failed to create Navmap object for map "${mapid}" (new_navmap)`);
+        return this.error(error)
+    }
+
+    // calculate actors
+    calculate_actors.call(this, {mapid,diagonal});
+
+}
+
+
+
+
+// █    █ █████ █     █ █████ ███ █     █████
+// ██   █ █     █     █   █    █  █     █
+// █ █  █ ███   █  █  █   █    █  █     ███
+// █  █ █ █     █ █ █ █   █    █  █     █
+// █   ██ █████  █   █    █   ███ █████ █████
+// SECTION: new tile / newtile
+
+/*  defines map tiles
+    input:
+        mapid       (required)
+        name
+        type
+        element
+*/
+
+//////////////////////////////////////////////////
+//////////////////////////////////////////////////
+Macro.add(["newnavtile", "new_navtile"], {
+
+    tags: null,
+
+    handler() {
+        const argObj = create_argObj.call(this, {
+            id: this.name,
+            args_toparse: this.args,
+            args_tofill: {
+                mapid: {
+                    type        : 'string',
+                    alias       : 'map',
+                },
+                tileid: {
+                    type        : 'string',
+                    alias       : 'tile',
+                },
+                tilename: {
+                    type        : 'string',
+                    alias       : 'name',
+                },
+                tiletype: {
+                    type        : 'string',
+                    alias       : 'type',
+                },
+            },
+        });
+        argObj.displays = {};
+        for (const p of this.payload) {
+            const argObj_p = create_argObj.call(this, {
+                id: this.name,
+                args_toparse: p.pargs,
+                args_tofill: {
+                    displayid: {
+                        type    : 'string',
+                        alias   : 'display',
+                    }
+                },
+            });
+            const { displayid } = argObj_p;
+            argObj.displays[displayid] = contents = p?.contents?.trim();
+        }
+        argObj.source = "macro";
+        console.log(argObj);
+        // new_tile.call(this, argObj);
+    },
+});
+
+//////////////////////////////////////////////////
+//////////////////////////////////////////////////
+function new_tile(argObj) {
+
+    // necessary definitions
+    this.name   ??= argObj.id ?? "new_tile";
+    this.error  ??= function(error) { throw new Error(error) };
+
+    // extract from argObj
+    const { mapid, tileid, tilename, tiletype, tilehtml } = argObj;
+    const displayid = argObj.displayid ?? mapid;
+
+    check_required.call(this, {
+        id: this.name, 
+        args_tocheck: {mapid, tileid},
+    });
+    
+    //////////////////////////////////////////////////
+    // check common errors
+    if (! def.skipcheck.common) {
+        check_common.call(this, {
+            id: this.name,
+            args_tocheck: {
+                mapid: {
+                    val         : mapid,
+                    oneword     : true,
+                    extant      : true,
+                },
+                displayid: {
+                    val         : displayid,
+                    oneword     : true,
+                },
+                tileid: {
+                    val         : tileid,
+                    oneword     : true,
+                },
+            },
+        });
+        if (tilename) {
+            check_common.call(this, {
+                id: 'tilename',
+                args_tocheck: {
+                    name: {
+                        val     : tilename,
+                        oneword : true,
+                    },
+                }
+            });
+        }   
+        if (tiletype) {
+            check_common.call(this, {
+                id: 'tiletype',
+                args_tocheck: {
+                    type: {
+                        val     : tiletype,
+                        oneword : true,
+                    },
+                },
+            });
+        }   
+    }
+
+    //////////////////////////////////////////////////
+    // assign tile data
+    try {
+        const tile = get_tile(mapid, tileid);
+
+        // ERROR: no tile found
+        if (typeof tile === 'undefined') {
+            const error = `${this.name} - no tile with id "${tileid}" found in map "${mapid}"`;
+            return this.error(error);
+        }
+
+        if (tilename) {
+            tile.tilename = tilename;
+        }
+        if (tiletype) {
+            tile.tiletype = tiletype;
+        }
+        if (tilehtml) {
+            tile.tilehtml = tilehtml;
+        }
+    }
+    catch (error) {
+        console.error(`${this.name} - failed to create new tile definition for "${tileid}" on map "${mapid}" (new_tile)`);
+        console.error(error);
+    }
+}
+
+
+
+// █    █ █████ █     █ ████  ███  ████ ████  █      ███  █   █
+// ██   █ █     █     █ █   █  █  █     █   █ █     █   █  █ █
+// █ █  █ ███   █  █  █ █   █  █   ███  ████  █     █████   █
+// █  █ █ █     █ █ █ █ █   █  █      █ █     █     █   █   █
+// █   ██ █████  █   █  ████  ███ ████  █     █████ █   █   █
+// SECTION: newdisplay / new display
+
+//////////////////////////////////////////////////
+//////////////////////////////////////////////////
+Macro.add(["new_display","newdisplay"], {
+
+    handler() {
+        // parse args
+        const argObj = create_argObj.call(this, {
+            id: this.name,
+            args_toparse: this.args, 
+            args_tofill: {
+                mapid: {
+                    type        : 'string',
+                    alias       : 'map',
+                },
+                displayid: {
+                    type        : 'string',
+                    alias       : 'display',
+                },
+                cols_view: {
+                    type        : 'number',
+                    alias       : ['viewcolumns','cols','columns'],
+                },
+                rows_view: {
+                    type        : 'number',
+                    alias       : ['viewrows','rows'],
+                },
+                x0: {
+                    type        : 'number',
+                },
+                y0: {
+                    type        : 'number',
+                },
+                entityid_view: {
+                    type        : 'string',
+                    alias       : ['viewentity','entityid'],
+                },
+            },
+        });
+        argObj.source = "macro";
+        new_display.call(this, argObj);
+    },
+});
+
+//////////////////////////////////////////////////
+//////////////////////////////////////////////////
+function new_display(argObj) {
+
+    // necessary definitions
+    this.name   ??= argObj.id ?? "new_display";
+    this.error  ??= function(error) { throw new Error(error) };
+
+    // extract from argObj
+    const { mapid, rows_view, cols_view, x0, y0, entityid_view } = argObj;
+    // if no displayid given, use mapid
+    const displayid = argObj.displayid ?? mapid;
+
+    check_required.call(this, {
+        id: this.name,
+        args_tocheck: {mapid},
+    });
+
+    // ERROR: clobbering
+    if (
+        (! def.skipcheck.clobbering)   && 
+        get_display(mapid, displayid)
+    ) {
+        const error = `${this.name} - display with id "${displayid}" already exists for map "${mapid}"`;
+        return this.error(error)
+    }
+
+    //////////////////////////////////////////////////
+    // check for common errors
+    if (! def.skipcheck.common) {
+        check_common.call(this, {
+            id: this.name,
+            args_tocheck: {
+                mapid: {
+                    val         : mapid,
+                    oneword     : true,
+                    extant      : true,
+                },
+                displayid: {
+                    val         : displayid,
+                    oneword     : true,
+                },
+            },
+        });
+        if (rows_view || cols_view) {
+            check_common.call(this, {
+                id: this.name,
+                args_tocheck: {
+                    cols_view: {
+                        val         : cols_view,
+                        label       : 'view columns',
+                        positive    : true,
+                        integer     : true,
+                    },
+                    rows_view: {
+                        val         : rows_view,
+                        label       : 'view rows',
+                        positive    : true,
+                        integer     : true,
+                    },
+                },
+            });
+        }
+        if (entityid_view) {
+            check_common.call(this, {
+                id: this.name,
+                args_tocheck: {
+                    mapid: {
+                        val     : mapid,
+                    },
+                    entityid: {
+                        val     : entityid_view,
+                        label   : 'id of entity to track',
+                        extant  : true,
+                        oneword : true,
+                    },
+                },
+            });
+        }
+    }
+
+    // extract from map
+    const map = get_map(mapid);
+    const { cols, rows } = map;
+
+    //////////////////////////////////////////////////
+    // extract zoom stuff from argObj
+    try {
+        const entity_view = get_entity(mapid, entityid_view);
+
+        const cols_valid 
+            = Math.clamp(
+                1, 
+                cols, 
+                cols_view ?? rows_view ?? cols
+            );
+        const rows_valid 
+            = Math.clamp(
+                1, 
+                rows, 
+                rows_view ?? cols_view ?? rows
+            );        
+        const x0_valid
+            = typeof x0 !== 'undefined'
+                ? Math.clamp(
+                    1,
+                    cols - cols_view + 1,
+                    x0
+                )
+            : typeof entity_view !== 'undefined'
+                ? Math.clamp(
+                    1, 
+                    cols - cols_view + 1,
+                    entity_view.x - Math.floor(cols_view / 2)
+                )
+            : 1;
+        const y0_valid
+            = typeof y0 !== 'undefined'
+                ? Math.clamp(
+                    1,
+                    rows - rows_view + 1,
+                    y0
+                )
+            : typeof entity_view !== 'undefined'
+                ? Math.clamp(
+                    1, 
+                    rows - rows_view + 1, 
+                    y0 ?? (entity_view.y - Math.floor(rows_view / 2))
+                )
+            : 1;
+
+        // create & store new display data
+        map.displays[displayid] = {
+            mapid, 
+            displayid,
+            entityid_view,
+            cols_view   : cols_valid,
+            rows_view   : rows_valid, 
+            x0          : x0_valid,
+            y0          : y0_valid,
+        };
+    }
+    catch (error) {
+        console.error(`${this.name} - failed to create or retrieve display box data (new_display)`);
+        console.error(error);
+    }
+}
+//////////////////////////////////////////////////
+//////////////////////////////////////////////////
+Macro.add(["print_display","printdisplay"], {
+
+    handler() {
+        // parse args
+        const argObj = create_argObj.call(this, {
+            id: this.name,
+            args_toparse: this.args, 
+            args_tofill: {
+                mapid: {
+                    type        : 'string',
+                    alias       : 'map',
+                },
+                displayid: {
+                    type        : 'string',
+                    alias       : 'display',
+                },
+                cols_view: {
+                    type        : 'number',
+                    alias       : ['viewcolumns','cols','columns'],
+                },
+                rows_view: {
+                    type        : 'number',
+                    alias       : ['viewrows','rows'],
+                },
+                x0: {
+                    type        : 'number',
+                },
+                y0: {
+                    type        : 'number',
+                },
+            },
+        });
+        argObj.source = "macro";
+        print_display.call(this, argObj);
+    },
+});
+//////////////////////////////////////////////////
+//////////////////////////////////////////////////
+function print_display(argObj) {
+
+    // necessary definitions
+    this.name   ??= argObj.id ?? "print_display";
+    this.error  ??= function(error) { throw new Error(error) };
+
+    // extract from argObj
+    const { mapid } = argObj;
+    // if no displayid given, use mapid
+    const displayid = argObj.displayid ?? mapid;
+
+    check_required.call(this, {
+        id: this.name,
+        args_tocheck: {mapid},
+    });
+
+    const $display = $(document.createElement('div'));
+
+    //////////////////////////////////////////////////
+    // fill in static data for $display
+    try {
+        const display = get_display(mapid, displayid);
+        const { x0, y0, cols_view, rows_view } = {
+            ...display,
+            ...argObj,
+        };
+
+        $display
+            .addClass(`Navmap-display`)
+            .attr('data-mapid', mapid)
+            .attr('data-displayid',displayid)
+            .attr('data-root-x0', x0)
+            .attr('data-root-y0', y0)
+            .attr('data-root-cols_view', cols_view)
+            .attr('data-root-rows_view', rows_view)
+            // when null or undefined, nothing gets set
+            .attr('data-entity', entityid_view ?? undefined);
+
+    }
+    catch (error) {
+        console.error(`${this.name} - failed to intialize $display jQuery object`);
+        console.error(error);
+    }
+
+    // print tiles
+    update_display.call(this, {
+        mapid,
+        displayid,
+        $display
+    });
+
+    $display.appendTo(this.output);
+
+    
+    //////////////////////////////////////////////////
+    // create listeners
+    try {
+        setTimeout( function() {
+            // update functionality
+            $display.on(':update_display', function(ev, delta) {
+                $(this).children().remove();
+                update_display.call(this, {
+                    mapid,
+                    displayid,
+                    $display,
+                    delta,
+                });
+            });
+        }, 40)
+    }
+    catch (error) {
+        console.error(`${this.name} - failed to assign $display listeners`);
+        console.error(error);
+    }
+}
+//////////////////////////////////////////////////
+function update_display(argObj) {
+
+    // necessary definitions
+    this.name   ??= argObj.id ?? "update_display";
+    this.error  ??= function(error) { throw new Error(error) };
+
+    // extract from argObj
+    const { mapid, $display, delta } = argObj;
+    const displayid = argObj.displayid ?? mapid;
+
+    check_required.call(this, {
+        id: this.name,
+        args_tocheck: {mapid,displayid},
+    });
+
+    // extract from map
+    const map = get_map(mapid);
+    const display = get_display(mapid, displayid);
+    const { arr, entities, rows, cols } = map;
+    const { entityid_view } = display;
+
+    
+
+    // assign new values according to delta
+    if (typeof delta !== 'undefined') {
+        update_box({
+            mapid,
+            displayid,
+            delta,
+        });
+    }
+    // then extract from box
+    const box = get_box(mapid, displayid);
+    const { x0, y0, rows_view, cols_view } = box;
+    
+    // set grid columns first
+    $display.css({
+        'grid-template-columns' : `repeat(${cols_view}, 1fr)`,
+        'grid-template-rows'    : `repeat(${rows_view}, 1fr)`,
+    });
+
+    //////////////////////////////////////////////////
+    // print tiles
+    const printed_tiles = [];
+    try {
+
+        // convert top left x0 y0 to i0
+        const i0 = convert_xy2i({
+            x   : x0,
+            y   : y0,
+        }, mapid);
+        // iterate through array to width & height
+        for (let r = 1; r <= rows_view; r++) {
+            for (let c = 1; c <= cols_view; c++) {
+                // calculate array index
+                const i = i0 + (c-1) + (cols * (r-1));
+                const t = arr[i];
+                // print tile
+                const $t = print_tile.call(this, {
+                    mapid       : mapid,
+                    tile        : get_tile(mapid, t),
+                    col         : c,
+                    row         : r,
+                });
+                $t.appendTo($display);
+                // assign xy coordinates & track
+                const { x, y } = convert_i2xy(i, mapid);
+                $t
+                    .attr('data-x', x)
+                    .attr('data-y', y);
+                printed_tiles.push(i);
+            }
+        }
+    }
+    catch (error) {
+        console.error(`${this.name} - failed to print tiles for map display "${displayid}" (refresh_display)`);
+        console.error(error);
+    }
+    
+    //////////////////////////////////////////////////
+    // print entities
+    try {
+        for (const e in entities) {
+            const entity = entities[e];
+            const { x, y } = entity;
+            const i = convert_xy2i({x,y}, mapid);
+            // if i is in printed tiles, print
+            if (printed_tiles.includes(i)) {
+                const $e = print_entity.call(this, {
+                    mapid       : mapid,
+                    entity      : entity,
+                    col         : x - x0 + 1,
+                    row         : y - y0 + 1,
+                });
+                $e.appendTo($display);
+            }
+        }
+        // store data
+        $display
+            .attr('data-x0', x0)
+            .attr('data-y0', y0)
+            .attr('data-cols_view', cols_view)
+            .attr('data-rows_view', rows_view);
+    }
+    catch (error) {
+        console.error(`${this.name} - failed to print entities for map display "${displayid}" (refresh_display)`);
+        console.error(error);
+    }
+
+}
+
+
+
+
+// █    █ █████ █     █ ████   ████   ████ █████
+// ██   █ █     █     █ █   █ █    █ █     █
+// █ █  █ ███   █  █  █ ████  █    █  ███  ███
+// █  █ █ █     █ █ █ █ █   █ █    █     █ █
+// █   ██ █████  █   █  █   █  ████  ████  █████
+// SECTION: newrose
+
+//////////////////////////////////////////////////
+//////////////////////////////////////////////////
+Macro.add(["print_rose", "printrose"], {
+
+    // tags: [
+    //     'nav_north',        'navnorth',
+    //     'nav_east',         'naveast',
+    //     'nav_south',        'navsouth',
+    //     'nav_west',         'navwest',
+    //     'nav_northwest',    'navnorthwest',
+    //     'nav_northeast',    'navnortheast',
+    //     'nav_southeast',    'navsoutheast',
+    //     'nav_southwest',    'navsouthwest',
+    // ],
+
+    tags: null,
+
+    handler() {
+        // parse args
+        const argObj = create_argObj.call(this, {
+            id: this.name,
+            args_toparse: this.args, 
+            args_tofill: {
+                mapid: {
+                    type        : 'string',
+                    alias       : 'map',
+                },
+                entityid: {
+                    type        : 'string',
+                    alias       : 'entity',
+                },
+            },
+        });
+        argObj.rosehtml = this.payload[0].contents.trim();
+        argObj.source = "macro";
+        print_rose.call(this, argObj);
+        // #region - rose payloads
+        // const payObj = create_payObj.call(this, {
+        //     id: this.name,
+        //     pays_toparse: this.payload,
+        //     pays_tofill: {
+        //         north: {
+        //             tagname     : 'nav_north',
+        //             unique      : true,
+        //             noargs      : true,
+        //             alias       : 'navnorth',
+        //         },
+        //         east: {
+        //             tagname     : 'nav_east',
+        //             unique      : true,
+        //             noargs      : true,
+        //             alias       : 'naveast',
+        //         },
+        //         south: {
+        //             tagname     : 'nav_south',
+        //             unique      : true,
+        //             noargs      : true,
+        //             alias       : 'navsouth',
+        //         },
+        //         west: {
+        //             tagname     : 'nav_west',
+        //             unique      : true,
+        //             noargs      : true,
+        //             alias       : 'navwest',
+        //         },
+        //         northwest: {
+        //             tagname     : 'nav_northwest',
+        //             unique      : true,
+        //             noargs      : true,
+        //             alias       : 'navnorthwest',
+        //         },
+        //         northeast: {
+        //             tagname     : 'nav_northeast',
+        //             unique      : true,
+        //             noargs      : true,
+        //             alias       : 'navnortheast',
+        //         },
+        //         southeast: {
+        //             tagname     : 'nav_southeast',
+        //             unique      : true,
+        //             noargs      : true,
+        //             alias       : 'navsoutheast',
+        //         },
+        //         southwest: {
+        //             tagname     : 'nav_southwest',
+        //             unique      : true,
+        //             noargs      : true,
+        //             alias       : 'navsouthwest',
+        //         },
+        //     },
+        // });
+        // new_rose.call(this, {
+        //     ...argObj,
+        //     ...payObj,
+        // });
+        // #endregion
+    },
+});
+//////////////////////////////////////////////////
+//////////////////////////////////////////////////
+function print_rose(argObj) {
+
+    // necessary definitions
+    this.name   ??= argObj.id ?? "shownav";
+    this.error  ??= function(error) { throw new Error(error) };
+
+    // extract from argObj
+    const { mapid, entityid, rosehtml } = argObj;
+
+    check_required.call(this, {
+        id: this.name,
+        args_tocheck: {mapid, entityid},
+    });
+
+    // extract from map
+    const map = get_map(mapid);
+    const { diagonal } = map;
+    
+    //////////////////////////////////////////////////
+    // check common errors
+    if (! def.skipcheck.common) {
+        check_common.call(this, {
+            id: this.name,
+            args_tocheck: {
+                mapid: {
+                    val         : mapid,
+                    oneword     : true,
+                    extant      : true,
+                },
+                entityid: {
+                    val         : entityid,
+                    oneword     : true,
+                    extant      : true,
+                },
+            },
+        });
+    };
+
+    map.roses
+
+    // create rose
+    const $rose = $(document.createElement('div'));
+    const dirs = diagonal ? dirs_8 : dirs_4;
+
+    //////////////////////////////////////////////////
+    // fill rose
+    try {
+        $rose
+            .addClass(`Navmap-rose`)
+            .attr('data-mapid',mapid)
+            .attr('data-entityid',entityid)
+
+        // fill in each direction
+        for (const d in dirs) {
+            const $dir = print_dir.call(this, {
+                mapid       : mapid,
+                entityid    : entityid,
+                dir         : dirs[d],
+            });
+            $dir.appendTo($rose);
+        }
+    }
+    catch (error) {
+        console.error(`${this.name} - failed to create nav rose for map "${mapid}" (new_rose)`);
+        console.error(error);
+    }
+
+    // output
+    $rose.appendTo(this.output)
+    
+    //////////////////////////////////////////////////
+    try {
+        setTimeout( function() {
+            // click functionality
+            $rose.on('click', function(ev) {
+                const d = $(ev.target).attr('data-dirid');
+                const disabled  = typeof d === 'undefined'
+                                    ? true
+                                : d === "C"
+                                    ? true
+                                : $(ev.target).attr('data-disabled') === "true"
+                                    ? true
+                                : false;
+                if (! disabled) {
+                    $(this).trigger(':update_rose', dirs[d].delta);
+                    const mapid = $(this).attr('data-mapid');
+                    $(`.Navmap-display[data-mapid="${mapid}"]`).trigger(':update_display',dirs[d].delta);
+                }   
+            });
+            // update nav rose
+            $rose.on(':update_rose', function(ev, delta) {
+                const mapid = $(this).attr('data-mapid');
+                if (delta) {
+                    mov_entity.call(this ?? {}, {
+                        mapid,
+                        entityid,
+                        delta,
+                    });
+                }
+                $rose.html('');
+                for (const d in dirs) {
+                    const $dir = print_dir.call(this, {
+                        mapid       : mapid,
+                        entityid    : entityid,
+                        dir         : dirs[d],
+                    });
+                    $dir.appendTo($rose);
+                }
+            });
+        }, 40)
+    }
+    catch (error) {
+        console.error(`${this.name} -  failed to add click functionality to navrose for ${mapid}`);
+        console.error(error);
+    }
+};
+
+
+
+
+// ████  █████ █████ █████ █    █ █████ ███ █████ █   █
+// █   █ █     █     █     ██   █   █    █    █    █ █
+// █   █ ███   ███   ███   █ █  █   █    █    █     █
+// █   █ █     █     █     █  █ █   █    █    █     █
+// ████  █████ █     █████ █   ██   █   ███   █     █
+// SECTION: define entity / def entity
+
+//////////////////////////////////////////////////
+//////////////////////////////////////////////////
+Macro.add(["defentity", "def_entity"], {
+
+    tags: null,
+
+    handler() {
+        const argObj = create_argObj.call(this, {
+            id: this.name,
+            args_toparse: this.args, 
+            args_tofill: {
+                mapid: {
+                    type        : 'string',
+                    alias       : 'map',
+                },
+                entityid: {
+                    type        : 'string',
+                    alias       : 'entity',
+                },
+                entityname: {
+                    type        : 'string',
+                    alias       : 'name',
+                },
+                wall: {
+                    type        : 'boolean',
+                },
+                x: {
+                    type        : 'number',
+                },
+                y: {
+                    type        : 'number',
+                },
+            },
+        });
+        argObj.entityhtml = this.payload[0].contents.trim();
+        argObj.source = 'macro';
+        def_entity.call(this, argObj);
+    },
+});
+//////////////////////////////////////////////////
+//////////////////////////////////////////////////
+function def_entity(argObj) {
+
+    // necessary definitions
+    this.name   ??= argObj.id ?? "def_entity";
+    this.error  ??= function(error) { throw new Error(error) };
+
+    // extract from argObj
+    const { mapid, x, y, wall, entityid, entityname, entityhtml } = argObj;
+
+    check_required.call(this, {
+        id: this.name, 
+        args_tocheck: {mapid, x, y},
+    });
+    
+    //////////////////////////////////////////////////
+    // check common errors
+    if (! def.skipcheck.common) {
+        check_common.call(this, {
+            id: this.name,
+            args_tocheck: {
+                mapid: {
+                    val         : mapid,
+                    oneword     : true,
+                    extant      : true,
+                },
+                entityid: {
+                    val         : entityid,
+                    oneword     : true,
+                },
+                x: {
+                    val         : x,
+                    integer     : true,
+                },
+                y: {
+                    val         : y,
+                    integer     : true,
+                },
+            },
+        });
+    }
+    // check xy bounds
+    if (! def.skipcheck.xybounds) {
+        check_xy.call(this, {
+            id: this.name,
+            mapid       : mapid,
+            entityid    : entityid,
+            x: {
+                val     : x,
+                label   : "entity x position",
+            },
+            y: {
+                val     : y,
+                label   : "entity y position",
+            },
+        });
+    }
+    
+    const map = get_map(mapid);
+
+    //////////////////////////////////////////////////
+    // create & store entity information
+    try {
+        // add to map object
+        map.entities[String(entityid)] = {
+            mapid           : mapid,
+            entityid        : String(entityid),
+            entityname      : entityname,
+            entityhtml      : entityhtml,
+            x               : x,
+            y               : y,
+            wall            : wall,
+        };
+    }
+    catch (error) {
+        console.error(`${this.name} - failed to add entity "${entityid}" to map "${mapid}" (def_entity)`);
+        console.error(error);
+    }
+
+    //////////////////////////////////////////////////
+    // update displays & roses
+    try {
+        const $display = $(`.Navmap-display[data-mapid="${mapid}"]`);
+        if ($display.length) {
+            $display.trigger(':update_display');
+        }
+        const $rose = $(`.Navmap-rose[data-mapid="${mapid}"]`);
+        if ($rose.length) {
+            $rose.trigger(':update_rose');
+        }
+    }
+    catch (error) {
+        console.error(`${this.name} - failed to update displays and roses for map "${mapid}" (def_entity)`);
+        console.error(error);
+    }
+
+}
+
+
+
+// ████  █████ █     █████ █    █ █████ ███ █████ █   █
+// █   █ █     █     █     ██   █   █    █    █    █ █
+// █   █ ███   █     ███   █ █  █   █    █    █     █
+// █   █ █     █     █     █  █ █   █    █    █     █
+// ████  █████ █████ █████ █   ██   █   ███   █     █
+// SECTION: delentity / delete entity
+
+//////////////////////////////////////////////////
+//////////////////////////////////////////////////
+Macro.add(["delentity"], {
+
+    handler() {
+        const argObj = create_argObj.call(this, {
+            id: this.name,
+            args_toparse: this.args, 
+            args_tofill: {
+                mapid: {
+                    type        : 'string',
+                    alias       : 'map',
+                },
+                entityid: {
+                    type        : 'string',
+                    alias       : 'entity',
+                },
+            },
+        });
+        del_entity.call(this, argObj);
+    },
+});
+//////////////////////////////////////////////////
+//////////////////////////////////////////////////
+function del_entity(argObj) {
+
+    // necessary definitions
+    this.name   ??= argObj.id ?? "del_entity";
+    this.error  ??= function(error) { throw new Error(error) };
+
+    // extract from argObj
+    const { mapid, entityid } = argObj;
+
+    check_required.call(this, {
+        id: this.name, 
+        args_tocheck: {mapid, entityid},
+    });
+
+    //////////////////////////////////////////////////
+    // check common errors
+    if (! def.skipcheck.common) {
+        check_common.call(this, {
+            id: this.name,
+            args_tocheck: {
+                mapid: {
+                    val     : mapid,
+                    oneword : true,
+                    extant  : true,
+                },
+                entityid: {
+                    val     : entityid,
+                    oneword : true,
+                    extant  : true,
+                },
+            },
+        });
+    }
+
+    // extract from map
+    const map = get_map(mapid);
+    const { diagonal, entities } = map;
+
+    //////////////////////////////////////////////////
+    // delete entity
+    try {
+        delete entities[entityid];
+            
+        // if entity displayed, remove it
+        const $e = $(`.Navmap-entity[data-entityid="${entityid}"]`);
+        if ($e.length) {
+            $e.remove();
+            calculate_actors.call(this, {mapid,diagonal});
+            $(`.Navmap-display[data-mapid="${mapid}"]`).trigger(':update_display');
+        }
+    }
+    catch (error) {
+        console.error(`${this.name} - failed to delete entity "${entityid}" from "${mapid}"`);
+        console.error(error);
+    }
+}
+
+
+
+// █    █  ████  █   █ █████ █    █ █████ ███ █████ █   █
+// ██  ██ █    █ █   █ █     ██   █   █    █    █    █ █
+// █ ██ █ █    █ █   █ ███   █ █  █   █    █    █     █
+// █    █ █    █  █ █  █     █  █ █   █    █    █     █
+// █    █  ████    █   █████ █   ██   █   ███   █     █
+// SECTION: moventity
+
+//////////////////////////////////////////////////
+//////////////////////////////////////////////////
+Macro.add(["moventity", "mov_entity"], {
+
+    handler() {
+        const argObj = create_argObj.call(this, {
+            id: this.name,
+            args_toparse: this.args,
+            args_tofill: {
+                mapid: {
+                    type        : 'string',
+                    alias       : 'map',
+                },
+                entityid: {
+                    type        : 'string',
+                    alias       : 'entity',
+                },
+                deltax: {
+                    type        : 'number',
+                    alias       : 'x',
+                },
+                deltay: {
+                    type        : 'number',
+                    alias       : 'y',
+                },
+                ignorewalls: {
+                    type        : 'boolean',
+                },
+                delta: {
+                    type        : 'object',
+                },
+            },
+        });
+        argObj.delta ??= {
+            x: argObj.deltax ?? 0,
+            y: argObj.deltay ?? 0,
+        }
+        mov_entity.call(this, argObj);
+    },
+});
+//////////////////////////////////////////////////
+//////////////////////////////////////////////////
+function mov_entity(argObj) {
+
+    // necessary definitions
+    this.name   ??= argObj.id ?? "moventity";
+    this.error  ??= function(error) { throw new Error(error) };
+    
+    // extract from argObj
+    const { mapid, entityid, delta, ignorewalls } = argObj;
+
+    check_required.call(this, {
+        id: this.name, 
+        args_tocheck: {mapid, entityid},
+    });
+
+    // extract from map
+    const map = get_map(mapid);
+    const { cols, actors, diagonal } = map;
+    const entity = get_entity(mapid, entityid);
+    const { x, y } = entity;
+
+    //////////////////////////////////////////////////
+    // check common errors
+    if (! def.skipcheck.common) {
+        check_common.call(this, {
+            id: this.name,
+            args_tocheck: {
+                mapid: {
+                    val     : mapid,
+                    oneword : true,
+                    extant  : true,
+                },
+                entityid: {
+                    val     : entityid,
+                    oneword : true,
+                    extant  : true,
+                },
+                deltax: {
+                    val     : delta.x,
+                    label   : "delta x",
+                    integer : true,
+                },
+                deltay: {
+                    val     : delta.y,
+                    label   : "delta y",
+                    integer : true,
+                },
+            },
+        });
+    }
+    // check xy bounds
+    if (! def.skipcheck.xybounds) {
+        check_xy.call(this, {
+            id: this.name,
+            mapid       : mapid,
+            entityid    : entityid,
+            x: {
+                val     : x + delta.x,
+                label   : "new x position after delta x",
+            },
+            y: {
+                val     : y + delta.y,
+                label   : "new y position after delta y",
+            },
+        });
+    }
+
+    //////////////////////////////////////////////////
+    // update to new position, or don't depending on wall
+    try {
+        const i = convert_xy2i({
+            x   : x + delta.x,
+            y   : y + delta.y,
+        }, mapid);
+
+        if (! (ignorewalls || def.noclip)) {
+            // if wall
+            if (actors[i].wall.length > 0) {
+                if (def.collisionerror) {
+                    const error = `${this.name} - collision detected for entity "${entityid}" on "${mapid}"`
+                    return this.error(error)
+                }
+                else {
+                    return
+                }
+            }
+        }
+        
+        entity.x += delta.x ?? 0;
+        entity.y += delta.y ?? 0;
+        calculate_actors.call(this, {mapid,diagonal});
+
+        $(`.Navmap-display[data-mapid="${mapid}"]`).trigger(':update_display');
+        $(`.Navmap-rose[data-mapid="${mapid}"]`).trigger(':update_rose');
+        
+    }
+
+    //////////////////////////////////////////////////
+    catch (error) {
+        console.error(`${this.name} - failed to move entity "${entityid}" on "${mapid}"`);
+        console.error(error);
+    }
+}
+
+
+//  ████ █████ █████ █████ █    █ █████ ███ █████ █   █
+// █     █       █   █     ██   █   █    █    █    █ █
+//  ███  ███     █   ███   █ █  █   █    █    █     █
+//     █ █       █   █     █  █ █   █    █    █     █
+// ████  █████   █   █████ █   ██   █   ███   █     █
+// SECTION: setentity / set entity
+
+    Macro.add("setentity", {
+
+        handler() {
+            //////////////////////////////////////////////////
+            //////////////////////////////////////////////////
+            const argObj = create_argObj.call(this, {
+                id: this.name,
+                args_toparse: this.args,
+                args_tofill: {
+                    mapid: {
+                        type        : 'string',
+                        alias       : 'map',
+                    },
+                    entityid: {
+                        type        : 'string',
+                        alias       : 'entity',
+                    },
+                    x: {
+                        type        : 'number',
+                    },
+                    y: {
+                        type        : 'number',
+                    },
+                },
+            });
+            this.self.handlerJS.call(this, argObj);
+        },
+
+        handlerJS(argObj) {
+            //////////////////////////////////////////////////
+            //////////////////////////////////////////////////
+            // necessary definitions
+            this.name   ??= argObj.id ?? "moventity";
+            this.error  ??= function(error) { throw new Error(error) };
+            // extract from argObj
+            const { mapid, entityid, x, y } = argObj;
+            if (! def.skipcheck.common) {
+                check_common.call(this, {
+                    id: this.name,
+                    args_tocheck: {
+                        mapid: {
+                            val     : mapid,
+                            oneword : true,
+                            extant  : true,
+                        },
+                        entityid: {
+                            val     : entityid,
+                            oneword : true,
+                            extant  : true,
+                        },
+                        x: {
+                            val     : x,
+                            integer : true,
+                        },
+                        y: {
+                            val     : y,
+                            integer : true,
+                        },
+                    },
+                });
+            }
+            // extract from map
+            const map = get_map(mapid);
+            const { mapsn, actors, cols, diagonal } = map;
+
+            try {
+
+                const entity = get_entity(mapid, entityid);
+
+                //////////////////////////////////////////////////
+                // validate xy
+                if (! def.skipcheck.xybounds) {
+                    check_xy.call(this, {
+                        id: this.name,
+                        mapid       : mapid,
+                        entityid    : entityid,
+                        x: {
+                            val     : x,
+                            label   : "new x position",
+                        },
+                        y: {
+                            val     : y,
+                            label   : "new y position",
+                        },
+                    });
+                }
+                entity.x = x;
+                entity.y = y;
+
+                calculate_actors.call(this, {mapid,diagonal});
+
+                $(`[data-sn="${mapsn}"]`).trigger(':update_map');
+
+            }
+            catch (error) {
+                console.error(`${this.name} - failed to set positition for entity "${entityid}" on map "${mapid}"`);
+                console.error(error);
+            }
+        }
+        
+    });
+
+
+//////////////////////////////////////////////////
+//////////////////////////////////////////////////
+function calculate_actors(argObj) {
+
+    // shortcut handling for if only given mapid as string
+    if (typeof argObj === 'string') {
+        argObj = {mapid: argObj};
+    }
+
+    // necessary definitions
+    this.name   ??= argObj.id ?? "mapcalculate";
+    this.error  ??= function(error) { throw new Error(error) };
+
+    // extract from argObj
+    const { mapid, diagonal } = argObj;
+
+    check_required.call(this, {
+        id: this.name, 
+        args_tocheck: {mapid},
+    });
+
+    // extract from map
+    const map = get_map(mapid);
+    const { arr, actors, entities } = map;
+
+    //////////////////////////////////////////////////
+    // fill in walltypes
+    try {
+        for (let i = 0; i < arr.length; i++) {
+            const t = arr[i];
+            const tile = get_tile(mapid, t);
+            // reset actors
+            actors[i] = {};
+            actors[i].tileid = tile.tileid;
+            actors[i].wall = [];
+            actors[i].overlap = [];
+            actors[i].adjacent = [];
+            if (tile.tiletype === def.wall.tiletype) {
+                actors[i].wall.push({tile:tile.tileid});
+            }
+        }
+    }
+    catch (error) {
+        console.error(`${this.name} - failed to assign walltypes while calculating actors for map "${mapid}" (calculate_actors)`);
+        console.error(error);
+    }
+
+    ////////////////////////////////////////////////
+    // check all entities
+    try {
+        for (const e in entities) {
+            const { wall, x, y, entityid } = entities[e];
+            const i = convert_xy2i({x,y}, mapid);
+
+            // wall
+            if (wall) {
+                actors[i].wall.push({entity:entityid});
+            }
+
+            // overlap
+            actors[i].overlap.push({entity:entityid});
+
+            // adjacent
+            const dirs  = Object.assign({}, diagonal ? dirs_8 : dirs_4);
+            // remove center
+            delete dirs.C;
+            // iterate around
+            for (const d in dirs) {
+                const j = convert_xy2i({
+                    x   : x + dirs[d].delta.x,
+                    y   : y + dirs[d].delta.y,
+                }, mapid);
+                if (j >= 0 && j < arr.length-1) {
+                    actors[j].adjacent.push({entity:entityid});
+                }
+            }
+        }
+    }
+    catch (error) {
+        console.error(`${this.name} - failed to check entities while calculating actors map "${mapid}" (calculate_actors)`);
+        console.error(error);
+    }
+}
+
+
+

@@ -88,3 +88,13 @@ sugarcube-2:
       name: entityhandler
     mapzoom:
       name: mapzoom
+    newnavtile:
+      name: newnavtile
+      container: true
+    newnavmap:
+      name: newnavmap
+      container: true
+    displayhtml:
+      name: displayhtml
+    print_navdisplay:
+      name: print_navdisplay

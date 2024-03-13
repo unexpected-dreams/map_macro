@@ -35,15 +35,13 @@ demo map
     x	x	x	.	.	.	.	.	x	x	x	x	x	x	x	x	x	x	x	x	x	x	x	x	x	x
 
 <</newnavmap>>
-<<newnavtile "." tiletype 'wall'>>
-        -
-<</newnavtile>>
-<<newnavtile 'x' tiletype 'floor'>>
-    x
-    <<displayhtml 'test'>>
-    XX
-<</newnavtile>>
-/* <<newentity 
+/* <<newtile 'demo' ".">>
+        X
+<</newtile>>
+<<newtile 'demo' 'x'>>
+    <div></div>
+<</newtile>> */
+<<newentity 
     mapid       'demo'
     entityid    'player1'
     entityname  'Player 1'
@@ -61,7 +59,7 @@ demo map
     wall        true
 >>
     <div style="color:yellow; font-size: 2rem;">O</div>
-<</newentity>> */
+<</newentity>>
 
 /* <<defineplayer 'demo' 2 2>>
     <span style="color:red; font-size: 2rem;">O</span>
@@ -70,10 +68,12 @@ demo map
 
 :: Start
 map
-<<print_navdisplay 
-    displayid       'demo'
+<<newdisplay 
+    mapid       'demo'
+    viewcolumns 7
+    viewrows    7
 >>
-/* <span style="color:red">player1</span> nav
+<span style="color:red">player1</span> nav
 <<link 'test'>>
     <<delentity 'demo' 'player1'>>
 <</link>>
@@ -81,14 +81,14 @@ map
     mapid       'demo'
     entityid    'player1'
 >>
-<</newrose>> */
-/* <span style="color:yellow">player2</span> nav */
+<</newrose>>
+<span style="color:yellow">player2</span> nav
 /* <<shownav 
     mapid       'demo'
     entityid    'player2'
 >>
 <</shownav>> */
-/* other stuff
+other stuff
 - <<link 'zoom in'>>
     <<mapzoom --zoomin 'demo'>>
 <</link>>
@@ -112,7 +112,7 @@ map
         <<setentity 'demo' 'player1' _x _y>>
     <</if>>
 <</link>> <span style="padding-left: 1rem">x: <input type='text' id='xinput'> y: <input type='text' id='yinput'></span>
-- go to [[otherpassage]] */
+- go to [[otherpassage]]
 <style>
     :root {
         --mapwidth: 40rem;

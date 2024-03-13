@@ -1,0 +1,574 @@
+const config={map:{},tile:{},wall:{},floor:{},nav:{},player:{},building:{},object:{},npc:{},skipcheck:{}};
+    
+//  ████ █████ █████ █████ ███ █    █  ███   ████
+// █     █       █     █    █  ██   █ █     █
+//  ███  ███     █     █    █  █ █  █ █  ██  ███
+//     █ █       █     █    █  █  █ █ █   █     █
+// ████  █████   █     █   ███ █   ██  ███  ████
+// SECTION: settings
+    
+
+// BASIC settings
+//  most users should only ever need to change these
+
+    // simple map size calculator, will not work with CSS formulas or variables
+    // map.sizingmode will ONLY take the following:
+    // "auto"   treats height & width maximums and will create the largest map possible
+    // "width"  sizes tiles off map.width, ignores map.height
+    // "height" sizes tiles off map.height, ignores map.width
+    // "tile"   ignores both, sizes tile directly using tile.width & tile.height
+    // "off"    turns off the any attempts to size the map
+    config.sizingmode           = "auto";
+    config.map.width            = 20;       
+    config.map.height           = 15;       
+    config.map.unit             = "rem";
+
+    // player movement
+    config.nav.diagonal         = false;        // true enables diagonal movement by default
+
+    // navigation rose
+    config.nav.width            = 15;
+    config.nav.height           = 12;
+    config.nav.unit             = "rem"
+    config.nav.sizingoff        = false;        // true disables all attempts to size nav
+
+    // default tile def, can also be specified using <<maptile>>
+    config.wall.tileid          = ".";          // default map input character for walls
+    config.floor.tileid         = "x";
+
+    
+
+// ADVANCED settings
+//  for fancier maps, trickier to work with
+
+    // how much map changes by default when zooming or panning
+    config.map.zoom             = 2;            // # tiles view expands or shrinks
+    config.map.panx             = 1;            // # tiles panning left or right
+    config.map.pany             = 1;            // # tiles panning up or down
+
+    // actors indices and collision checks
+    config.player.wall          = true;           // true means others collide into it
+    config.building.wall        = true;
+    config.object.wall          = false;
+    config.npc.wall             = false;
+
+    // make non-square tiles
+    config.tile.width           = 2;            // width > height for fat tiles
+    config.tile.height          = 2;            // width < height for tall tiles
+
+    // checks that entities are always within map boundaries
+    config.skipcheck.xybounds   = false;        // true will allow negative coordinates
+
+
+
+// IAMBIGBOI settings
+//  experimental, expect things to break
+
+    // checks if unused inputs are being given
+    config.skipcheck.unused     = false;        // true will suppress & ignore errors
+
+    // identification keywords
+    config.wall.tiletype        = "wall";       // used to checked for collisions
+    config.floor.tiletype       = "floor";      // assigned to all non-wall tiles by default
+
+    // collsion checks
+    config.noclip               = false;        // true turns off all collision checks
+    config.collisionerror       = false;        // true will throw an error when collision happens
+
+
+
+// GIMMEROPE settings
+//  "What map? I'm here to break something." — you
+
+    // guardrails
+    config.allowclobbering      = false;        // true allows clobbering maps and entities
+    config.skipcheck.common     = false;        // check args against common errors
+
+    // global object, setup setup namespace, State namespace
+    // can't be set via setup settings
+    config.disableglobal        = false;        // true removes the global object
+    config.setupname            = '@navmap';    // default, setup['@navmap']
+    config.globalname           = 'Navmap';     // default, navmap
+    config.Statename            = '@navmap';    // default, State.variables['@navmap']
+
+
+
+// █    █ ███  ████  ████     █   █ █████ █     ████  █████ ████   ████
+// ██  ██  █  █     █         █   █ █     █     █   █ █     █   █ █
+// █ ██ █  █   ███  █         █████ ███   █     ████  ███   ████   ███
+// █    █  █      █ █         █   █ █     █     █     █     █   █     █
+// █    █ ███ ████   ████     █   █ █████ █████ █     █████ █   █ ████
+// SECTION: misc helpers
+
+setup[config.setupname] ??= {};
+State.variables[config.Statename] ??= {};
+State.variables[config.Statename].local ??= {};
+State.variables[config.Statename].global ??= {};
+
+//////////////////////////////////////////////////
+//////////////////////////////////////////////////
+// proxy for setup settings
+const def = new Proxy(config, get_controller(setup[config.setupname]));
+function get_controller(control) {
+    return {
+        get(t,p) {
+            debug.log('proxy','entered proxy');
+            if (typeof control === 'undefined' || typeof control[p] === 'undefined') {
+                debug.log('entered undefined');
+                return t[p]
+            }
+            else {
+                debug.log('proxy','entered defined');
+                if (typeof control[p] === 'object' && ! control[p].isproxy) {
+                    debug.log('proxy','created proxy');
+                    control[p] = new Proxy(config[p], get_controller(control[p]))
+                    control[p].isproxy = true;
+                }
+                return control[p]
+            }
+        }
+    }
+}
+
+//////////////////////////////////////////////////
+//////////////////////////////////////////////////
+// convert between xy & i
+function convert_i2xy(i, mapid) {
+    const map = get_map(mapid);
+    const { arr, cols } = map;
+    if (
+        i < 0       ||
+        i > arr.length
+    ) {
+        return {}
+    }
+    const x = (i % cols) + 1;
+    const y = (i - x + 1) / cols + 1;
+    return {x, y}
+}
+function convert_xy2i(xy, mapid) {
+    const map = get_map(mapid);
+    const { rows, cols } = map;
+    const { x, y } = xy;
+    if (
+        x < 1       || 
+        x > rows    ||
+        y < 1       ||
+        y > cols
+    ) {
+        return -1
+    }
+    const i = (y - 1) * cols + x - 1;
+    return i
+}
+function update_box(argObj) {
+
+    // extract from argObj
+    const { mapid, displayid, delta } = argObj;
+    // extract from map
+    const map = get_map(mapid);
+    const { rows, cols } = map;
+    // extract from box
+    const box = get_box(mapid, displayid);
+    const x0_old    = box.x0;
+    const y0_old    = box.y0;
+    const cols_old  = box.cols_view;
+    const rows_old  = box.rows_view;
+
+    // calculate new values
+    const cols_new  = Math.clamp(
+                        1, 
+                        cols, 
+                        cols_old + (delta.cols ?? 0)
+                    );
+    const rows_new  = Math.clamp(
+                        1, 
+                        rows, 
+                        rows_old + (delta.rows ?? 0)
+                    );
+    const x0_new    = Math.clamp(
+                        1, 
+                        cols - cols_new + 1, 
+                        x0_old + Math.floor((cols_old - cols_new) / 2) + (delta.x ?? 0)
+                    );
+    const y0_new    = Math.clamp(
+                        1, 
+                        rows - rows_new + 1, 
+                        y0_old + Math.floor((rows_old - rows_new) / 2) + (delta.y ?? 0)
+                    );
+
+    // write new values
+    map.boxes[displayid] = {
+        x0          : x0_new,
+        y0          : y0_new,
+        cols_view   : cols_new,
+        rows_view   : rows_new,
+    };
+}
+
+//////////////////////////////////////////////////
+//////////////////////////////////////////////////
+// retrieve data
+function get_map(...args) {
+    const mapid = args[0].mapid ?? args[0];
+    return navmaps[mapid]
+}
+function get_tile(...args) {
+    const mapid = args[0].mapid ?? args[0];
+    const tileid = args[0].tileid ?? args[1];
+    const map = get_map(mapid);
+    return map.tiles[tileid]
+}
+function get_entity(...args) {
+    const mapid = args[0].mapid ?? args[0];
+    const entityid = args[0].entityid ?? args[1];
+    const map = get_map(mapid);
+    return map.entities[entityid]
+}
+function get_display(...args) {
+    const mapid = args[0].mapid ?? args[0];
+    const displayid = args[0].displayid ?? args[1];
+    const map = get_map(mapid);
+    return map.displays[displayid]
+}
+function get_box(...args) {
+    const mapid = args[0].mapid ?? args[0];
+    const displayid = args[0].displayid ?? args[1];
+    const map = get_map(mapid);
+    return map.boxes[displayid]
+}
+function get_overlap(...args) {
+    const mapid = args[0].mapid ?? args[0];
+    const entityid = args[0].entityid ?? args[1];
+    const map = get_map(mapid);
+    const { cols, actors } = map;
+    const entity = get_entity(mapid, entityid);
+    const { x, y } = entity;
+    const i = convert_xy2i({x,y}, mapid);
+    return actors[i].overlap.filter( e => e !== entityid );
+}
+function get_adjacent(...args) {
+    const mapid = args[0].mapid ?? args[0];
+    const entityid = args[0].entityid ?? args[1];
+    const map = get_map(mapid);
+    const { cols, actors } = map;
+    const entity = get_entity(mapid, entityid);
+    const { x, y } = entity;
+    const i = convert_xy2i({x,y}, mapid);
+    return actors[i].adjacent.filter( e => e !== entityid );
+}
+
+
+
+
+// █    █  ███  █   █ █    █  ███  ████       ████ █      ███   ████  ████
+// ██   █ █   █ █   █ ██  ██ █   █ █   █     █     █     █   █ █     █
+// █ █  █ █████ █   █ █ ██ █ █████ ████      █     █     █████  ███   ███
+// █  █ █ █   █  █ █  █    █ █   █ █         █     █     █   █     █     █
+// █   ██ █   █   █   █    █ █   █ █          ████ █████ █   █ ████  ████
+// SECTION: Navmap class
+
+// stores maps
+const navmaps = {};
+setup.navmaps = navmaps;
+
+//////////////////////////////////////////////////
+//////////////////////////////////////////////////
+// Navmap class object
+class Navmap {
+    constructor(mapid,arr,cols) {
+
+        // ERROR: clobbering
+        if (! def.allowclobbering && navmaps[mapid]) {
+            throw new Error(`Navmap with map id "${mapid}" already exists`);
+        }
+
+        // create
+        navmaps[String(mapid)] = this;
+        // fill in data
+        this.mapid          = String(mapid);
+        this.arr            = arr,
+        this.cols           = cols,
+        this.rows           = this.arr.length / this.cols;
+        this.actors         = new Array(this.arr.length);
+        this.displays       = {};
+        this.displaycount   = 0;
+
+        //////////////////////////////////////////////////
+        // write everything floor first
+        this.tiles = {};
+        for (const t of new Set(this.arr)) {
+            this.tiles[String(t)] = {
+                mapid       : this.mapid,
+                tileid      : String(t),
+                tilename    : t,
+                tiletype    : def.floor.tiletype,
+                tilehtml    : t,
+            };
+        }
+        // then write from default
+        this.tiles[String(def.wall.tileid)] = {
+            mapid           : this.mapid,
+            tileid          : String(def.wall.tileid),
+            tilename        : def.wall.tileid,
+            tiletype        : def.wall.tiletype,
+            tilehtml        : def.wall.tileid,
+        };
+        this.tiles[String(def.floor.tileid)] = {
+            mapid           : this.mapid,
+            tileid          : String(def.floor.tileid),
+            tilename        : def.floor.tileid,
+            tiletype        : def.floor.tiletype,
+            tilehtml        : def.floor.tileid,
+        };
+        
+        //////////////////////////////////////////////////
+        // create only if non-existent, otherwise use State data
+        State.variables[config.Statename][this.mapid] ??= {};
+        
+        // create entities if non-existent
+        this.entities       ??= {};
+        // retrieve session data
+        // TODO: overwriting boxes is allowed, entitites not allowed, perhaps some way to store entitiy xy into session?
+        this.boxes          ??= {};
+    }
+
+    //////////////////////////////////////////////////
+    // make it so entities & displays retrieve from & set to State
+    get entities() {
+        return  State.variables[config.Statename][this.mapid].entities
+    }
+    set entities(val) {
+                State.variables[config.Statename][this.mapid].entities = val;
+    }
+    get boxes() {
+        return  State.variables[config.Statename][this.mapid].boxes
+    }
+    set boxes(val) {
+                State.variables[config.Statename][this.mapid].boxes = val;
+    }
+}
+
+//////////////////////////////////////////////////
+// set global
+if (! config.disableglobal) {
+    Object.defineProperty(window, config.globalname, {
+        value: Navmap,
+    });
+}
+
+
+
+
+// ████  ████  ███ █    █ █████
+// █   █ █   █  █  ██   █   █
+// ████  ████   █  █ █  █   █
+// █     █   █  █  █  █ █   █
+// █     █   █ ███ █   ██   █
+// SECTION: print elements
+
+//////////////////////////////////////////////////
+//////////////////////////////////////////////////
+function print_tile(argObj) {
+    const { mapid, tile, row, col }= argObj;
+    const { tileid, tilename, tiletype, tilehtml } = tile;
+    try {
+        const $t = $(document.createElement('div'))
+        $t
+            .addClass(`Navmap-tile`)
+            .addClass(tiletype)
+            .attr('title', tilename)
+            .attr('data-tileid', tileid)
+            .attr('data-tilename', tilename)
+            .attr('data-tiletype', tiletype)
+            .css({
+                "grid-column"   : `${col} / span 1`,
+                "grid-row"      : `${row} / span 1`,
+            })
+            .wiki(tilehtml
+                    ? tilehtml
+                    : tileid            // use id as fallback
+            );
+        return $t
+    }
+    //////////////////////////////////////////////////
+    catch (error) {
+        console.error(`${this.name} - failed to create tile element at "${i}" on "${mapid}" for ${this.name}`);
+        console.error(error);
+    }
+}
+
+//////////////////////////////////////////////////
+//////////////////////////////////////////////////
+function print_entity(argObj) {
+    const { mapid, entity, col, row } = argObj;
+    const { entityid, entityname, entityhtml } = entity;
+    try {
+        const $e = $(document.createElement('div'));
+        $e
+            .addClass(`Navmap-entity`)
+            .attr('title', entityname)
+            .attr('data-entityid', entityid)
+            .wiki(entityhtml       
+                    ? entityhtml
+                    : entityid          // use name as fallback
+            )
+            .css({
+                "grid-column"   : `${col} / span 1`,
+                "grid-row"      : `${row} / span 1`,
+            });
+        return $e
+    }
+    //////////////////////////////////////////////////
+    catch (error) {
+        console.error(`${this.name} - failed to create entity element for "${entityid}" on "${mapid}"`);
+        console.error(error);
+    }
+}
+
+//////////////////////////////////////////////////
+//////////////////////////////////////////////////
+function print_dir(argObj) {
+    const { mapid, entityid, dir } = argObj;
+    const map = get_map(mapid);
+    const { arr, rows, cols, actors } = map;
+    const { dirid, dirname, delta } = dir;
+    const entity = get_entity(mapid, entityid);
+    try {
+        const $dir = $(document.createElement('div'));
+        $dir
+            .addClass(`Navmap-dir`)
+            .attr('data-dirid', dirid)
+            .attr('data-dirname', dirname)
+            .attr('data-mapid', mapid);
+
+        const x = entity.x + delta.x;
+        const y = entity.y + delta.y;
+        const i = convert_xy2i({x,y}, mapid);
+
+        if (
+            (i >= 0)        &&
+            (y >= 1)        &&
+            (y <= rows)     &&
+            (x >= 1)        &&
+            (x <= cols)
+        ) {
+            const tile = get_tile(mapid, arr[i]);
+            const { tileid, tilename } = tile;
+            const disabled = actors[i].wall.length > 0;
+            $dir
+                .attr('data-disabled', disabled)
+                .attr('data-tileid', tileid)
+                .wiki(! disabled
+                        ? tilename
+                            ? tilename
+                            : tileid
+                        : '');
+        }
+        else {
+            $dir
+                .attr('data-disabled', true)
+                .attr('data-tileid', null)
+        }
+
+        return $dir
+    }
+    //////////////////////////////////////////////////
+    catch (error) {
+        console.error(`${this.name} - failed to create nav direction "${dirname}" for map "${mapid}"`);
+        console.error(error);
+    }
+}
+
+
+
+// ████  █████ █████     █   █  ███  █     █   █ █████  ████
+// █   █ █     █         █   █ █   █ █     █   █ █     █
+// ████  ███   ███       █   █ █████ █     █   █ ███    ███
+// █   █ █     █          █ █  █   █ █     █   █ █         █
+// █   █ █████ █           █   █   █ █████  ███  █████ ████
+// SECTION: ref values / reference values
+
+//////////////////////////////////////////////////
+//////////////////////////////////////////////////
+const cssunit = {
+    exact: ['cm','mm','Q','in','pc','pt','px','em','ex','ch','rem','lh','rlh','vw','vh','vmin','vmax','vb','vi','svw','svh','lvh','dvw','dvh','%'],
+    label: "any valid 'CSS unit'",
+};
+const dirs_4 = {
+    C: {
+        dirid   : 'C',
+        dirname : 'center',
+        delta: {
+            x  :  0,
+            y  :  0,
+        },
+    },
+    N: {
+        dirid   : 'N',
+        dirname : 'north',
+        delta: {
+            x  :  0,
+            y  : -1,
+        },
+    },
+    E: {
+        dirid   : 'E',
+        dirname : 'east',
+        delta: {
+            x  :  1,
+            y  :  0,
+        },
+    },
+    S: {
+        dirid   : 'S',
+        dirname : 'south',
+        delta: {
+            x  :  0,
+            y  :  1,
+        },
+    },
+    W: {
+        dirid   : 'W',
+        dirname : 'west',
+        delta: {
+            x  : -1,
+            y  :  0,
+        },
+    },
+};
+const dirs_8 = {
+    ...dirs_4,
+    NW: {
+        dirid   : 'NW',
+        dirname : 'northwest',
+        delta: {
+            x  : -1,
+            y  : -1,
+        },
+    },
+    NE: {
+        dirid   : 'NE',
+        dirname  : 'northeast',
+        delta: {
+            x  :  1,
+            y  : -1,
+        },
+    },
+    SE: {
+        dirid   : 'SE',
+        dirname  : 'southeast',
+        delta: {
+            x  :  1,
+            y  :  1,
+        },
+    },
+    SW: {
+        dirid   : 'SW',
+        dirname : 'southwest',
+        delta: {
+            x  : -1,
+            y  :  1,
+        },
+    },
+};    

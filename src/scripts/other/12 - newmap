@@ -206,6 +206,10 @@ Macro.add(["newtile","new_tile"], {
                     type        : 'string',
                     alias       : 'map',
                 },
+                displayid: {
+                    type        : 'string',
+                    alias       : 'display',
+                },
                 tileid: {
                     type        : 'string',
                     alias       : 'tile',
@@ -236,6 +240,7 @@ function new_tile(argObj) {
 
     // extract from argObj
     const { mapid, tileid, tilename, tiletype, tilehtml } = argObj;
+    const displayid = argObj.displayid ?? mapid;
 
     check_required.call(this, {
         id: this.name, 
@@ -252,6 +257,10 @@ function new_tile(argObj) {
                     val         : mapid,
                     oneword     : true,
                     extant      : true,
+                },
+                displayid: {
+                    val         : displayid,
+                    oneword     : true,
                 },
                 tileid: {
                     val         : tileid,
@@ -320,16 +329,6 @@ function new_tile(argObj) {
 // SECTION: newdisplay / new display
 
 //////////////////////////////////////////////////
-// save box data to session
-$(window).on('beforeunload', function(ev) {
-    for (const mapid in navmaps) {
-        const map = navmaps[mapid];
-        const { boxes } = map;
-        session.set(mapid, {boxes});
-    }
-});
-
-//////////////////////////////////////////////////
 //////////////////////////////////////////////////
 Macro.add(["new_display","newdisplay"], {
 
@@ -347,13 +346,19 @@ Macro.add(["new_display","newdisplay"], {
                     type        : 'string',
                     alias       : 'display',
                 },
-                rows_view: {
-                    type        : 'number',
-                    alias       : 'viewrows',
-                },
                 cols_view: {
                     type        : 'number',
-                    alias       : 'viewcolumns',
+                    alias       : ['viewcolumns','cols','columns'],
+                },
+                rows_view: {
+                    type        : 'number',
+                    alias       : ['viewrows','rows'],
+                },
+                x0: {
+                    type        : 'number',
+                },
+                y0: {
+                    type        : 'number',
                 },
                 entityid_view: {
                     type        : 'string',
@@ -375,7 +380,7 @@ function new_display(argObj) {
     this.error  ??= function(error) { throw new Error(error) };
 
     // extract from argObj
-    const { mapid } = argObj;
+    const { mapid, rows_view, cols_view, x0, y0, entityid_view } = argObj;
     // if no displayid given, use mapid
     const displayid = argObj.displayid ?? mapid;
 
@@ -410,20 +415,6 @@ function new_display(argObj) {
                 },
             },
         });
-    }
-
-    // extract from map
-    const map = get_map(mapid);
-    const { mapname, cols, rows, diagonal } = map;
-
-    //////////////////////////////////////////////////
-    // extract zoom stuff from argObj
-    const { entityid_view } = argObj;
-    // use squre if reciprocal not found for zoom
-    const rows_view = argObj.rows_view ?? argObj.cols_view;
-    const cols_view = argObj.cols_view ?? argObj.rows_view;
-    // check common errors
-    if (! def.skipcheck.common) {
         if (rows_view || cols_view) {
             check_common.call(this, {
                 id: this.name,
@@ -442,15 +433,6 @@ function new_display(argObj) {
                     },
                 },
             });
-            // ERROR: zoom greater than map size
-            if (cols_view > cols) {
-                const error = `${this.name} - view columns can't be greater than total # of columns on map "${mapid}"`;
-                return this.error(error)
-            }
-            if (rows_view > rows) {
-                const error = `${this.name} - view rows can't be greater than total # of rows on map "${mapid}"`;
-                return this.error(error)
-            }
         }
         if (entityid_view) {
             check_common.call(this, {
@@ -469,69 +451,139 @@ function new_display(argObj) {
             });
         }
     }
-    
 
-    // create & store new display data
-    map.displays[displayid] = {
-        mapid, 
-        displayid,
-        rows_view, 
-        cols_view, 
-        entityid_view,
-    };
-
-    const entity_view = get_entity(mapid, entityid_view);
+    // extract from map
+    const map = get_map(mapid);
+    const { cols, rows } = map;
 
     //////////////////////////////////////////////////
-    // retrieve & set box data
+    // extract zoom stuff from argObj
     try {
-        const boxes = session.get(mapid)?.boxes;
-        // session data found
-        if (
-            (typeof boxes !== 'undefined')  &&
-            (typeof boxes[displayid] !== 'undefined')
-        ) {
-            map.boxes[displayid] = boxes[displayid];
-        }
-        else if (
-            (typeof map.boxes[displayid] === 'undefined')
-        ) {
-            const x0    = typeof entity_view === 'undefined'
-                            ? 1
-                            : Math.clamp(
-                                1, 
-                                cols - cols_view + 1,
-                                entity_view.x - Math.floor(cols_view / 2)
-                            );
-            const y0    = typeof entity_view === 'undefined'
-                            ? 1
-                            : Math.clamp(
-                                1, 
-                                rows - rows_view + 1, 
-                                entity_view.y - Math.floor(rows_view / 2)
-                            );
-            map.boxes[displayid] = {
-                x0, 
-                y0, 
-                cols_view, 
-                rows_view,
-            };
-        }
+        const entity_view = get_entity(mapid, entityid_view);
+
+        const cols_valid 
+            = Math.clamp(
+                1, 
+                cols, 
+                cols_view ?? rows_view ?? cols
+            );
+        const rows_valid 
+            = Math.clamp(
+                1, 
+                rows, 
+                rows_view ?? cols_view ?? rows
+            );        
+        const x0_valid
+            = typeof x0 !== 'undefined'
+                ? Math.clamp(
+                    1,
+                    cols - cols_view + 1,
+                    x0
+                )
+            : typeof entity_view !== 'undefined'
+                ? Math.clamp(
+                    1, 
+                    cols - cols_view + 1,
+                    entity_view.x - Math.floor(cols_view / 2)
+                )
+            : 1;
+        const y0_valid
+            = typeof y0 !== 'undefined'
+                ? Math.clamp(
+                    1,
+                    rows - rows_view + 1,
+                    y0
+                )
+            : typeof entity_view !== 'undefined'
+                ? Math.clamp(
+                    1, 
+                    rows - rows_view + 1, 
+                    y0 ?? (entity_view.y - Math.floor(rows_view / 2))
+                )
+            : 1;
+
+        // create & store new display data
+        map.displays[displayid] = {
+            mapid, 
+            displayid,
+            entityid_view,
+            cols_view   : cols_valid,
+            rows_view   : rows_valid, 
+            x0          : x0_valid,
+            y0          : y0_valid,
+        };
     }
     catch (error) {
         console.error(`${this.name} - failed to create or retrieve display box data (new_display)`);
         console.error(error);
     }
+}
+//////////////////////////////////////////////////
+//////////////////////////////////////////////////
+Macro.add(["print_display","printdisplay"], {
+
+    handler() {
+        // parse args
+        const argObj = create_argObj.call(this, {
+            id: this.name,
+            args_toparse: this.args, 
+            args_tofill: {
+                mapid: {
+                    type        : 'string',
+                    alias       : 'map',
+                },
+                displayid: {
+                    type        : 'string',
+                    alias       : 'display',
+                },
+                cols_view: {
+                    type        : 'number',
+                    alias       : ['viewcolumns','cols','columns'],
+                },
+                rows_view: {
+                    type        : 'number',
+                    alias       : ['viewrows','rows'],
+                },
+                x0: {
+                    type        : 'number',
+                },
+                y0: {
+                    type        : 'number',
+                },
+            },
+        });
+        argObj.source = "macro";
+        print_display.call(this, argObj);
+    },
+});
+//////////////////////////////////////////////////
+//////////////////////////////////////////////////
+function print_display(argObj) {
+
+    // necessary definitions
+    this.name   ??= argObj.id ?? "print_display";
+    this.error  ??= function(error) { throw new Error(error) };
+
+    // extract from argObj
+    const { mapid } = argObj;
+    // if no displayid given, use mapid
+    const displayid = argObj.displayid ?? mapid;
+
+    check_required.call(this, {
+        id: this.name,
+        args_tocheck: {mapid},
+    });
 
     const $display = $(document.createElement('div'));
 
     //////////////////////////////////////////////////
     // fill in static data for $display
     try {
-        const box = get_box(mapid, displayid);
         const display = get_display(mapid, displayid);
-        const { x0, y0, cols_view, rows_view } = box;
-        const { entityid_view } = display
+        const { x0, y0, cols_view, rows_view } = {
+            ...display,
+            ...argObj,
+        };
 
         $display
             .addClass(`Navmap-display`)
@@ -559,63 +611,6 @@ function new_display(argObj) {
 
     $display.appendTo(this.output);
 
-    // #region - $container
-    // const $container = $(document.createElement('div'));
-    // ////////////////////////////////////////////////
-    // create $container
-    // try {
-    //     $container
-    //                 .addClass('macro-newdisplay-container')
-    //                 .append($display);
-    //     // title
-    //     $(document.createElement('div'))
-    //                 .addClass('macro-newdisplay-title')
-    //                 .wiki(mapname ?? '')
-    //                 .appendTo($container)
-    //     if (entityid_view) {
-    //         // zoom buttons
-    //         $(document.createElement('div'))
-    //                 .addClass('macro-newdisplay-topbuttons')
-    //                 // 
-    //                 .append(
-    //                     $(document.createElement('button'))
-    //                             .addClass('macro-newdisplay-recenter')
-    //                             .wiki('C')
-    //                 )
-    //                 // zoom buttons
-    //                 .append(
-    //                     $(document.createElement('button'))
-    //                             .addClass('macro-newdisplay-zoombutton')
-    //                             .attr('data-mode','in')
-    //                             .wiki('+')
-    //                 )
-    //                 .append(
-    //                     $(document.createElement('button'))
-    //                             .addClass('macro-newdisplay-zoombutton')
-    //                             .attr('data-mode','out')
-    //                             .wiki('-')
-    //                 )
-    //                 .appendTo($container);
-    //         // pan buttons
-    //         for (const d of ["up","down","left","right"]) {
-    //             const $d = $(document.createElement('button'))
-    //             $d
-    //                 .addClass('macro-newdisplay-panbutton')
-    //                 .attr('data-mode',d)
-    //                 .wiki(d.first().toUpperCase())
-    //                 .appendTo($container);
-    //         }
-    //     }
-        
-    //     $container.appendTo(this.output);
-
-    // }
-    // catch (error) {
-    //     console.log(`${this.name} - failed to create and append container for $display for "${mapid}" (new_display)`);
-    //     console.error(error);
-    // }
-    // #endregion
-
     
     //////////////////////////////////////////////////
     // create listeners
@@ -631,24 +626,6 @@ function new_display(argObj) {
                     delta,
                 });
             });
-            // #region - more $container
-            // $container.on('click', function(ev) {
-            //     // pan button functinoality
-            //     if ($(ev.target).hasClass('macro-newdisplay-panbutton')) {
-            //         const mode = $(ev.target).attr('data-mode');
-            //         map_pan.call(this, {id:this.name,mapid,mode});
-            //     }
-            //     // zoom button functionality
-            //     if ($(ev.target).hasClass('macro-newdisplay-zoombutton')) {
-            //         const mode = $(ev.target).attr('data-mode');
-            //         map_zoom.call(this, {id:this.name,mapid,mode});
-            //     }
-            //     // recenter functionality
-            //     if ($(ev.target).hasClass('macro-newdisplay-recenter')) {
-            //         maprecenter.call(this, {id:this.name,mapid});
-            //     }
-            // });
-            // #endregion
         }, 40)
     }
     catch (error) {
@@ -780,7 +757,7 @@ function update_display(argObj) {
 
 //////////////////////////////////////////////////
 //////////////////////////////////////////////////
-Macro.add(["newrose", "new_rose"], {
+Macro.add(["print_rose", "printrose"], {
 
     // tags: [
     //     'nav_north',        'navnorth',
@@ -813,7 +790,7 @@ Macro.add(["newrose", "new_rose"], {
         });
         argObj.rosehtml = this.payload[0].contents.trim();
         argObj.source = "macro";
-        new_rose.call(this, argObj);
+        print_rose.call(this, argObj);
         // #region - rose payloads
         // const payObj = create_payObj.call(this, {
         //     id: this.name,
@@ -878,7 +855,7 @@ Macro.add(["newrose", "new_rose"], {
 });
 //////////////////////////////////////////////////
 //////////////////////////////////////////////////
-function new_rose(argObj) {
+function print_rose(argObj) {
 
     // necessary definitions
     this.name   ??= argObj.id ?? "shownav";
@@ -915,6 +892,8 @@ function new_rose(argObj) {
             },
         });
     };
+
+    map.roses
 
     // create rose
     const $rose = $(document.createElement('div'));
@@ -996,16 +975,16 @@ function new_rose(argObj) {
 
 
 
-// █    █ █████ █     █ █████ █    █ █████ ███ █████ █   █
-// ██   █ █     █     █ █     ██   █   █    █    █    █ █
-// █ █  █ ███   █  █  █ ███   █ █  █   █    █    █     █
-// █  █ █ █     █ █ █ █ █     █  █ █   █    █    █     █
-// █   ██ █████  █   █  █████ █   ██   █   ███   █     █
-// SECTION: new entity / newentity
+// ████  █████ █████ █████ █    █ █████ ███ █████ █   █
+// █   █ █     █     █     ██   █   █    █    █    █ █
+// █   █ ███   ███   ███   █ █  █   █    █    █     █
+// █   █ █     █     █     █  █ █   █    █    █     █
+// ████  █████ █     █████ █   ██   █   ███   █     █
+// SECTION: define entity / def entity
 
 //////////////////////////////////////////////////
 //////////////////////////////////////////////////
-Macro.add(["newentity", "new_entity"], {
+Macro.add(["defentity", "def_entity"], {
 
     tags: null,
 
@@ -1039,15 +1018,15 @@ Macro.add(["newentity", "new_entity"], {
         });
         argObj.entityhtml = this.payload[0].contents.trim();
         argObj.source = 'macro';
-        new_entity.call(this, argObj);
+        def_entity.call(this, argObj);
     },
 });
 //////////////////////////////////////////////////
 //////////////////////////////////////////////////
-function new_entity(argObj) {
+function def_entity(argObj) {
 
     // necessary definitions
-    this.name   ??= argObj.id ?? "new_entity";
+    this.name   ??= argObj.id ?? "def_entity";
     this.error  ??= function(error) { throw new Error(error) };
 
     // extract from argObj
@@ -1106,12 +1085,6 @@ function new_entity(argObj) {
     //////////////////////////////////////////////////
     // create & store entity information
     try {
-        // ERROR: entity already exists
-        if (! def.allowclobbering && get_entity(mapid, entityid)) {
-            const error = `${this.name} - entity with id "${entityid}" already exists in map "${mapid}"`;
-            return this.error(error)
-        }
-
         // add to map object
         map.entities[String(entityid)] = {
             mapid           : mapid,
@@ -1124,9 +1097,27 @@ function new_entity(argObj) {
         };
     }
     catch (error) {
-        console.error(`${this.name} - failed to add entity "${entityid}" to "${mapid}"`);
+        console.error(`${this.name} - failed to add entity "${entityid}" to map "${mapid}" (def_entity)`);
         console.error(error);
     }
+
+    //////////////////////////////////////////////////
+    // update displays & roses
+    try {
+        const $display = $(`.Navmap-display[data-mapid="${mapid}"]`);
+        if ($display.length) {
+            $display.trigger(':update_display');
+        }
+        const $rose = $(`.Navmap-rose[data-mapid="${mapid}"]`);
+        if ($rose.length) {
+            $rose.trigger(':update_rose');
+        }
+    }
+    catch (error) {
+        console.error(`${this.name} - failed to update displays and roses for map "${mapid}" (def_entity)`);
+        console.error(error);
+    }
+
 }
 
 
@@ -1207,7 +1198,7 @@ function del_entity(argObj) {
             
         // if entity displayed, remove it
         const $e = $(`.Navmap-entity[data-entityid="${entityid}"]`);
-        if ($e) {
+        if ($e.length) {
             $e.remove();
             calculate_actors.call(this, {mapid,diagonal});
             $(`.Navmap-display[data-mapid="${mapid}"]`).trigger(':update_display');
@@ -1484,37 +1475,6 @@ function mov_entity(argObj) {
     });
 
 
-
-
-// █    █  ███  ████   ████  ███  █      ████ █   █ █      ███  █████ █████
-// ██  ██ █   █ █   █ █     █   █ █     █     █   █ █     █   █   █   █
-// █ ██ █ █████ ████  █     █████ █     █     █   █ █     █████   █   ███
-// █    █ █   █ █     █     █   █ █     █     █   █ █     █   █   █   █
-// █    █ █   █ █      ████ █   █ █████  ████  ███  █████ █   █   █   █████
-// SECTION: map calculate / mapcalculate
-
-//////////////////////////////////////////////////
-//////////////////////////////////////////////////
-Macro.add("mapcalculate", {
-
-    handler() {
-        const argObj = create_argObj.call(this, {
-            id: this.name,
-            args_toparse: this.args,
-            args_tofill: {
-                mapid: {
-                    type        : 'string',
-                    alias       : 'map',
-                },
-                diagonal: {
-                    type        : 'boolean',
-                }
-            },
-        });
-        calculate_actors.call(this, argObj);
-    },
-});
-
 //////////////////////////////////////////////////
 //////////////////////////////////////////////////
 function calculate_actors(argObj) {
@@ -1601,404 +1561,3 @@ function calculate_actors(argObj) {
 
 
 
-// █████  ████   ████  █    █
-//    █  █    █ █    █ ██  ██
-//   █   █    █ █    █ █ ██ █
-//  █    █    █ █    █ █    █
-// █████  ████   ████  █    █
-// SECTION: zoom
-
-    // Macro.add("map_zoom", {
-        
-    //     handler() {
-    //         //////////////////////////////////////////////////
-    //         //////////////////////////////////////////////////
-    //         // parse args
-    //         const argObj = create_argObj.call(this, {
-    //             id: this.name,
-    //             args_toparse: this.args,
-    //             args_tofill: {
-    //                 keyword: {
-    //                     type        : [
-    //                                     {exact: "--zoomin"},
-    //                                     {exact: "--zoomout"},
-    //                                 ],
-    //                 },
-    //                 mapid: {
-    //                     type        : 'string',
-    //                     alias       : 'map',
-    //                 },
-    //                 mode: {
-    //                     type        : [
-    //                                     {exact: 'in'},
-    //                                     {exact: 'out'},
-    //                                 ],
-    //                 },
-    //                 class: {
-    //                     type        : 'string',
-    //                 },
-    //                 zoom: {
-    //                     type        : 'number',
-    //                 },
-    //             },
-    //         });
-
-    //         map_zoom.call(this, argObj);
-    //     },
-    // });
-    // const map_zoom = function(argObj) {
-    //     // necessary definitions
-    //     this.name   ??= argObj.id ?? "zoom";
-    //     this.error  ??= function(error) { throw new Error(error) };
-    //     // extract from argObj
-    //     const { mapid, zoom } = {
-    //         zoom    : def.map.zoom,
-    //         ...argObj
-    //     };
-    //     // ERROR: redundant operation declaration
-    //     if (! def.skipcheck.unused) {
-    //         if (argObj.mode && argObj.keyword) {
-    //             const error = `${this.name} - including both a zoom keyword and a "mode" input is redundant, only the keyword will be used`;
-    //             return this.error(error)
-    //         }
-    //     }
-    //     const mode  = argObj.keyword
-    //                     ? argObj.keyword.replace('--zoom','')
-    //                     : argObj.mode;
-    //     // check required
-    //     check_required.call(this, {
-    //         id: this.name,
-    //         args_tocheck: {mapid, mode},
-    //     });
-    //     // check common
-    //     if (! def.skipcheck.common) {
-    //         check_common.call(this, {
-    //             id: this.name,
-    //             args_tocheck: {
-    //                 mapid: {
-    //                     val         : mapid,
-    //                     extant      : true,
-    //                     oneword     : true,
-    //                 },
-    //                 zoom: {
-    //                     val         : zoom,
-    //                     integer     : true,
-    //                     positive    : true,
-    //                 },
-    //             },
-    //         });
-    //         if (argObj.class) {
-    //             check_common.call(this, {
-    //                 id: this.name,
-    //                 args_tocheck: {
-    //                     class: {
-    //                         val     : argObj.class,
-    //                         oneword : true,
-    //                     },
-    //                 },
-    //             });
-    //         }
-    //     }
-    //     // ERROR: invalid mode input
-    //     if (
-    //         typeof mode !== 'undefined' &&
-    //         mode !== 'in'   &&
-    //         mode !== 'out'
-    //     ) {
-    //         const error = `${this.name} - invalid "mode" input, must be exactly the string 'in' or 'out'`;
-    //     }
-    //     const adjust    = mode === 'in'
-    //                         ? -1
-    //                         :  1;
-    //     // extract from map
-    //     const map = get_map(mapid);
-    //     const { cols, rows } = map;
-
-    //     try {
-    //         // get map object
-    //         const $display = argObj.class
-    //                         ? $(`.macro-newdisplay-map[data-mapid="${mapid}"]`).filter(`.${argObj.class}`)
-    //                         : $(`.macro-newdisplay-map[data-mapid="${mapid}"]`);
-    //         // only do anything if map is tracking
-    //         if ($display.attr('data-tracked')) {
-    //             const viewrows_old      = Number($display.attr('data-viewrows'));
-    //             const viewcols_old   = Number($display.attr('data-viewcols'));
-    //             const zoom_new          = Number($display.attr('data-zoom')) + zoom * adjust;
-    //             const viewrows_new      = viewrows_old    + zoom_new;
-    //             const viewcols_new   = viewcols_old + zoom_new;
-    //             // only change if new view doesn't exceed bounds
-    //             if (
-    //                 (viewrows_new    >= 1)          &&
-    //                 (viewcols_new >= 1)          &&
-    //                 (viewrows_new    <= rows)       &&
-    //                 (viewcols_new <= cols)
-    //             ) {
-    //                 console.log({viewcols_new,viewrows_new});
-    //                 $display
-    //                     .attr('data-zoom', zoom_new)
-    //                     .trigger(':update_map');
-    //             }
-    //         }
-    //     }
-    //     catch (error) {
-    //         console.error(`${this.name} - failed to zoom ${mode} for map "${mapid}"`);
-    //         console.error(error);
-    //     }
-    // }
-
-
-
-// ████   ███  █    █
-// █   █ █   █ ██   █
-// ████  █████ █ █  █
-// █     █   █ █  █ █
-// █     █   █ █   ██
-// SECTION:
-    // Macro.add("map_pan", {
-            
-    //     handler() {
-    //         //////////////////////////////////////////////////
-    //         //////////////////////////////////////////////////
-    //         // parse args
-    //         const argObj = create_argObj.call(this, {
-    //             id: this.name,
-    //             args_toparse: this.args, 
-    //             args_tofill: {
-    //                 keyword: {
-    //                     type        : [
-    //                                     {exact: '--left'},
-    //                                     {exact: '--right'},
-    //                                     {exact: '--up'},
-    //                                     {exact: '--down'},
-    //                                 ],
-    //                 },
-    //                 mapid: {
-    //                     type        : 'string',
-    //                     alias       : 'map',
-    //                 },
-    //                 class: {
-    //                     type        : 'string',
-    //                 },
-    //                 mode: {
-    //                     type        : [
-    //                                     {exact: 'left'},
-    //                                     {exact: 'right'},
-    //                                     {exact: 'up'},
-    //                                     {exact: 'down'},
-    //                                 ],
-    //                 },
-    //                 panx: {
-    //                     type        : 'number',
-    //                 },
-    //                 pany: {
-    //                     type        : 'number',
-    //                 },
-    //             },
-    //         });
-
-    //         map_pan.call(this, argObj);
-    //     },
-    // });
-    // const map_pan = function(argObj) {
-    //     //////////////////////////////////////////////////
-    //     //////////////////////////////////////////////////
-    //     // necessary definitions
-    //     this.name   ??= argObj.id ?? "pan";
-    //     this.error  ??= function(error) { throw new Error(error) };
-    //     // extract from argObj
-    //     const { mapid } = argObj;
-    //     // ERROR: redundant operation declaration
-    //     if (! def.skipcheck.unused) {
-    //         if (argObj.mode && argObj.keyword) {
-    //             const error = `${this.name} - including both a direction keyword and a "mode" input is redundant, only the keyword will be used`;
-    //             return this.error(error)
-    //         }
-    //     }
-    //     const mode  = argObj.keyword
-    //                     ? argObj.keyword.replace("--pan","")
-    //                     : argObj.mode;
-    //     check_required.call(this, {
-    //         id: this.name,
-    //         args_tocheck: {mapid},
-    //     });
-    //     // ERROR: no pan or mode input
-    //     if (! argObj.panx && ! argObj.pany && ! mode) {
-    //         const error = `${this.name} - missing required input for one of 'panx' or 'pany' or 'mode', or use of one of keywords '--left' or '--right' or '--up' or '--down'`;
-    //         return this.error(error)
-    //     }
-    //     // ERROR: invalid mode input
-    //     if (
-    //         typeof mode !== "undefined" && 
-    //         mode !== "right"    && 
-    //         mode !== "left"     && 
-    //         mode !== "up"       && 
-    //         mode !== "down"
-    //     ) {
-    //         const error = `${this.name} - invalid "mode" input, if used it must be exactly the string 'left' or 'right' or 'up' or 'down'`;
-    //         return this.error(error)
-    //     }
-    //     // check unused
-    //     if (! def.skipcheck.unused) {
-    //         // ERROR: unused pany
-    //         if ((mode === "left" || mode === "right") && argObj.pany) {
-    //             const error = `${this.name} - 'pany' value is not used when panning left or right`;
-    //             return this.error(error)
-    //         }
-    //         // ERROR: unused panx
-    //         if ((mode === "up" || mode === "down") && argObj.panx) {
-    //             const error = `${this.name} - 'panx' value is not used when panning up or down`;
-    //             return this.error(error)
-    //         }
-    //     }
-    //     // get pan
-    //     const panx  = mode === "up" || mode === "down"
-    //                     ?  0
-    //                 : mode === "left"
-    //                     ? -1 * Math.abs(argObj.panx ?? def.map.panx)
-    //                 : mode === "right"
-    //                     ?  1 * Math.abs(argObj.panx ?? def.map.panx)
-    //                 : argObj.panx ?? 0;
-    //     const pany  = mode === "left" || mode === "right"
-    //                     ?  0
-    //                 : mode === "up"
-    //                     ? -1 * Math.abs(argObj.pany ?? def.map.pany)
-    //                 : mode === "down"
-    //                     ?  1 * Math.abs(argObj.pany ?? def.map.pany)
-    //                 : argObj.pany ?? 0;
-    //     // check common
-    //     if (! def.skipcheck.common) {
-    //         check_common.call(this, {
-    //             id: this.name,
-    //             args_tocheck: {
-    //                 panx: {
-    //                     val         : panx,
-    //                     integer     : true,
-    //                 },
-    //                 pany: {
-    //                     val         : pany,
-    //                     integer     : true,
-    //                 },
-    //             },
-    //         });
-    //     }
-    //     // extract from map
-    //     const map = get_map(mapid);
-    //     const { cols, rows } = map;
-
-    //     try {
-    //         const $display = argObj.class
-    //                         ? $(`.macro-newdisplay-map[data-mapid="${mapid}"]`).filter(`.${argObj.class}`)
-    //                         : $(`.macro-newdisplay-map[data-mapid="${mapid}"]`);
-    //         // only do anything if tracked
-    //         if ($display.attr('data-tracked')) {
-    //             // calculate new view position
-    //             const viewrows      = Number($display.attr('data-viewrows'));
-    //             const viewcols   = Number($display.attr('data-viewcols'));
-    //             const zoom          = Number($display.attr('data-zoom'));
-    //             const panx_new      = Number($display.attr('data-panx')) + panx;
-    //             const pany_new      = Number($display.attr('data-pany')) + pany;
-    //             const x0_new        = Number($display.attr('data-x0'))   + panx_new;
-    //             const y0_new        = Number($display.attr('data-y0'))   + pany_new;
-    //             // make sure it's valid
-    //             if (
-    //                 (x0_new >= 1)       &&      
-    //                 (y0_new >= 1)       &&
-    //                 (y0_new <= (rows    - viewrows    - zoom + 1))  &&
-    //                 (x0_new <= (cols - viewcols - zoom + 1))
-    //             ) {
-    //                 // update
-    //                 $display
-    //                     .attr('data-panx', panx_new)
-    //                     .attr('data-pany', pany_new)
-    //                     .trigger(':update_map');
-    //             }
-    //         }
-    //     }
-    //     catch (error) {
-    //         console.error(`${this.name} - failed to pan {panx: ${panx}}, pany: ${pany}} for map "${mapid}"`);
-    //         console.error(error);
-    //     }
-    // }
-
-
-
-// ████  █████  ████ █████ █    █ █████ █████ ████
-// █   █ █     █     █     ██   █   █   █     █   █
-// ████  ███   █     ███   █ █  █   █   ███   ████
-// █   █ █     █     █     █  █ █   █   █     █   █
-// █   █ █████  ████ █████ █   ██   █   █████ █   █
-// SECTION: recenter
-
-    // Macro.add("maprecenter", {
-
-    //     handler() {
-    //         //////////////////////////////////////////////////
-    //         //////////////////////////////////////////////////
-    //         const argObj = create_argObj.call(this, {
-    //             id: this.name,
-    //             args_toparse: this.args, 
-    //             args_tofill: {
-    //                 mapid: {
-    //                     type        : 'string',
-    //                     alias       : 'map',
-    //                 },
-    //                 class: {
-    //                 },
-    //             },
-    //         });
-
-    //         maprecenter.call(this, argObj);
-    //     }
-    // });
-
-    // function maprecenter(argObj) {
-    //     //////////////////////////////////////////////////
-    //     //////////////////////////////////////////////////
-    //     // necessary definitions
-    //     this.name   ??= argObj.id ?? "pan";
-    //     this.error  ??= function(error) { throw new Error(error) };
-    //     // extract from argObj
-    //     const { mapid } = argObj;
-    //     check_required.call(this, {
-    //         id: this.name,
-    //         args_tocheck: {mapid},
-    //     });
-    //     if (! def.skipcheck.common) {
-    //         check_common.call(this, {
-    //             id: this.name,
-    //             args_tocheck: {
-    //                 mapid: {
-    //                     val     : mapid,
-    //                     extant  : true,
-    //                     oneword : true,
-    //                 },
-    //             }
-    //         });
-    //         if (argObj.class) {
-    //             check_common.call(this, {
-    //                 id: this.name,
-    //                 args_tocheck: {
-    //                     class: {
-    //                         val     : argObj.class,
-    //                         oneword : true,
-    //                     },
-    //                 }
-    //             });
-    //         }
-    //     }
-
-    //     try {
-    //         const $display = argObj.class
-    //                         ? $(`.macro-newdisplay-map[data-mapid="${mapid}"]`).filter(`.${argObj.class}`)
-    //                         : $(`.macro-newdisplay-map[data-mapid="${mapid}"]`);
-    //         $display
-    //                 .attr('data-panx', 0)
-    //                 .attr('data-pany', 0)
-    //                 .attr('data-zoom', 0)
-    //                 .trigger(':update_map');
-    //     }
-    //     catch (error) {
-    //         console.error(`${this.name} - failed to recenter map "${mapid}"`);
-    //         console.error(error);
-    //     }
-    // }
