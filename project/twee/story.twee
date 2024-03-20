@@ -4,10 +4,10 @@ demo map
 
 :: StoryInit [nobr]
 <<set $columns to 26>>
-<<newnavmap 
+<<new_navmap 
     mapid       'demo'
     mapname     'Demo Test Map'
-    columns     $columns
+    cols        $columns
     diagonal    false
 >>
     x	x	x	.	.	.	.	.	x	x	x	x	x	x	x	x	x	x	x	x	x	.	.	x	x	x
@@ -34,35 +34,41 @@ demo map
     .	x	x	x	x	x	x	x	x	x	.	.	x	x	.	x	x	x	.	x	x	.	x	x	x	x
     x	x	x	.	.	.	.	.	x	x	x	x	x	x	x	x	x	x	x	x	x	x	x	x	x	x
 
-<</newnavmap>>
-<<newnavtile "." tiletype 'wall'>>
+<</new_navmap>>
+<<new_navtile "." true>>
         -
-<</newnavtile>>
-<<newnavtile 'x' tiletype 'floor'>>
+<</new_navtile>>
+<<new_navtile 'x' false>>
     x
     <<displayhtml 'test'>>
     XX
-<</newnavtile>>
-/* <<newentity 
+<</new_navtile>>
+<<new_navdisplay
     mapid       'demo'
+    displayid   'asdf'
+    rows        8
+    cols        8
+>>
+<<new_naventity 
     entityid    'player1'
     entityname  'Player 1'
-    x           3
-    y           5
     wall        true
 >>
     <div style="color:red; font-size: 2rem;">O</div>
-<</newentity>>
-<<newentity 
-    mapid       'demo'
+<</new_naventity>>
+<<new_naventity 
     entityid    'player2'
-    x           26
-    y           23
+    entityname  'Player 2'
     wall        true
 >>
     <div style="color:yellow; font-size: 2rem;">O</div>
-<</newentity>> */
-
+<</new_naventity>> */
+<<set_naventity
+    entityid    'player1'
+    mapid       'demo'
+    x           1
+    y           1
+>>
 /* <<defineplayer 'demo' 2 2>>
     <span style="color:red; font-size: 2rem;">O</span>
 <</defineplayer>> */
@@ -71,7 +77,7 @@ demo map
 :: Start
 map
 <<print_navdisplay 
-    displayid       'demo'
+    displayid       'asdf'
 >>
 /* <span style="color:red">player1</span> nav
 <<link 'test'>>
@@ -195,7 +201,7 @@ map
                 width: 1.5rem;
             }
     */
-        .Navmap-display {
+        .Navdisplay {
             grid-row: 3;
             grid-column: 2;
             display: grid;
@@ -207,7 +213,7 @@ map
             align-items: center;
             justify-content: center;
         }
-        .Navmap-tile {
+        .Navtile {
             width: 100%;
             height: 100%;
             line-height: 1;
@@ -217,11 +223,11 @@ map
             text-align: center;
             border: 1px dashed #80808087;
         }
-            .Navmap img {
+            .Navtile img {
                 width: 100%;
                 height: 100%;
             }
-        .Navmap-entity {
+        .Naventity {
             position: absolute;
             z-index: 2;
             width: 100%;
@@ -232,7 +238,7 @@ map
             justify-content: center;
             text-align: center;
         }
-            .Navmap-entity > * {
+            .Naventity > * {
                 width: 100%;
                 height: 100%;
                 display: flex;

@@ -98,3 +98,14 @@ sugarcube-2:
       name: displayhtml
     print_navdisplay:
       name: print_navdisplay
+    new_navtile:
+      name: new_navtile
+      container: true
+    new_navmap:
+      name: new_navmap
+      container: true
+    new_navdisplay:
+      name: new_navdisplay
+    new_naventity:
+      name: new_naventity
+      container: true

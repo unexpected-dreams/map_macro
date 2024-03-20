@@ -12,9 +12,7 @@ const config = {nav:{},wall:{},floor:{},skipcheck:{}};
 config.nav.diagonal         = false;        // true enables diagonal movement by default
 
 // default tile def, can also be specified using <<maptile>>
-config.wall.tiletype        = "wall";
 config.wall.tileid          = ".";          // default map input character for walls
-config.floor.tiletype       = "floor";
 config.floor.tileid         = "x";
 
 // guardrails
@@ -39,14 +37,12 @@ config.Statename            = '@navmap';    // default, State.variables['@navmap
 //  █  █  █ █  █    █
 // ███ █   ██ ███   █
 // SECTION: init
+
 //////////////////////////////////////////////////
 //////////////////////////////////////////////////
 // init setup & State namespaces
 setup[config.setupname] ??= {};
 State.variables[config.Statename] ??= {};
-State.variables[config.Statename].navmaps ??= {};
-State.variables[config.Statename].naventities ??= {};
-State.variables[config.Statename].navtiles ??= {};
 
 //////////////////////////////////////////////////
 //////////////////////////////////////////////////
@@ -82,18 +78,18 @@ const navtiles = {
     [String(def.wall.tileid)]: {
         tileid      : String(def.wall.tileid),
         tilename    : def.wall.tileid,
-        tiletype    : def.wall.tiletype,
         tilehtml    : {
             default : def.wall.tileid,
         },
+        wall        : true,
     },
     [String(def.floor.tileid)]: {
         tileid      : String(def.floor.tileid),
         tilename    : def.floor.tileid,
-        tiletype    : def.floor.tiletype,
         tilehtml    : {
             default : def.floor.tileid,
         },
+        wall        : false,
     },
 };
 const navdisplays = {};
@@ -123,11 +119,14 @@ setup.navdisplays = navdisplays;
 // █  █ █ █   █  █ █      █     █     █   █     █     █ █         █
 // █   ██ █   █   █        ████ █████ █   █ ████  ████  █████ ████
 // SECTION: nav classes
+
 //////////////////////////////////////////////////
 //////////////////////////////////////////////////
+// init requisite namespace in State
+State.variables[config.Statename].navmaps ??= {};
 // Navmap class object
 class Navmap {
-    constructor(mapid, inputtype, inputmap, cols) {
+    constructor(mapid, mapname, inputtype, inputmap, cols, diagonal) {
 
         this.error = function(error) { throw new Error(error) };
 
@@ -139,51 +138,71 @@ class Navmap {
         // create
         navmaps[String(mapid)] = this;
         this.mapid = String(mapid);
+        // create State store if non-extant
+        State.variables[config.Statename].navmaps[this.mapid] ??= {};
 
         //////////////////////////////////////////////////
-        // parse mapinput input into array
+        // assign data
+        // these don't save to State
+        this.mapname    = mapname ?? this.mapid;
+        this.diagonal   = diagonal ?? def.nav.diagonal;
+
+        //////////////////////////////////////////////////
+        // parse mapinput into arr, rows, cols
+        // these save to State
         try {
-            // macro payload or 1D array
-            if (inputtype === 'array') {
-                this.arr  = inputmap;
-                this.cols = cols;
-                // ERROR: missing cols
-                if (typeof cols === 'undefined') {
-                    return this.error(`Navmap - missing required input "cols" or "columns" for map "${this.mapid}"`)
-                }
-                // ERROR: map not rectangular
-                if (
-                    (inputtype === "array") &&
-                    (this.arr % this.cols) 
-                ) {
-                    console.error(inputmap);
-                    return this.error(`Navmap - inputmap is not rectangular`)
-                }
-            }
-            // 2D array, grab column # as length of first array
-            else if (inputtype === '2D array') {
-                this.cols = inputmap[0].length;
-                for (const a of inputmap) {
-                    // ERROR: non-array input
-                    if (! Array.isarray(a)) {
-                        console.error(a);
-                        return this.error(`Navmap - invalid inputmap, non-array detected for map "${this.mapid}"`);
+            if (
+                (typeof this.arr  === 'undefined')  ||
+                (typeof this.cols === 'undefined')  ||
+                (typeof this.rows === 'undefined')
+            ) {
+                //////////////////////////////////////////////////
+                // macro payload or 1D array
+                if (inputtype === 'array') {
+                    this.arr  = inputmap;
+                    this.cols = cols;
+                    // ERROR: missing cols
+                    if (typeof cols === 'undefined') {
+                        return this.error(`Navmap - missing required input "cols" or "columns" for map "${this.mapid}"`)
                     }
-                    // ERROR: non-square 2D array
+                    // ERROR: map not rectangular
                     if (
-                        (a?.length === 0)           || 
-                        (a?.length !== this.cols)
+                        (inputtype === "array") &&
+                        (this.arr % this.cols) 
                     ) {
-                        console.error(a);
-                        return this.error(`Navmap - invalid inputmap, non-rectangular input detected for map "${this.mapid}"`)
+                        console.error(inputmap);
+                        return this.error(`Navmap - inputmap is not rectangular`)
                     }
                 }
-                // write array
-                this.arr  = inputmap.flat();
-            }
-            // ERROR: invalid inputtype
-            else {
-                return this.error(`Navmap - invalid inputtype for map "${this.mapid}", only macro payload or 'array' or '2D array' is supported`)
+                // 2D array, grab column # as length of first array
+                else if (inputtype === '2D array') {
+                    this.cols = inputmap[0].length;
+                    for (const a of inputmap) {
+                        // ERROR: non-array input
+                        if (! Array.isarray(a)) {
+                            console.error(a);
+                            return this.error(`Navmap - invalid inputmap, non-array detected for map "${this.mapid}"`);
+                        }
+                        // ERROR: non-square 2D array
+                        if (
+                            (a?.length === 0)           || 
+                            (a?.length !== this.cols)
+                        ) {
+                            console.error(a);
+                            return this.error(`Navmap - invalid inputmap, non-rectangular input detected for map "${this.mapid}"`)
+                        }
+                    }
+                    // write array
+                    this.arr  = inputmap.flat();
+                }
+                // ERROR: invalid inputtype
+                else {
+                    return this.error(`Navmap - invalid inputtype for map "${this.mapid}", only macro payload or 'array' or '2D array' is supported`)
+                }
+
+                //////////////////////////////////////////////////
+                // calculate rows
+                this.rows = this.arr.length / this.cols;
             }
         }
         catch (error) {
@@ -193,28 +212,136 @@ class Navmap {
         }
 
         //////////////////////////////////////////////////
-        // fill in data
-        this.mapname        = this.mapid;
-        this.rows           = this.arr.length / this.cols;
-        this.diagonal       = def.nav.diagonal;
-        this.actors         = new Array(this.arr.length);
-        this.displays       = {};
-        // write to State only if non-extant
-        State.variables[config.Statename].navmaps[this.mapid] ??= {};
-        State.variables[config.Statename].navmaps[this.mapid].arr ??= this.arr;
-        State.variables[config.Statename].navmaps[this.mapid].cols ??= this.cols;
-        State.variables[config.Statename].navmaps[this.mapid].rows ??= this.rows;
+        // create staple only if non-extant
+        try {
+            for (const tileid of new Set(this.arr)) {
+                const tile = get_navtile(tileid);
+                if (typeof tile === 'undefined') {
+                    new Navtile(tileid)
+                }
+            }
+        }
+        catch (error) {
+            console.error(`Navmap - failed to create default Navtiles for map "${this.mapid}"`);
+            console.error(error);
+        }
+    }
+    // arr
+    set arr(val) {
+        State.variables[config.Statename].navmaps[this.mapid].arr = val;
+    }
+    get arr() {
+        return State.variables[config.Statename].navmaps[this.mapid].arr
+    }
+    // cols
+    set cols(val) {
+        State.variables[config.Statename].navmaps[this.mapid].cols = val;
+    }
+    get cols() {
+        return State.variables[config.Statename].navmaps[this.mapid].cols
+    }
+    // rows
+    set rows(val) {
+        State.variables[config.Statename].navmaps[this.mapid].rows = val;
+    }
+    get rows() {
+        return State.variables[config.Statename].navmaps[this.mapid].rows
+    }
+}
+
+
+
+//////////////////////////////////////////////////
+//////////////////////////////////////////////////
+// init requisite namespace in State
+State.variables[config.Statename].navtiles ??= {};
+// Navtile class
+class Navtile {
+    constructor(tileid, tilename, tilehtml, wall) {
+
+        this.error = function(error) { throw new Error(error) };
+
+        // ERROR: clobbering
+        if (! def.skipcheck.clobbering && navtiles[tileid]) {
+            return this.error(`Navtile - clobbering, tile with id "${tileid}" already exists`)
+        }
+
+        // assign data
+        // these don't save to State
+        navtiles[String(tileid)] = this;
+        this.tileid     = String(tileid);
+        this.tilename   = tilename ?? tileid;
+        this.wall       = wall ?? false;
+
+        // create empty
+        this.tilehtml = {};
+        // iterate through tilehtml
+        for (const displayid in tilehtml) {
+            if (
+                (! def.skipcheck.unused)        && 
+                (typeof tilehtml[displayid] === 'undefined')
+            ) {
+                return this.error(`${this.name} - empty display html for tileid "${tileid}" on displayid "${displayid}"`)
+            }
+            this.tilehtml[displayid] = tilehtml[displayid];
+        }
+        // assign default
+        this.tilehtml.default ??= tileid;
+    }
+}
+
+
+//////////////////////////////////////////////////
+//////////////////////////////////////////////////
+// init requisite namespace in State
+State.variables[config.Statename].naventities ??= {};
+// Naventity class
+class Naventity {
+    constructor(entityid, entityname, entityhtml, wall) {
+
+        this.error = function(error) { throw new Error(error) };
+
+        // ERROR: clobbering
+        if (! def.skipcheck.clobbering && naventities[entityid]) {
+            return this.error(`Naventity - clobbering, entity with id "${entityid}" already exists`)
+        }
+
+        // create
+        naventities[String(entityid)] = this;
+        this.entityid = String(entityid);
+        // create State store if non-extant
+        State.variables[config.Statename].naventities[this.entityid] ??= {};
 
         //////////////////////////////////////////////////
-        // create staple only if non-extant
-        for (const t of new Set(this.arr)) {
-            navtiles[String(t)] ??= {
-                tileid      : String(t),
-                tilename    : t,
-                tiletype    : def.floor.tiletype,
-                tilehtml    : t,
-            };
+        // assign data
+        // these don't save to State
+        this.entityname = entityname ?? entityid;
+        this.wall       = wall ?? true;
+        // these save to State
+        this.coords     ??= {};
+
+        //////////////////////////////////////////////////
+        // create empty
+        this.entityhtml = {};
+        // iterate through entityhtml
+        for (const displayid in entityhtml) {
+            if (
+                (! def.skipcheck.unused)        && 
+                (typeof entityhtml[displayid] === 'undefined')
+            ) {
+                return this.error(`${this.name} - empty display html for entityid "${entityid}" on displayid "${displayid}"`)
+            }
+            this.entityhtml[displayid] = entityhtml[displayid];
         }
+        // assign default
+        this.entityhtml.default ??= entityid;
+    }
+    // coords
+    set coords(val) {
+        State.variables[config.Statename].naventities[this.entityid].coords = val;
+    }
+    get coords() {
+        return State.variables[config.Statename].naventities[this.entityid].coords
     }
 }
 
@@ -239,17 +366,18 @@ if (! config.disableglobal) {
 function check_required(argObj_in,template) {
     // ERROR: missing input
     if (typeof argObj_in === 'undefined') {
-        return this.error(`${this.name} - failed, missing argObj_in (check_errors)`)
+        return this.error(`${this.name} - failed, missing argObj_in (check_required)`)
+    }
+    // ERROR: too many properties in argObj_in
+    if (Object.keys(argObj_in).length > 1) {
+        return this.error(`${this.name} - failed extra properties in argObj_in (check_required)`)
     }
     try {
-        for (const key in argObj_in) {
-            const val = argObj_in[key];
-            console.log(key);
-            console.log(typeof val === 'undefined');
-            // ERROR: missing required
-            if (typeof val === 'undefined') {
-                return this.error(`${this.name} - missing required argument "${template?.label ?? key}"`)
-            }
+        const key = Object.keys(argObj_in)[0];
+        const val = argObj_in[key];
+        // ERROR: missing required
+        if (typeof val === 'undefined') {
+            return this.error(`${this.name} - missing required argument "${template?.label ?? key}"`)
         }
     }
     catch (error) {
@@ -261,15 +389,18 @@ function check_required(argObj_in,template) {
 function check_oneword(argObj_in,template) {
     // ERROR: missing input
     if (typeof argObj_in === 'undefined') {
-        return this.error(`${this.name} - failed, missing argObj_in (check_errors)`)
+        return this.error(`${this.name} - failed, missing argObj_in (check_oneword)`)
+    }
+    // ERROR: too many properties in argObj_in
+    if (Object.keys(argObj_in).length > 1) {
+        return this.error(`${this.name} - failed extra properties in argObj_in (check_oneword)`)
     }
     try {
-        for (const key in argObj_in) {
-            const val = argObj_in[key];
-            // ERROR: word contains spaces
-            if (val.includes(" ")) {
-                return this.error(`${this.name} - argument "${template?.label ?? key}" must be one word, no spaces`)
-            }
+        const key = Object.keys(argObj_in)[0];
+        const val = argObj_in[key];
+        // ERROR: word contains spaces
+        if (val.includes(" ")) {
+            return this.error(`${this.name} - argument "${template?.label ?? key}" must be one word, no spaces`)
         }
     }
     catch (error) {
@@ -281,32 +412,35 @@ function check_oneword(argObj_in,template) {
 function check_extant(argObj_in,template) {
     // ERROR: missing input
     if (typeof argObj_in === 'undefined') {
-        return this.error(`${this.name} - failed, missing argObj_in (check_errors)`)
+        return this.error(`${this.name} - failed, missing argObj_in (check_extant)`)
+    }
+    // ERROR: too many properties in argObj_in
+    if (Object.keys(argObj_in).length > 1) {
+        return this.error(`${this.name} - failed extra properties in argObj_in (check_extant)`)
     }
     try {
-        for (const key in argObj_in) {
-            const val = argObj_in[key];
-            // ERROR: map doesn't exist
-            if (
-                (key === "mapid")       && 
-                (typeof get_navmap(val) === 'undefined')
-            ) {
-                return this.error(`${this.name} - no map with id "${val}" found`)
-            }
-            // ERROR: tile doesn't exist in map
-            if (
-                (key === "tileid")      &&
-                (typeof get_navtile(val) === 'undefined')
-            ) {
-                return this.error(`${this.name} - no tile with id "${val}" found`)
-            }
-            // ERROR: entity doesn't exist in map
-            if (
-                (key === "entityid")    &&
-                (typeof get_naventity(val) === 'undefined')
-            ) {
-                return this.error(`${this.name} - no entity with id "${val}" found`)
-            }
+        const key = Object.keys(argObj_in)[0];
+        const val = argObj_in[key];
+        // ERROR: map doesn't exist
+        if (
+            (key === "mapid")       && 
+            (typeof get_navmap(val) === 'undefined')
+        ) {
+            return this.error(`${this.name} - no map with id "${val}" found`)
+        }
+        // ERROR: tile doesn't exist in map
+        if (
+            (key === "tileid")      &&
+            (typeof get_navtile(val) === 'undefined')
+        ) {
+            return this.error(`${this.name} - no tile with id "${val}" found`)
+        }
+        // ERROR: entity doesn't exist in map
+        if (
+            (key === "entityid")    &&
+            (typeof get_naventity(val) === 'undefined')
+        ) {
+            return this.error(`${this.name} - no entity with id "${val}" found`)
         }
     }
     catch (error) {
@@ -318,15 +452,18 @@ function check_extant(argObj_in,template) {
 function check_integer(argObj_in,template) {
     // ERROR: missing input
     if (typeof argObj_in === 'undefined') {
-        return this.error(`${this.name} - failed, missing argObj_in (check_errors)`)
+        return this.error(`${this.name} - failed, missing argObj_in (check_integer)`)
+    }
+    // ERROR: too many properties in argObj_in
+    if (Object.keys(argObj_in).length > 1) {
+        return this.error(`${this.name} - failed extra properties in argObj_in (check_integer)`)
     }
     try {
-        for (const key in argObj_in) {
-            const val = argObj_in[key];
-            // ERROR: non-integer number
-            if (! Number.isInteger(val)) {
-                return this.error(`${this.name} - argument "${template?.label ?? key}" must be an integer`)
-            }
+        const key = Object.keys(argObj_in)[0];
+        const val = argObj_in[key];
+        // ERROR: non-integer number
+        if (! Number.isInteger(val)) {
+            return this.error(`${this.name} - argument "${template?.label ?? key}" must be an integer`)
         }
     }
     catch (error) {
@@ -338,15 +475,84 @@ function check_integer(argObj_in,template) {
 function check_positive(argObj_in,template) {
     // ERROR: missing input
     if (typeof argObj_in === 'undefined') {
-        return this.error(`${this.name} - failed, missing argObj_in (check_errors)`)
+        return this.error(`${this.name} - failed, missing argObj_in (check_positive)`)
+    }
+    // ERROR: too many properties in argObj_in
+    if (Object.keys(argObj_in).length > 1) {
+        return this.error(`${this.name} - failed extra properties in argObj_in (check_positive)`)
     }
     try {
-        for (const key in argObj_in) {
-            const val = argObj_in[key];
-            // ERROR: zero or negative number
-            if (val <= 0) {
-                return this.error(`${this.name} - argument "${template?.label ?? key}" must be greater than zero`)
-            }
+        const key = Object.keys(argObj_in)[0];
+        const val = argObj_in[key];
+        // ERROR: zero or negative number
+        if (val <= 0) {
+            return this.error(`${this.name} - argument "${template?.label ?? key}" must be greater than zero`)
+        }
+    }
+    catch (error) {
+        console.error(`${this.name} - failed to check args for positive requirement`);
+        console.error(error);
+    }
+}
+//////////////////////////////////////////////////
+function check_xbound(argObj_in,template) {
+    // ERROR: missing input
+    if (typeof argObj_in === 'undefined') {
+        return this.error(`${this.name} - failed, missing argObj_in (check_xbound)`)
+    }
+    // ERROR: incorrect argObj format
+    if (Object.keys(argObj_in).length !== 2) {
+        return this.error(`${this.name} - failed incorrect # of properties in argObj_in (check_xbound)`)
+    }
+    if (typeof argObj_in.mapid === 'undefined') {
+        return this.error(`${this.name} - failed, missing required mapid in argObj_in (check_xbound)`);
+    }
+    if (typeof argObj_in.x === 'undefined') {
+        return this.error(`${this.name} - failed, missing required x in argObj_in (check_xbound)`);
+    }
+    const {x, mapid} = argObj_in;
+    const map = get_navmap(mapid);
+    const { cols } = map;
+    try {
+        // ERROR: zero or negative number
+        if (x < 1) {
+            return this.error(`${this.name} - argument "${template?.label ?? 'x'}" should have a value of one or greater`)
+        }
+        if (x > cols) {
+            return this.error(`${this.name} - argument "${template?.label ?? 'x'}" should have a value less than or equal to the total number of columns on map "${mapid}"`)
+        }
+    }
+    catch (error) {
+        console.error(`${this.name} - failed to check args for positive requirement`);
+        console.error(error);
+    }
+}
+//////////////////////////////////////////////////
+function check_ybound(argObj_in,template) {
+    // ERROR: missing input
+    if (typeof argObj_in === 'undefined') {
+        return this.error(`${this.name} - failed, missing argObj_in (check_xbound)`)
+    }
+    // ERROR: incorrect argObj format
+    if (Object.keys(argObj_in).length !== 2) {
+        return this.error(`${this.name} - failed incorrect # of properties in argObj_in (check_xbound)`)
+    }
+    if (typeof argObj_in.mapid === 'undefined') {
+        return this.error(`${this.name} - failed, missing required mapid in argObj_in (check_xbound)`);
+    }
+    if (typeof argObj_in.y === 'undefined') {
+        return this.error(`${this.name} - failed, missing required y in argObj_in (check_xbound)`);
+    }
+    const {y, mapid} = argObj_in;
+    const map = get_navmap(mapid);
+    const { rows } = map;
+    try {
+        // ERROR: zero or negative number
+        if (y < 1) {
+            return this.error(`${this.name} - argument "${template?.label ?? 'y'}" should have a value of one or greater`)
+        }
+        if (y > rows) {
+            return this.error(`${this.name} - argument "${template?.label ?? 'y'}" should have a value less than or equal to the total number of rows on map "${mapid}"`)
         }
     }
     catch (error) {
@@ -357,6 +563,7 @@ function check_positive(argObj_in,template) {
 //////////////////////////////////////////////////
 //////////////////////////////////////////////////
 const navboxes = {};
+setup.navboxes = navboxes;
 function get_navbox(args) {
     return navboxes[args]
 }
@@ -436,7 +643,7 @@ function update_navbox(argObj) {
 function print_navtile(argObj) {
     const { displayid, tileid, row, col }= argObj;
     const tile = get_navtile(tileid);
-    const { tilename, tiletype, tilehtml } = tile;
+    const { tilename, wall, tilehtml } = tile;
     try {
         const $t = $(document.createElement('div'))
         const displayhtml   = typeof tilehtml === 'undefined'
@@ -447,12 +654,11 @@ function print_navtile(argObj) {
                                 ? tilehtml.default
                             : tileid;
         $t
-            .addClass(`Navmap-tile`)
-            .addClass(tiletype)
+            .addClass(`Navtile`)
             .attr('title', tilename)
             .attr('data-tileid', tileid)
             .attr('data-tilename', tilename)
-            .attr('data-tiletype', tiletype)
+            .attr('data-wall', wall)
             .css({
                 "grid-column"   : `${col} / span 1`,
                 "grid-row"      : `${row} / span 1`,
@@ -463,6 +669,37 @@ function print_navtile(argObj) {
     //////////////////////////////////////////////////
     catch (error) {
         console.error(`${this.name} - failed to print navtile element on navdisplay "${displayid}"`);
+        console.error(error);
+    }
+}
+function print_naventity(argObj) {
+    const { displayid, entityid, col, row } = argObj;
+    const entity = get_naventity(entityid);
+    const { entityname, entityhtml } = entity;
+    try {
+        const $e = $(document.createElement('div'));
+        const displayhtml   = typeof entityhtml === 'undefined'
+                                ? entityid
+                            : typeof entityhtml[displayid] !== 'undefined'
+                                ? entityhtml[displayid]
+                            : typeof entityhtml.default !== 'undefined'
+                                ? entityhtml.default
+                            : entityid;
+        $e
+            .addClass(`Naventity`)
+            .attr('title', entityname)
+            .attr('data-entityid', entityid)
+            .attr('data-entityname', entityname)
+            .css({
+                "grid-column"   : `${col} / span 1`,
+                "grid-row"      : `${row} / span 1`,
+            })
+            .wiki(displayhtml);
+        return $e
+    }
+    //////////////////////////////////////////////////
+    catch (error) {
+        console.error(`${this.name} - failed to create entity element for "${entityid}" on "${mapid}"`);
         console.error(error);
     }
 }
@@ -495,3 +732,87 @@ function convert_xy2i(xy, mapid) {
     const i = (y - 1) * cols + x - 1;
     return i
 }
+
+// ████  █████ █████ █████ ████  █████ █    █  ████ █████
+// █   █ █     █     █     █   █ █     ██   █ █     █
+// ████  ███   ███   ███   ████  ███   █ █  █ █     ███
+// █   █ █     █     █     █   █ █     █  █ █ █     █
+// █   █ █████ █     █████ █   █ █████ █   ██  ████ █████
+// SECTION: reference values
+const dirs_4 = {
+    C: {
+        dirid   : 'C',
+        dirname : 'center',
+        delta: {
+            x  :  0,
+            y  :  0,
+        },
+    },
+    N: {
+        dirid   : 'N',
+        dirname : 'north',
+        delta: {
+            x  :  0,
+            y  : -1,
+        },
+    },
+    E: {
+        dirid   : 'E',
+        dirname : 'east',
+        delta: {
+            x  :  1,
+            y  :  0,
+        },
+    },
+    S: {
+        dirid   : 'S',
+        dirname : 'south',
+        delta: {
+            x  :  0,
+            y  :  1,
+        },
+    },
+    W: {
+        dirid   : 'W',
+        dirname : 'west',
+        delta: {
+            x  : -1,
+            y  :  0,
+        },
+    },
+};
+const dirs_8 = {
+    ...dirs_4,
+    NW: {
+        dirid   : 'NW',
+        dirname : 'northwest',
+        delta: {
+            x  : -1,
+            y  : -1,
+        },
+    },
+    NE: {
+        dirid   : 'NE',
+        dirname  : 'northeast',
+        delta: {
+            x  :  1,
+            y  : -1,
+        },
+    },
+    SE: {
+        dirid   : 'SE',
+        dirname : 'southeast',
+        delta: {
+            x  :  1,
+            y  :  1,
+        },
+    },
+    SW: {
+        dirid   : 'SW',
+        dirname : 'southwest',
+        delta: {
+            x  : -1,
+            y  :  1,
+        },
+    },
+};    
