@@ -286,31 +286,26 @@ function create_argObj(argObj) {
     //////////////////////////////////////////////////
     // ERROR: no args input
     if (typeof argObj === 'undefined') {
-        const error = `${this.name} - failed, missing input (create_argObj)`;
-        return this.error(error);
+        throw new Error(`${this.name} - failed, missing input (create_argObj)`)
     }
     const { id, template, options } = argObj;
     const args_in = clone(argObj.args_in);
     // ERROR: no id
     if (typeof id === 'undefined') {
-        const error = `${this.name} - failed, missing required id (create_argObj)`;
-        return this.error(error);
+        throw new Error(`${this.name} - failed, missing required id (create_argObj)`)
     }
     // ERROR: no template
     if (typeof template === 'undefined') {
-        const error = `${id} - failed, missing required template (create_argObj)`;
-        return this.error(error);
+        throw new Error(`${id} - failed, missing required template (create_argObj)`)
     }
     // ERROR: no args_in
     if (typeof args_in === 'undefined') {
-        const error = `${id} - failed, missing required args_in (create_argObj)`;
-        return this.error(error);
+        throw new Error(`${id} - failed, missing required args_in (create_argObj)`)
     }
     // ERROR: empty template
     const keys = Object.keys(template);
     if (! keys.length) {
-        const error = `${id} - failed, template can't be empty (create_argObj)`;
-        return this.error(error);
+        throw new Error(`${id} - failed, template can't be empty (create_argObj)`)
     }
 
     //////////////////////////////////////////////////
@@ -325,11 +320,19 @@ function create_argObj(argObj) {
                 // if alias is array, add all of them
                 if (TypeSet.id(template[k].alias) === "array") {
                     for (const n of template[k].alias) {
+                        // ERROR: clobbering alias
+                        if (typeof alias[n] !== 'undefined') {
+                            throw new Error(`${id} - failed, clobbering alias ${n} (create_argObj)`)
+                        }
                         alias[n] = k;
                     }
                 }
                 // otherwise just add alias string
                 else {
+                    // ERROR: clobbering alias
+                    if (typeof alias[template[k].alias] !== 'undefined') {
+                        throw new Error(`${id} - failed, clobbering alias ${template[k].alias} (create_argObj)`)
+                    }
                     alias[template[k].alias] = k;
                 }
             }
@@ -403,9 +406,8 @@ function create_argObj(argObj) {
                 }
                 else {
                     // ERROR: anything after this is mystery
-                    const error = `${id} - unexpected input "${arg_this}", is not a key name and did not match any valid types`;
                     console.error(output);
-                    return this.error(error)
+                    return this.error(`${id} - unexpected input "${arg_this}", is not a key name and did not match any valid types`)
                 }
             }
             catch (error) {
@@ -435,8 +437,7 @@ function argObj_markup(active) {
     try {
         // ERROR: [[markup]] when no passage input
         if (! keys.includes('passage')) {
-            const error = `${id} - macro does not accept [[markup]]`;
-            return this.error(error)
+            return this.error(`${id} - macro does not accept [[markup]]`)
         }
 
         // write values
@@ -464,14 +465,12 @@ function argObj_kvp(active) {
     try {
         // ERROR: undefined input for key
         if (TypeSet.id(arg_next) === 'undefined') {
-            const error = `${id} - no input was found for argument "${arg_this}"`;
-            return this.error(error)
+            return this.error(`${id} - no input was found for argument "${arg_this}"`)
         }
         // ERROR: wrong type input
         const typeset = new TypeSet(template[alias[arg_this]].type);
         if (! typeset.accepts(arg_next)) {
-            const error = `${id} - "${arg_next}" is an invalid type ('${TypeSet.id(arg_next)}') for "${arg_this}", expected ${typeset.print}`;
-            return this.error(error)
+            return this.error(`${id} - "${arg_next}" is an invalid type ('${TypeSet.id(arg_next)}') for "${arg_this}", expected ${typeset.print}`)
         }
 
         // write values
@@ -502,8 +501,7 @@ function argObj_obj(active) {
                 // ERROR: wrong type input
                 const typeset = new TypeSet(template[alias[a]].type);
                 if (! typeset.accepts(arg_this[a])) {
-                    const error = `${id} - "${arg_this[a]}" is an invalid type for "${a}" ('${TypeSet.id(arg_this[a])}'), expected ${typeset.print}`;
-                    return this.error(error)
+                    return this.error(`${id} - "${arg_this[a]}" is an invalid type for "${a}" ('${TypeSet.id(arg_this[a])}'), expected ${typeset.print}`)
                 }
 
                 // write values

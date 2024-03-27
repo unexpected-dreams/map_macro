@@ -109,3 +109,7 @@ sugarcube-2:
     new_naventity:
       name: new_naventity
       container: true
+    set_naventity:
+      name: set_naventity
+    print_navrose:
+      name: print_navrose

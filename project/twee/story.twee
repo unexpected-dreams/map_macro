@@ -9,6 +9,7 @@ demo map
     mapname     'Demo Test Map'
     cols        $columns
     diagonal    false
+    fenced      false
 >>
     x	x	x	.	.	.	.	.	x	x	x	x	x	x	x	x	x	x	x	x	x	.	.	x	x	x
     x	.	x	.	x	x	.	x	x	.	x	x	x	.	.	.	.	.	x	.	x	.	x	.	x	x
@@ -52,17 +53,17 @@ demo map
 <<new_naventity 
     entityid    'player1'
     entityname  'Player 1'
-    wall        true
+    solid       true
 >>
     <div style="color:red; font-size: 2rem;">O</div>
 <</new_naventity>>
 <<new_naventity 
     entityid    'player2'
     entityname  'Player 2'
-    wall        true
+    solid       true
 >>
     <div style="color:yellow; font-size: 2rem;">O</div>
-<</new_naventity>> */
+<</new_naventity>>
 <<set_naventity
     entityid    'player1'
     mapid       'demo'
@@ -78,6 +79,10 @@ demo map
 map
 <<print_navdisplay 
     displayid       'asdf'
+>>
+<<print_navrose
+    displayid       'asdf'
+    entityid        'player1'
 >>
 /* <span style="color:red">player1</span> nav
 <<link 'test'>>
@@ -248,59 +253,61 @@ map
                 line-height: 1;
             }
     
-    .Navmap-rose,
-    .Navmap-rose * {
+    .Navrose,
+    .Navrose * {
         box-sizing: border-box;
     }
-    .Navmap-rose {
+    .Navrose {
         display: grid;
         grid-template-columns: repeat(3, 1fr);
         grid-template-rows: repeat(3, 1fr);
         width: var(--rosewidth);
         height: var(--roseheight);
     }
-        .Navmap-dir {
+        .Navdir {
+            user-select: none;
             display: flex;
             align-items: center;
             justify-content: center;
             border: 1px dashed blue;
+            font-size: 2rem;
         }
-            .Navmap-dir:not([data-disabled="true"]):not([data-dirid="C"]) {
+            .Navdir:not([data-disabled="true"]):not([data-dirid="C"]) {
                 cursor: pointer;
             }
-        .Navmap-dir[data-dirid="C"] {
+        .Navdir[data-dirid="C"] {
             grid-row:       2;
             grid-column:    2;
         }
-        .Navmap-dir[data-dirid="N"] {
+        .Navdir[data-dirid="N"] {
             grid-row:       1;
             grid-column:    2;
         }
-        .Navmap-dir[data-dirid="E"] {
+        .Navdir[data-dirid="E"] {
             grid-row:       2;
             grid-column:    3;
         }
-        .Navmap-dir[data-dirid="S"] {
+        .Navdir[data-dirid="S"] {
             grid-row:       3;
             grid-column:    2;
         }
-        .Navmap-dir[data-dirid="W"] {
+        .Navdir[data-dirid="W"] {
             grid-row:       2;
             grid-column:    1;
         }
-        .Navmap-dir[data-dirid="NW"] {
+        .Navdir[data-dirid="NW"] {
             grid-row:       1;
             grid-column:    1;
         }
-        .Navmap-dir[data-dirid="NE"] {
+        .Navdir[data-dirid="NE"] {
             grid-row:       1;
             grid-column:    3;
         }
-        .Navmap-dir[data-dirid="SE"] {
+        .Navdir[data-dirid="SE"] {
             grid-row:       3;
             grid-column:    3;
         }
-        .Navmap-dir[data-dirid="SW"] {
+        .Navdir[data-dirid="SW"] {
             grid-row:       3;
             grid-column:    1;
         }

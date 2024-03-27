@@ -4,16 +4,19 @@
 // █     █    █ █  █ █ █      █  █   █
 //  ████  ████  █   ██ █     ███  ███
 // SECTION:
-const config = {nav:{},wall:{},floor:{},skipcheck:{}};
 //////////////////////////////////////////////////
 //////////////////////////////////////////////////
+const config = {nav:{},wall:{},floor:{},map:{},entity:{},skipcheck:{}};
 
-// player movement
+// map configurations
 config.nav.diagonal         = false;        // true enables diagonal movement by default
+config.nav.printnames       = false;        // true uses tile names instead of arrows
+config.map.fenced           = true;         // true means map is fenced by invisible walls
+config.entity.solid         = true;         // true means entity blocks movement into their cell
 
-// default tile def, can also be specified using <<maptile>>
+// tile definitions, can also be specified using <<maptile>>
 config.wall.tileid          = ".";          // default map input character for walls
-config.floor.tileid         = "x";
+config.floor.tileid         = "x";          // default map input character for floors
 
 // guardrails
 config.skipcheck.clobbering = false;        // true allows clobbering maps and entities
@@ -37,15 +40,11 @@ config.Statename            = '@navmap';    // default, State.variables['@navmap
 //  █  █  █ █  █    █
 // ███ █   ██ ███   █
 // SECTION: init
-
 //////////////////////////////////////////////////
 //////////////////////////////////////////////////
 // init setup & State namespaces
 setup[config.setupname] ??= {};
 State.variables[config.Statename] ??= {};
-
-//////////////////////////////////////////////////
-//////////////////////////////////////////////////
 // proxy for setup settings
 const def = new Proxy(config, get_controller(setup[config.setupname]));
 function get_controller(control) {
@@ -68,9 +67,6 @@ function get_controller(control) {
         }
     }
 }
-
-//////////////////////////////////////////////////
-//////////////////////////////////////////////////
 // init navmaps, naventities, & navtiles
 const navmaps = {};
 const naventities = {};
@@ -119,14 +115,24 @@ setup.navdisplays = navdisplays;
 // █  █ █ █   █  █ █      █     █     █   █     █     █ █         █
 // █   ██ █   █   █        ████ █████ █   █ ████  ████  █████ ████
 // SECTION: nav classes
-
 //////////////////////////////////////////////////
 //////////////////////////////////////////////////
 // init requisite namespace in State
 State.variables[config.Statename].navmaps ??= {};
 // Navmap class object
 class Navmap {
-    constructor(mapid, mapname, inputtype, inputmap, cols, diagonal) {
+    /**
+     * checks that a required argument has a defined value
+     * @param {string}              mapid       - id of map
+     * @param {string}              mapname     - name of map
+     * @param {"array"|"2D array"}  inputtype   - type of input for map
+     * @param {array}               inputmap    - map input
+     * @param {number}              cols        - # cols, required if inputtype = "array"
+     * @param {boolean}             diagonal    - diagonal movement
+     * @param {boolean}             fenced      - whether map boundaries are walls
+     * @returns {void}
+     */
+    constructor(mapid, mapname, inputtype, inputmap, cols, diagonal, fenced) {
 
         this.error = function(error) { throw new Error(error) };
 
@@ -144,8 +150,10 @@ class Navmap {
         //////////////////////////////////////////////////
         // assign data
         // these don't save to State
-        this.mapname    = mapname ?? this.mapid;
-        this.diagonal   = diagonal ?? def.nav.diagonal;
+        this.mapname    = mapname   ?? this.mapid;
+        this.diagonal   = diagonal  ?? def.nav.diagonal;
+        this.fenced     = fenced    ?? def.map.fenced;
+        this.actors     = [];
 
         //////////////////////////////////////////////////
         // parse mapinput into arr, rows, cols
@@ -248,15 +256,23 @@ class Navmap {
         return State.variables[config.Statename].navmaps[this.mapid].rows
     }
 }
-
-
-
 //////////////////////////////////////////////////
 //////////////////////////////////////////////////
 // init requisite namespace in State
 State.variables[config.Statename].navtiles ??= {};
 // Navtile class
 class Navtile {
+    /**
+     * class that stores tile information
+     * @param {string}              tileid      - id of tile
+     * @param {string}              tilename    - name of tile
+     * @param {{
+     *      default     : HTML,
+     *      displayid   : HTML,
+     * }}                           tilehtml    - HTML representations
+     * @param {boolean}             wall        - whether the tile is a wall
+     * @returns {void}
+     */
     constructor(tileid, tilename, tilehtml, wall) {
 
         this.error = function(error) { throw new Error(error) };
@@ -289,15 +305,24 @@ class Navtile {
         this.tilehtml.default ??= tileid;
     }
 }
-
-
 //////////////////////////////////////////////////
 //////////////////////////////////////////////////
 // init requisite namespace in State
 State.variables[config.Statename].naventities ??= {};
 // Naventity class
 class Naventity {
-    constructor(entityid, entityname, entityhtml, wall) {
+    /**
+     * class that stores tile information
+     * @param {string}              entityid    - id of entity
+     * @param {string}              entityname  - name of entity
+     * @param {{
+     *      default     : HTML,
+     *      displayid   : HTML,
+     * }}                           entityhtml  - HTML representations
+     * @param {boolean}             solid       - whether the entity blocks movement
+     * @returns {void}
+     */
+    constructor(entityid, entityname, entityhtml, solid) {
 
         this.error = function(error) { throw new Error(error) };
 
@@ -316,7 +341,7 @@ class Naventity {
         // assign data
         // these don't save to State
         this.entityname = entityname ?? entityid;
-        this.wall       = wall ?? true;
+        this.solid      = solid ?? def.entity.solid;
         // these save to State
         this.coords     ??= {};
 
@@ -344,7 +369,7 @@ class Naventity {
         return State.variables[config.Statename].naventities[this.entityid].coords
     }
 }
-
+//////////////////////////////////////////////////
 //////////////////////////////////////////////////
 // set global
 if (! config.disableglobal) {
@@ -363,7 +388,13 @@ if (! config.disableglobal) {
 // SECTION: checkers
 //////////////////////////////////////////////////
 //////////////////////////////////////////////////
-function check_required(argObj_in,template) {
+/**
+ * checks that a required argument has a defined value
+ * @param {{argument: *}}   argObj_in   argument: value
+ * @param {{key: *}}        options     label: printed name
+ * @returns {void}
+ */
+function check_required(argObj_in, options) {
     // ERROR: missing input
     if (typeof argObj_in === 'undefined') {
         return this.error(`${this.name} - failed, missing argObj_in (check_required)`)
@@ -377,7 +408,7 @@ function check_required(argObj_in,template) {
         const val = argObj_in[key];
         // ERROR: missing required
         if (typeof val === 'undefined') {
-            return this.error(`${this.name} - missing required argument "${template?.label ?? key}"`)
+            return this.error(`${this.name} - missing required argument "${options?.label ?? key}"`)
         }
     }
     catch (error) {
@@ -386,7 +417,14 @@ function check_required(argObj_in,template) {
     }
 }
 //////////////////////////////////////////////////
-function check_oneword(argObj_in,template) {
+//////////////////////////////////////////////////
+/**
+ * checks that an argument consists only of one word
+ * @param {{argument: *}}   argObj_in   argument: value
+ * @param {{key: *}}        options     label: printed name
+ * @returns {void}
+ */
+function check_oneword(argObj_in, options) {
     // ERROR: missing input
     if (typeof argObj_in === 'undefined') {
         return this.error(`${this.name} - failed, missing argObj_in (check_oneword)`)
@@ -400,7 +438,7 @@ function check_oneword(argObj_in,template) {
         const val = argObj_in[key];
         // ERROR: word contains spaces
         if (val.includes(" ")) {
-            return this.error(`${this.name} - argument "${template?.label ?? key}" must be one word, no spaces`)
+            return this.error(`${this.name} - argument "${options?.label ?? key}" must be one word, no spaces`)
         }
     }
     catch (error) {
@@ -409,7 +447,14 @@ function check_oneword(argObj_in,template) {
     }
 }
 //////////////////////////////////////////////////
-function check_extant(argObj_in,template) {
+//////////////////////////////////////////////////
+/**
+ * checks that a map, tile, or entity has been defined
+ * @param {{argument: *}}   argObj_in   mapid | tileid | entityid
+ * @param {{key: *}}        options     label: printed name
+ * @returns {void}
+ */
+function check_extant(argObj_in, options) {
     // ERROR: missing input
     if (typeof argObj_in === 'undefined') {
         return this.error(`${this.name} - failed, missing argObj_in (check_extant)`)
@@ -442,6 +487,21 @@ function check_extant(argObj_in,template) {
         ) {
             return this.error(`${this.name} - no entity with id "${val}" found`)
         }
+        // ERROR: display doesn't exist in map
+        if (
+            (key === "displayid")    &&
+            (typeof get_navdisplay(val) === 'undefined')
+        ) {
+            //////////////////////////////////////////////////
+            // FAILSAFE: create display for same name mapid if non-extant
+            if (typeof get_navmap(val) !== 'undefined') {
+                new_navdisplay.call(this, {mapid:displayid});
+            }
+            // else error
+            else {
+                return this.error(`${this.name} - no display with id "${val}" found`)
+            }
+        }
     }
     catch (error) {
         console.error(`${this.name} - failed to check args for extant requirement`);
@@ -449,7 +509,14 @@ function check_extant(argObj_in,template) {
     }
 }
 //////////////////////////////////////////////////
-function check_integer(argObj_in,template) {
+//////////////////////////////////////////////////
+/**
+ * checks that a provided argument is an integer
+ * @param {{argument: *}}   argObj_in   argument: value
+ * @param {{key: *}}        options     label: printed name
+ * @returns {void}
+ */
+function check_integer(argObj_in, options) {
     // ERROR: missing input
     if (typeof argObj_in === 'undefined') {
         return this.error(`${this.name} - failed, missing argObj_in (check_integer)`)
@@ -463,7 +530,7 @@ function check_integer(argObj_in,template) {
         const val = argObj_in[key];
         // ERROR: non-integer number
         if (! Number.isInteger(val)) {
-            return this.error(`${this.name} - argument "${template?.label ?? key}" must be an integer`)
+            return this.error(`${this.name} - argument "${options?.label ?? key}" must be an integer`)
         }
     }
     catch (error) {
@@ -472,7 +539,14 @@ function check_integer(argObj_in,template) {
     }
 }
 //////////////////////////////////////////////////
-function check_positive(argObj_in,template) {
+//////////////////////////////////////////////////
+/**
+ * checks that a provided argument is a positive
+ * @param {{argument: *}}   argObj_in   argument: value
+ * @param {{key: *}}        options     label: printed name
+ * @returns {void}
+ */
+function check_positive(argObj_in, options) {
     // ERROR: missing input
     if (typeof argObj_in === 'undefined') {
         return this.error(`${this.name} - failed, missing argObj_in (check_positive)`)
@@ -486,7 +560,7 @@ function check_positive(argObj_in,template) {
         const val = argObj_in[key];
         // ERROR: zero or negative number
         if (val <= 0) {
-            return this.error(`${this.name} - argument "${template?.label ?? key}" must be greater than zero`)
+            return this.error(`${this.name} - argument "${options?.label ?? key}" must be greater than zero`)
         }
     }
     catch (error) {
@@ -495,7 +569,17 @@ function check_positive(argObj_in,template) {
     }
 }
 //////////////////////////////////////////////////
-function check_xbound(argObj_in,template) {
+//////////////////////////////////////////////////
+/**
+ * checks if provided x is within map boundaries
+ * @param {{
+ *      mapid   : string, 
+ *      x       : number,
+ * }}                       argObj_in   value to check & map
+ * @param {{key: *}}        options     label: printed name
+ * @returns {void}
+ */
+function check_xbound(argObj_in, options) {
     // ERROR: missing input
     if (typeof argObj_in === 'undefined') {
         return this.error(`${this.name} - failed, missing argObj_in (check_xbound)`)
@@ -516,10 +600,10 @@ function check_xbound(argObj_in,template) {
     try {
         // ERROR: zero or negative number
         if (x < 1) {
-            return this.error(`${this.name} - argument "${template?.label ?? 'x'}" should have a value of one or greater`)
+            return this.error(`${this.name} - argument "${options?.label ?? 'x'}" should have a value of one or greater`)
         }
         if (x > cols) {
-            return this.error(`${this.name} - argument "${template?.label ?? 'x'}" should have a value less than or equal to the total number of columns on map "${mapid}"`)
+            return this.error(`${this.name} - argument "${options?.label ?? 'x'}" should have a value less than or equal to the total number of columns on map "${mapid}"`)
         }
     }
     catch (error) {
@@ -528,7 +612,17 @@ function check_xbound(argObj_in,template) {
     }
 }
 //////////////////////////////////////////////////
-function check_ybound(argObj_in,template) {
+//////////////////////////////////////////////////
+/**
+ * checks if provided y is within map boundaries
+ * @param {{
+ *      mapid   : string, 
+ *      y       : number,
+ * }}                       argObj_in   value to check & map
+ * @param {{key: *}}        options     label: printed name
+ * @returns {void}
+ */
+function check_ybound(argObj_in, options) {
     // ERROR: missing input
     if (typeof argObj_in === 'undefined') {
         return this.error(`${this.name} - failed, missing argObj_in (check_xbound)`)
@@ -549,10 +643,10 @@ function check_ybound(argObj_in,template) {
     try {
         // ERROR: zero or negative number
         if (y < 1) {
-            return this.error(`${this.name} - argument "${template?.label ?? 'y'}" should have a value of one or greater`)
+            return this.error(`${this.name} - argument "${options?.label ?? 'y'}" should have a value of one or greater`)
         }
         if (y > rows) {
-            return this.error(`${this.name} - argument "${template?.label ?? 'y'}" should have a value less than or equal to the total number of rows on map "${mapid}"`)
+            return this.error(`${this.name} - argument "${options?.label ?? 'y'}" should have a value less than or equal to the total number of rows on map "${mapid}"`)
         }
     }
     catch (error) {
@@ -560,90 +654,29 @@ function check_ybound(argObj_in,template) {
         console.error(error);
     }
 }
+
+
+
+// ████  ████  ███ █    █ █████
+// █   █ █   █  █  ██   █   █
+// ████  ████   █  █ █  █   █
+// █     █   █  █  █  █ █   █
+// █     █   █ ███ █   ██   █
+// SECTION: print functions
 //////////////////////////////////////////////////
 //////////////////////////////////////////////////
-const navboxes = {};
-setup.navboxes = navboxes;
-function get_navbox(args) {
-    return navboxes[args]
-}
-function update_navbox(argObj) {
-
-    // extract from argObj
-    const { displayid, delta } = argObj;
-
-    // extract from map & display
-    const display = get_navdisplay(displayid);
-    const { mapid } = display;
-    const map = get_navmap(mapid);
-    const { rows, cols } = map;
-
-    // create view box if non-extant
-    try {
-        if (typeof get_navbox(displayid) === 'undefined') {
-            navboxes[displayid] = {
-                x0          : display.x0,
-                y0          : display.y0,
-                cols_view   : display.cols_view,
-                rows_view   : display.rows_view,
-            };
-        }
-    }
-    catch (error) {
-        console.error(`${this.name} - failed to generate default view box during non-extant view box call for display "${displayid}"`);
-        console.error(error);
-    }
-
-    // extract from box
-    const box = get_navbox(displayid)
-    const x0_old    = box.x0;
-    const y0_old    = box.y0;
-    const cols_old  = box.cols_view;
-    const rows_old  = box.rows_view;
-
-    // update
-    try {
-        // calculate new values
-        const cols_new  = Math.clamp(
-                            1, 
-                            cols, 
-                            cols_old + (delta?.cols ?? 0)
-                        );
-        const rows_new  = Math.clamp(
-                            1, 
-                            rows, 
-                            rows_old + (delta?.rows ?? 0)
-                        );
-        const x0_new    = Math.clamp(
-                            1, 
-                            cols - cols_new + 1, 
-                            x0_old + Math.floor((cols_old - cols_new) / 2) + (delta?.x ?? 0)
-                        );
-        const y0_new    = Math.clamp(
-                            1, 
-                            rows - rows_new + 1, 
-                            y0_old + Math.floor((rows_old - rows_new) / 2) + (delta?.y ?? 0)
-                        );
-
-        // write new values
-        navboxes[displayid] = {
-            x0          : x0_new,
-            y0          : y0_new,
-            cols_view   : cols_new,
-            rows_view   : rows_new,
-        };
-    }
-    catch (error) {
-        console.error(`${this.name} - failed to update new view box values for display "${displayid}"`);
-        console.error(error);
-    }
-}
-//////////////////////////////////////////////////
-//////////////////////////////////////////////////
+/**
+ * creates Navtile jQuery object
+ * @param {object}      argObj
+ * @param {string}      argObj.displayid    - id of display
+ * @param {Navtile}     argObj.tile         - retrieved Navtile object
+ * @param {number}      argObj.row          - printed grid row
+ * @param {number}      argObj.col          - printed grid column
+ * @returns {$tile}     jQuery object
+ */
 function print_navtile(argObj) {
-    const { displayid, tileid, row, col }= argObj;
-    const tile = get_navtile(tileid);
-    const { tilename, wall, tilehtml } = tile;
+    const { displayid, tile, row, col } = argObj;
+    const { tileid, tilename, wall, tilehtml } = tile;
     try {
         const $t = $(document.createElement('div'))
         const displayhtml   = typeof tilehtml === 'undefined'
@@ -672,10 +705,20 @@ function print_navtile(argObj) {
         console.error(error);
     }
 }
+//////////////////////////////////////////////////
+//////////////////////////////////////////////////
+/**
+ * creates Naventity jQuery object
+ * @param {object}      argObj
+ * @param {string}      argObj.displayid    - id of display
+ * @param {Naventity}   argObj.entity       - retrieved Naventity object
+ * @param {number}      argObj.row          - printed grid row
+ * @param {number}      argObj.col          - printed grid column
+ * @returns {$entity}   jQuery object
+ */
 function print_naventity(argObj) {
-    const { displayid, entityid, col, row } = argObj;
-    const entity = get_naventity(entityid);
-    const { entityname, entityhtml } = entity;
+    const { displayid, entity, col, row } = argObj;
+    const { entityid, entityname, entityhtml } = entity;
     try {
         const $e = $(document.createElement('div'));
         const displayhtml   = typeof entityhtml === 'undefined'
@@ -703,7 +746,92 @@ function print_naventity(argObj) {
         console.error(error);
     }
 }
+//////////////////////////////////////////////////
+//////////////////////////////////////////////////
+/**
+ * creates Navdir jQuery object
+ * @param {object}      argObj
+ * @param {string}      argObj.mapid    - id of map
+ * @param {Naventity}   argObj.entity   - retrieved Naventity object
+ * @param {boolean}     argObj.row      - printed grid row
+ * @returns {$dir}      jQuery object
+ */
+function print_navdir(argObj) {
+    const { mapid, dir, entity, printnames } = argObj;
 
+    const map = get_navmap(mapid);
+    const { arr, rows, cols, actors } = map;
+    const { dirid, dirname, delta, dirhtml } = dir;
+
+    const $dir = $(document.createElement('div'));
+    try {
+        $dir
+            .addClass(`Navdir`)
+            .attr('data-dirid', dirid)
+            .attr('data-dirname', dirname)
+            .attr('data-mapid', mapid);
+
+        // no map coordiante, eject
+        if (typeof entity.coords[mapid] === 'undefined') {
+            return $dir
+        }
+
+        const x = entity.coords[mapid].x + delta.x;
+        const y = entity.coords[mapid].y + delta.y;
+        const i = convert_xy2i({x,y}, mapid);
+
+        if (
+            (i >= 0)        &&
+            (y >= 1)        &&
+            (y <= rows)     &&
+            (x >= 1)        &&
+            (x <= cols)
+        ) {
+            const tile = get_navtile(arr[i]);
+            const { tileid, tilename } = tile;
+            const disabled = actors[i]?.wall;
+            const displayhtml   = dirid === "C"
+                                    ? tilename ?? tileid
+                                : disabled
+                                    ? ""
+                                : printnames
+                                    ? tilename ?? tileid
+                                : dirhtml;
+            $dir
+                .attr('data-disabled', disabled)
+                .attr('data-tileid', tileid)
+                .wiki(displayhtml);
+        }
+        else {
+            $dir
+                .attr('data-disabled', true)
+                .attr('data-tileid', null)
+        }
+
+        return $dir
+    }
+    //////////////////////////////////////////////////
+    catch (error) {
+        console.error(`${this.name} - failed to create nav direction "${dirname}" for map "${mapid}"`);
+        console.error(error);
+    }
+}
+
+
+//  ████  ████  █    █ █   █ █████ ████  █████
+// █     █    █ ██   █ █   █ █     █   █   █
+// █     █    █ █ █  █ █   █ ███   ████    █
+// █     █    █ █  █ █  █ █  █     █   █   █
+//  ████  ████  █   ██   █   █████ █   █   █
+// SECTION: convert between xy and i
+//////////////////////////////////////////////////
+//////////////////////////////////////////////////
+/**
+ * converts i to xy
+ * @param {number}  i       - array index
+ * @param {string}  mapid   - map id
+ * @returns {{x,y}} xy coordinate object
+ */
 function convert_i2xy(i, mapid) {
     const map = get_navmap(mapid);
     const { arr, cols } = map;
@@ -717,6 +845,14 @@ function convert_i2xy(i, mapid) {
     const y = (i - x + 1) / cols + 1;
     return {x, y}
 }
+//////////////////////////////////////////////////
+//////////////////////////////////////////////////
+/**
+ * converts xy to i
+ * @param {{x,y}}   xy      - xy coordinate object
+ * @param {string}  mapid   - map id
+ * @returns {i}     array index
+ */
 function convert_xy2i(xy, mapid) {
     const map = get_navmap(mapid);
     const { rows, cols } = map;
@@ -733,16 +869,21 @@ function convert_xy2i(xy, mapid) {
     return i
 }
 
+
+
 // ████  █████ █████ █████ ████  █████ █    █  ████ █████
 // █   █ █     █     █     █   █ █     ██   █ █     █
 // ████  ███   ███   ███   ████  ███   █ █  █ █     ███
 // █   █ █     █     █     █   █ █     █  █ █ █     █
 // █   █ █████ █     █████ █   █ █████ █   ██  ████ █████
 // SECTION: reference values
+//////////////////////////////////////////////////
+//////////////////////////////////////////////////
 const dirs_4 = {
     C: {
         dirid   : 'C',
         dirname : 'center',
+        dirhtml : '',
         delta: {
             x  :  0,
             y  :  0,
@@ -751,6 +892,7 @@ const dirs_4 = {
     N: {
         dirid   : 'N',
         dirname : 'north',
+        dirhtml : '🢁',
         delta: {
             x  :  0,
             y  : -1,
@@ -759,6 +901,7 @@ const dirs_4 = {
     E: {
         dirid   : 'E',
         dirname : 'east',
+        dirhtml : '🢂',
         delta: {
             x  :  1,
             y  :  0,
@@ -767,6 +910,7 @@ const dirs_4 = {
     S: {
         dirid   : 'S',
         dirname : 'south',
+        dirhtml : '🢃',
         delta: {
             x  :  0,
             y  :  1,
@@ -775,17 +919,21 @@ const dirs_4 = {
     W: {
         dirid   : 'W',
         dirname : 'west',
+        dirhtml : '🢀',
         delta: {
             x  : -1,
             y  :  0,
         },
     },
 };
+//////////////////////////////////////////////////
+//////////////////////////////////////////////////
 const dirs_8 = {
     ...dirs_4,
     NW: {
         dirid   : 'NW',
         dirname : 'northwest',
+        dirhtml : '🢄',
         delta: {
             x  : -1,
             y  : -1,
@@ -793,7 +941,8 @@ const dirs_8 = {
     },
     NE: {
         dirid   : 'NE',
-        dirname  : 'northeast',
+        dirname : 'northeast',
+        dirhtml : '🢅',
         delta: {
             x  :  1,
             y  : -1,
@@ -802,6 +951,7 @@ const dirs_8 = {
     SE: {
         dirid   : 'SE',
         dirname : 'southeast',
+        dirhtml : '🢆',
         delta: {
             x  :  1,
             y  :  1,
@@ -810,6 +960,7 @@ const dirs_8 = {
     SW: {
         dirid   : 'SW',
         dirname : 'southwest',
+        dirhtml : '🢇',
         delta: {
             x  : -1,
             y  :  1,
