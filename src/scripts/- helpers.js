@@ -779,6 +779,7 @@ function print_navdir(argObj) {
         const x = entity.coords[mapid].x + delta.x;
         const y = entity.coords[mapid].y + delta.y;
         const i = convert_xy2i({x,y}, mapid);
+        console.log(dirid, x, y, i);
 
         if (
             (i >= 0)        &&
@@ -859,9 +860,9 @@ function convert_xy2i(xy, mapid) {
     const { x, y } = xy;
     if (
         x < 1       || 
-        x > rows    ||
+        x > cols    ||
         y < 1       ||
-        y > cols
+        y > rows
     ) {
         return -1
     }

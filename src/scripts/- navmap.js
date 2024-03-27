@@ -1397,8 +1397,31 @@ function click_navrose(argObj) {
                 mapid,
                 delta,
             });
+            // check if need to update display view
+            const map = get_navmap(mapid);
+            const display = get_navdisplay(displayid);
+            const entity = get_naventity(entityid);
+            const { cols, rows } = map;
+            const { cols_view, rows_view } = display;
+            const { x, y } = entity.coords[mapid];
+
+            const x0_old    = display.x0;
+            const y0_old    = display.y0;
+            const x0_new    = Math.clamp(
+                                1, 
+                                cols - cols_view + 1,
+                                x - Math.floor(cols_view / 2)
+                            );
+            const y0_new    = Math.clamp(
+                                1, 
+                                rows - rows_view + 1, 
+                                y - Math.floor(rows_view / 2)
+                            );
             // update display
-            $(`.Navdisplay[data-mapid="${mapid}"]`).trigger(":update_navdisplay");
+            $(`.Navdisplay[data-mapid="${mapid}"]`).trigger(":update_navdisplay", {
+                x   : x0_new - x0_old,
+                y   : y0_new - y0_old,
+            });
             // update rose
             $(`.Navrose[data-mapid="${mapid}"]`).trigger(":update_navrose");
         }

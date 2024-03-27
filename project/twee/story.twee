@@ -47,8 +47,8 @@ demo map
 <<new_navdisplay
     mapid       'demo'
     displayid   'asdf'
-    rows        8
-    cols        8
+    rows        9
+    cols        9
 >>
 <<new_naventity 
     entityid    'player1'
@@ -67,8 +67,8 @@ demo map
 <<set_naventity
     entityid    'player1'
     mapid       'demo'
-    x           1
-    y           1
+    x           3
+    y           3
 >>
 /* <<defineplayer 'demo' 2 2>>
     <span style="color:red; font-size: 2rem;">O</span>
