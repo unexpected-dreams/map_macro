@@ -3,66 +3,114 @@ demo map
 
 
 :: StoryInit [nobr]
-<<set $columns to 26>>
 <<new_navmap 
     mapid       'demo'
     mapname     'Demo Test Map'
-    cols        $columns
+    cols        30
     diagonal    false
     fenced      false
 >>
-    x	x	x	.	.	.	.	.	x	x	x	x	x	x	x	x	x	x	x	x	x	.	.	x	x	x
-    x	.	x	.	x	x	.	x	x	.	x	x	x	.	.	.	.	.	x	.	x	.	x	.	x	x
-    x	.	x	.	x	x	.	x	x	.	.	.	x	.	x	.	x	x	x	.	x	.	x	.	x	x
-    x	.	x	.	x	x	.	x	x	.	x	x	x	.	x	.	x	.	x	.	x	.	x	.	x	x
-    x	.	x	.	x	.	.	x	x	.	x	x	x	.	x	.	x	.	x	.	x	.	x	.	x	x
-    x	.	x	.	x	.	.	x	x	.	x	x	x	.	x	.	x	x	x	.	x	.	x	.	x	x
-    x	x	x	x	x	x	x	x	x	x	x	x	x	x	x	x	x	x	x	x	x	x	x	x	x	x
-    x	x	x	x	x	x	x	x	.	.	.	.	.	x	x	x	x	x	x	x	x	x	x	x	x	.
-    .	x	x	.	x	x	x	.	y	y	y	y	.	x	x	.	.	.	.	.	.	.	.	.	x	.
-    .	x	x	.	x	x	x	.	y	y	y	y	.	x	x	.	x	x	x	x	x	x	x	.	x	x
-    .	x	x	.	.	x	x	.	y	y	y	y	.	x	x	.	x	x	.	.	x	x	x	.	x	x
-    .	x	x	.	.	x	x	.	x	.	.	x	.	x	x	x	x	x	x	x	x	x	x	.	x	x
-    .	.	.	.	.	x	x	.	x	x	x	x	.	x	x	x	x	x	x	x	x	x	x	.	x	x
-    x	x	x	x	x	x	x	x	x	x	x	x	x	.	.	.	.	.	x	x	x	x	x	x	x	x
-    x	x	.	x	x	x	.	.	.	x	x	x	x	x	x	x	x	x	x	.	.	.	.	.	x	x
-    x	x	.	x	x	x	.	x	x	x	x	x	.	.	.	.	.	x	x	x	x	x	x	x	x	x
-    x	x	.	x	x	x	.	x	x	x	x	x	x	x	x	x	x	x	x	x	x	x	x	x	x	.
-    .	x	.	x	.	.	.	.	.	.	.	.	.	.	.	x	x	x	.	x	x	.	x	.	.	.
-    .	x	.	x	.	x	.	x	x	x	.	x	x	x	.	x	x	x	.	x	x	.	x	x	x	x
-    .	x	x	x	.	x	x	x	x	x	.	x	x	x	.	x	x	x	.	x	x	.	x	.	x	x
-    .	x	x	x	x	x	x	x	x	x	.	.	x	x	.	x	x	x	.	x	x	.	x	.	x	x
-    .	x	x	x	x	x	x	x	x	x	.	.	x	x	.	x	x	x	.	x	x	.	x	x	x	x
-    x	x	x	.	.	.	.	.	x	x	x	x	x	x	x	x	x	x	x	x	x	x	x	x	x	x
+    SE	SS	SS	SS	SS	SS	SS	SS	SS	SS	SS	SS	SS	SS	SS	SS	SS	SS	SS	SS	SS	SS	SS	SS	SS	SS	SS	SS	SS	SW
+    E	S	S	EW	S	S	S	S	S	S	S	S	S	S	S	S	S	S	EW	S	S	S	S	S	S	S	EW	S	S	W
+    E	-	-	EW	-	-	-	-	-	-	-	-	-	-	-	-	-	-	EW	-	-	-	-	-	-	-	EW	-	-	W
+    E	-	-	EW	-	-	-	-	-	-	N	-	-	-	-	-	-	-	EW	-	-	-	-	-	-	-	EW	-	-	W
+    E	-	-	EW	-	-	-	-	-	-	EW	-	-	-	-	-	-	-	EW	-	-	-	-	-	-	-	EW	-	-	W
+    E	-	-	EW	N	N	N	N	N	N	EW	N	N	N	-	-	-	-	EW	-	-	N	N	N	-	-	EW	-	-	W
+    E	-	-	S	S	S	S	S	S	S	EW	S	S	S	-	-	-	-	S	-	-	S	S	S	-	-	S	-	-	W
+    E	-	-	-	-	-	-	-	-	-	EW	-	-	-	-	-	-	-	-	-	-	-	-	EW	-	-	-	-	-	W
+    E	-	EW	-	-	-	-	-	N	N	N	-	-	-	-	-	-	-	-	-	-	-	-	EW	-	-	-	-	-	W
+    E	-	EW	-	-	-	-	-	S	S	S	-	-	N	-	-	-	-	-	-	-	-	-	EW	-	-	-	-	-	W
+    E	-	EW	-	-	-	EW	-	-	-	-	-	-	EW	-	-	N	N	N	N	N	N	N	EW	N	N	N	N	-	W
+    E	-	EW	-	-	-	EW	-	-	-	-	-	-	EW	-	-	S	S	S	EW	S	S	S	EW	S	S	S	S	-	W
+    E	-	EW	-	-	-	EW	-	-	-	-	-	-	EW	-	-	-	-	-	EW	-	-	-	EW	-	-	-	-	-	W
+    E	-	EW	-	N	N	EW	N	N	N	N	N	N	EW	N	N	-	-	-	EW	-	-	-	EW	-	-	-	-	-	W
+    E	-	EW	-	S	S	S	S	S	S	S	S	S	S	S	S	-	-	-	EW	-	-	-	EW	-	N	N	N	-	W
+    E	-	S	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	EW	-	-	-	EW	-	S	S	S	-	W
+    E	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	EW	-	-	-	EW	-	-	-	-	-	W
+    E	-	N	N	N	N	N	-	N	N	N	N	N	N	-	-	-	-	-	S	-	-	-	EW	-	-	-	N	-	W
+    E	-	EW	S	S	S	S	-	S	S	S	S	S	S	-	-	-	-	-	-	-	-	-	EW	-	-	-	EW	-	W
+    E	-	EW	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	EW	-	-	-	EW	-	W
+    E	-	EW	N	N	N	-	-	-	N	N	EW	N	N	N	N	N	N	N	N	N	-	-	EW	-	-	-	EW	-	W
+    E	-	EW	S	S	S	-	-	-	S	S	EW	S	S	S	S	S	S	S	S	S	-	-	S	-	-	N	EW	N	W
+    E	-	EW	-	-	-	-	-	-	-	-	EW	-	-	-	-	-	-	-	-	-	-	-	-	-	-	S	S	S	W
+    E	-	EW	-	-	N	-	-	-	-	-	EW	-	-	-	-	-	-	-	-	-	-	-	-	N	-	-	-	-	W
+    E	-	EW	-	-	EW	-	-	-	-	-	EW	N	N	N	N	N	-	-	N	N	N	N	N	EW	N	-	-	-	W
+    E	-	S	-	-	EW	N	N	N	-	-	S	S	S	S	S	EW	-	-	S	S	-	-	-	EW	-	-	-	-	W
+    E	-	-	-	-	EW	S	S	S	-	-	-	-	-	-	-	EW	-	-	-	-	-	-	-	EW	-	-	-	-	W
+    E	-	N	-	-	S	-	-	-	-	-	-	-	-	-	-	S	-	-	-	-	-	-	-	S	-	-	-	-	W
+    E	-	EW	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	W
+    NE	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	NW
 
 <</new_navmap>>
-<<new_navtile "." true>>
-        -
+<<new_navtile "-" false>>
+    <img class="tile_png" src="./assets/-.png">
+    <<displayhtml 'demo2'>>
+        <div style="border:1px dotted beige; height:   100%; width:100%"></div>
 <</new_navtile>>
-<<new_navtile 'x' false>>
-    x
-    <<displayhtml 'test'>>
-    XX
+<<new_navtile 'N' true>>
+    <img class="tile_png" src="./assets/N.png">
+    <<displayhtml 'demo2'>>
+        <div></div>
 <</new_navtile>>
-<<new_navdisplay
-    mapid       'demo'
-    displayid   'asdf'
-    rows        9
-    cols        9
->>
+<<new_navtile 'E' true>>
+    <img class="tile_png" src="./assets/E.png">
+    <<displayhtml 'demo2'>>
+        <div></div>
+<</new_navtile>>
+<<new_navtile 'W' true>>
+    <img class="tile_png" src="./assets/W.png">
+    <<displayhtml 'demo2'>>
+        <div></div>
+<</new_navtile>>
+<<new_navtile 'S' true>>
+    <img class="tile_png" src="./assets/S.png">
+    <<displayhtml 'demo2'>>
+        <div></div>
+<</new_navtile>>
+<<new_navtile 'EW' true>>
+    <img class="tile_png" src="./assets/EW.png">
+    <<displayhtml 'demo2'>>
+        <div></div>
+<</new_navtile>>
+<<new_navtile 'SS' true>>
+    <img class="tile_png" src="./assets/SS.png">
+    <<displayhtml 'demo2'>>
+        <div></div>
+<</new_navtile>>
+<<new_navtile 'NW' true>>
+    <img class="tile_png" src="./assets/NW.png">
+    <<displayhtml 'demo2'>>
+        <div></div>
+<</new_navtile>>
+<<new_navtile 'NE' true>>
+    <img class="tile_png" src="./assets/NE.png">
+    <<displayhtml 'demo2'>>
+        <div></div>
+<</new_navtile>>
+<<new_navtile 'SE' true>>
+    <img class="tile_png" src="./assets/SE.png">
+    <<displayhtml 'demo2'>>
+        <div></div>
+<</new_navtile>>
+<<new_navtile 'SW' true>>
+    <img class="tile_png" src="./assets/SW.png">
+    <<displayhtml 'demo2'>>
+        <div></div>
+<</new_navtile>>
+
 <<new_naventity 
     entityid    'player1'
     entityname  'Player 1'
     solid       true
 >>
-    <div style="color:red; font-size: 2rem;">O</div>
+    <img class='player_png' src='./assets/player1.png'>
 <</new_naventity>>
 <<new_naventity 
     entityid    'player2'
     entityname  'Player 2'
     solid       true
 >>
-    <div style="color:yellow; font-size: 2rem;">O</div>
+    <img class='player_png' src='./assets/player2.png'>
 <</new_naventity>>
 <<set_naventity
     entityid    'player1'
@@ -70,20 +118,109 @@ demo map
     x           3
     y           3
 >>
-/* <<defineplayer 'demo' 2 2>>
-    <span style="color:red; font-size: 2rem;">O</span>
-<</defineplayer>> */
-/* <<setplayer 'demo' 3 3 >> */
+<<set_naventity
+    entityid    'player2'
+    mapid       'demo'
+    x           27
+    y           27
+>>
 
-:: Start
-map
+<<new_navdisplay
+    mapid           'demo'
+    displayid       'demo1'
+    entityid_view   'player1'
+    rows            9
+    cols            9
+>>
+<<new_navdisplay
+    mapid           'demo'
+    displayid       'demo2'
+    entityid_view   'player2'
+    rows            30
+    cols            30
+>>
+
+:: Start [nobr]
+<div id='grid'>
+<div class='title' id='title1'>Player 1</div>
+<div class='title' id='title2'>Player 2</div>
+<div class='controls' id='control1'>WASD</div>
+<div class='controls' id='control2'>Arrow Keys</div>
 <<print_navdisplay 
-    displayid       'asdf'
+    displayid       'demo1'
 >>
 <<print_navrose
-    displayid       'asdf'
+    displayid       'demo1'
     entityid        'player1'
+    codes           `{N:"KeyW",E:"KeyD",S:"KeyS",W:"KeyA"}`
 >>
+<<print_navdisplay 
+    displayid       'demo2'
+>>
+<<print_navrose
+    displayid       'demo2'
+    entityid        'player2'
+    codes           `{N:"ArrowUp",E:"ArrowRight",S:"ArrowDown",W:"ArrowLeft"}`
+>>
+</div>
+/* [[otherpassage]] */
+<style>
+    #grid {
+        display: grid;
+        column-gap: 2rem;
+        place-content: center;
+    }
+        .title {
+            font-size: 1.75rem;
+            margin: 0 auto;
+            grid-row: 1;
+        }
+            #title1 {
+                color: red;
+                grid-column: 1;
+            }
+            #title2 {
+                color: yellow;
+                grid-column: 2;
+            }
+        .controls {
+            font-size: 1.25rem;
+            margin: 0 auto;
+            grid-row: 2;
+        }
+            #controls1 {
+                color: red;
+                grid-column: 1;
+            }
+            #controls2 {
+                grid-column: 2;
+            }
+        .Navdisplay {
+            grid-row: 3;
+        }
+            .Navdisplay[data-displayid="demo1"] {
+                grid-column: 1;
+            }
+            .Navdisplay[data-displayid="demo2"] {
+                grid-column: 2;
+            }
+        .Navrose {
+            margin: 0 auto;
+            grid-row: 4;
+        }
+            .Navrose[data-displayid="demo1"] {
+                grid-column: 1;
+            }
+            .Navrose[data-displayid="demo2"] {
+                grid-column: 2;
+            }
+            .Navdir[data-displayid="demo1"] {
+                border: 1px dashed red;
+            }
+            .Navdir[data-displayid="demo2"] {
+                border: 1px dashed yellow;
+            }
+</style>
 /* <span style="color:red">player1</span> nav
 <<link 'test'>>
     <<delentity 'demo' 'player1'>>
@@ -126,18 +263,18 @@ map
 - go to [[otherpassage]] */
 <style>
     :root {
-        --mapwidth: 40rem;
-        --mapheight: 30rem;
-        --rosewidth: 25rem;
-        --roseheight: 20rem;
+        --mapwidth: 35rem;
+        --mapheight: 35rem;
+        --rosewidth: 12rem;
+        --roseheight: 12rem;
     }
     #xinput, #yinput {
         display: inline-block; 
         min-width:2rem; 
         width:2rem
     }
-    .macro-newdisplay-container,
-    .macro-newdisplay-container * {
+    .Navdisplay,
+    .Navdisplay * {
         box-sizing: border-box;
     }
     /*
@@ -218,6 +355,10 @@ map
             align-items: center;
             justify-content: center;
         }
+            .Navdisplay > * {
+                width: 100%;
+                height: 100%;
+            }
         .Navtile {
             width: 100%;
             height: 100%;
@@ -226,7 +367,7 @@ map
             align-items: center;
             justify-content: center;
             text-align: center;
-            border: 1px dashed #80808087;
+            /* border: 1px dashed #80808087; */
         }
             .Navtile img {
                 width: 100%;
@@ -263,14 +404,15 @@ map
         grid-template-rows: repeat(3, 1fr);
         width: var(--rosewidth);
         height: var(--roseheight);
+        gap: 0.5rem;
     }
         .Navdir {
             user-select: none;
             display: flex;
             align-items: center;
             justify-content: center;
-            border: 1px dashed blue;
-            font-size: 2rem;
+            /* border: 1px dashed blue; */
+            font-size: 1.5rem;
         }
             .Navdir:not([data-disabled="true"]):not([data-dirid="C"]) {
                 cursor: pointer;

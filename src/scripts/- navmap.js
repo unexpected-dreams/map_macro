@@ -380,6 +380,7 @@ function new_navdisplay(argObj) {
         return this.error(`${this.name} - display with id "${displayid}" already exists for map "${mapid}"`)
     }
     // ERROR: breaking
+    check_extant.call(this, {mapid});
     if (cols_view) {
         check_integer.call(this, {cols_view}, {label:'view columns'});
         check_positive.call(this, {cols_view}, {label:'view columns'});
@@ -388,14 +389,20 @@ function new_navdisplay(argObj) {
         check_integer.call(this, {rows_view}, {label:'view rows'});
         check_positive.call(this, {rows_view}, {label:'view rows'});
     }
+    if (entityid_view) {
+        check_extant.call(this, {entityid:entityid_view}, {label:'id of entity to track'});
+        check_oneword.call(this, {entityid:entityid_view}, {label:'id of entity to track'});
+
+        // ERROR: no coordinates for selected entity
+        const entity_view = get_naventity(entityid_view);
+        if (typeof entity_view.coords[mapid] === 'undefind') {
+            return this.error(`${this.name} - no coordinates set for entity "${entityid_view}" on map "${mapid}" (new_navdisplay)`)
+        }
+    }
+
     // ERROR: common but permissible
     if (! def.skipcheck.common) {
-        check_extant.call(this, {mapid});
         check_oneword.call(this, {displayid});
-        if (entityid_view) {
-            check_extant.call(this, {entityid}, {label:'id of entity to track'});
-            check_oneword.call(this, {entityid}, {label:'id of entity to track'});
-        }
     }
 
     // extract from map
@@ -405,48 +412,49 @@ function new_navdisplay(argObj) {
     //////////////////////////////////////////////////
     // extract zoom stuff from argObj
     try {
-        const entity_view = get_naventity(entityid_view);
+        let x0_valid, y0_valid;
 
-        const cols_valid 
-            = Math.clamp(
-                1, 
-                cols, 
-                cols_view ?? rows_view ?? cols
-            );
-        const rows_valid 
-            = Math.clamp(
-                1, 
-                rows, 
-                rows_view ?? cols_view ?? rows
-            );        
-        const x0_valid
-            = typeof x0 !== 'undefined'
-                ? Math.clamp(
-                    1,
-                    cols - cols_view + 1,
-                    x0
-                )
-            : typeof entity_view !== 'undefined'
-                ? Math.clamp(
-                    1, 
-                    cols - cols_view + 1,
-                    entity_view.x - Math.floor(cols_view / 2)
-                )
-            : 1;
-        const y0_valid
-            = typeof y0 !== 'undefined'
-                ? Math.clamp(
-                    1,
-                    rows - rows_view + 1,
-                    y0
-                )
-            : typeof entity_view !== 'undefined'
-                ? Math.clamp(
-                    1, 
-                    rows - rows_view + 1, 
-                    y0 ?? (entity_view.y - Math.floor(rows_view / 2))
-                )
-            : 1;
+        const cols_valid    = Math.clamp(
+                                1, 
+                                cols, 
+                                cols_view ?? rows_view ?? cols
+                            );
+        const rows_valid    = Math.clamp(
+                                1, 
+                                rows, 
+                                rows_view ?? cols_view ?? rows
+                            ); 
+        // write entity values first
+        if (typeof entityid_view !== 'undefined') {
+            const entity_view = get_naventity(entityid_view);
+            const { x, y } = entity_view.coords[mapid];
+
+            x0_valid        = Math.clamp(
+                                1, 
+                                cols - cols_view + 1,
+                                x - Math.floor(cols_view / 2)
+                            );
+            y0_valid        = Math.clamp(
+                                1, 
+                                rows - rows_view + 1, 
+                                y - Math.floor(rows_view / 2)
+                            );
+        }
+        // then write explicit x0, y0 values
+        if (typeof x0 !== 'undefined') {
+            x0_valid        = Math.clamp(
+                                1,
+                                cols - cols_view + 1,
+                                x0
+                            );
+        }
+        if (typeof y0 !== 'undefined') {
+            y0_valid        = Math.clamp(
+                                1,
+                                rows - rows_view + 1,
+                                y0
+                            );
+        }
 
         // create & store new display data
         navdisplays[displayid] = {
@@ -455,8 +463,8 @@ function new_navdisplay(argObj) {
             entityid_view,
             cols_view   : cols_valid,
             rows_view   : rows_valid, 
-            x0          : x0_valid,
-            y0          : y0_valid,
+            x0          : x0_valid ?? 1,    // default to 1 if no values defined
+            y0          : y0_valid ?? 1,    // default to 1 if no values defined
         };
     }
     catch (error) {
@@ -525,14 +533,12 @@ function print_navdisplay(argObj) {
 
         $display
             .addClass(`Navdisplay`)
-            .attr('data-mapid', mapid)
-            .attr('data-displayid',displayid)
-            .attr('data-root-x0', x0)
-            .attr('data-root-y0', y0)
-            .attr('data-root-cols_view', cols_view)
-            .attr('data-root-rows_view', rows_view)
-            // when null or undefined, nothing gets set
-            .attr('data-entity', entityid_view);
+            .attr('data-mapid',         mapid)
+            .data('mapid',              mapid)
+            .attr('data-displayid',     displayid)
+            .data('displayid',          displayid)
+            .attr('data-entityid_view', entityid_view)
+            .data('entityid_view',      entityid_view)
 
     }
     catch (error) {
@@ -594,7 +600,7 @@ function update_navdisplay(argObj) {
     if ((! def.skipcheck.common) && ($display.length === 0)) {
         return this.error(`${this.name} - empty jQuery object, no navdisplay supplied`)
     }
-    const displayid = $display.attr('data-displayid');
+    const displayid = $display.data('displayid');
 
     // extract from map
     const display = get_navdisplay(displayid);
@@ -647,7 +653,9 @@ function update_navdisplay(argObj) {
                 const { x, y } = convert_i2xy(i, mapid);
                 $t
                     .attr('data-x', x)
-                    .attr('data-y', y);
+                    .data('x',      x)
+                    .attr('data-y', y)
+                    .data('y',      y);
                 printed_navtiles.push(i);
             }
         }
@@ -707,7 +715,7 @@ function calculate_navdisplay(argObj) {
 
    // extract from map & display
    const display = get_navdisplay(displayid);
-   const { mapid } = display;
+   const { mapid, entityid_view } = display;
    const map = get_navmap(mapid);
    const { rows, cols } = map;
 
@@ -1111,13 +1119,14 @@ Macro.add(["movnaventity", "mov_naventity"], {
 /**
  * moves an entity on a map, must be set first
  * @param {object}      argObj
- * @param {string}      argObj.entityid     - id of entity
- * @param {string}      argObj.mapid        - id of map
+ * @param {string}      argObj.entityid         - id of entity
+ * @param {string}      argObj.mapid            - id of map
  * @param {{
  *      x   : number,
  *      y   : number,
- * }}                   argObj.delta        - change to entity xy
- * @param {boolean}     argObj.ignore_walls - ignores walls when calculating collisions
+ * }}                   argObj.delta            - change to entity xy
+ * @param {boolean}     argObj.ignore_walls     - ignores walls when calculating collisions
+ * @param {boolean}     argObj.trigger_update   - true updates map
  * @returns {void}
  */
 function mov_naventity(argObj) {
@@ -1127,7 +1136,8 @@ function mov_naventity(argObj) {
     this.error  ??= function(error) { throw new Error(error) };
 
     // extract from argObj
-    const { entityid, mapid, delta, ignore_walls } = {
+    const { entityid, mapid, delta, ignore_walls, trigger_update } = {
+        trigger_update  : true,
         ...argObj,
     };
 
@@ -1186,11 +1196,13 @@ function mov_naventity(argObj) {
 
     // update displays
     try {
-        $(`.Navdisplay[data-mapid="${mapid}"]`).trigger(":update_navdisplay");
-        $(`.Navrose[data-mapid="${mapid}"]`).trigger(":update_navrose");
+        if (trigger_update) {
+            $(`.Navdisplay[data-mapid="${mapid}"]`).trigger(":update_navdisplay");
+            $(`.Navrose[data-mapid="${mapid}"]`).trigger(":update_navrose");
+        }
     }
     catch (error) {
-        console.error(`${this.name} - failed to update navdisplays while moving entity "${entityid}" on map "${mapid}" (mov_naventity)`);
+        console.error(`${this.name} - failed to trigger updates while moving entity "${entityid}" on map "${mapid}" (mov_naventity)`);
         console.error(error);
     }
 }
@@ -1221,12 +1233,61 @@ Macro.add(["print_navrose", "printnavrose"], {
                     type        : 'string',
                     alias       : 'entity',
                 },
-                printnames: {
+                print_names: {
                     type        : 'boolean',
                     alias       : 'names',
                 },
+                keyboard_codes: {
+                    type        : 'object',
+                    alias       : 'codes',
+                },
+                keyboard_N: {
+                    type        : 'string',
+                    alias       : 'code_N',
+                },
+                keyboard_E: {
+                    type        : 'string',
+                    alias       : 'code_E',
+                },
+                keyboard_S: {
+                    type        : 'string',
+                    alias       : 'code_S',
+                },
+                keyboard_W: {
+                    type        : 'string',
+                    alias       : 'code_W',
+                },
+                keyboard_NW: {
+                    type        : 'string',
+                    alias       : 'code_NW',
+                },
+                keyboard_NE: {
+                    type        : 'string',
+                    alias       : 'code_NE',
+                },
+                keyboard_SE: {
+                    type        : 'string',
+                    alias       : 'code_SE',
+                },
+                keyboard_SW: {
+                    type        : 'string',
+                    alias       : 'code_SW',
+                },
             },
         });
+        // shorthand for specific keys
+        try {
+            argObj.keyboard_codes ??= {};
+            for (const dirid in dirs_8) {
+                if (typeof argObj[`keyboard_${dirid}`] !== 'undefined') {
+                    argObj.keyboard_codes[dirid] = argObj[`keyboard_${dirid}`];
+                }
+            }
+        }
+        catch (error) {
+            console.error(`${this.name} - failed to parse keyboard code shorthands into keyboard_codes object (<<print_navrose>>)`);
+            console.error(error);
+        }
         argObj.source = "macro";
         debug.log('macro', `end - ${this.name} handler`);
         debug.log('macro', argObj);
@@ -1238,10 +1299,20 @@ Macro.add(["print_navrose", "printnavrose"], {
 //////////////////////////////////////////////////
 /**
  * creates Navrose jquery object
- * @param {object}  argObj
- * @param {string}  argObj.displayid    - id of display to attach rose to
- * @param {string}  argObj.entityid     - id of entity to track
- * @param {string}  argObj.print_names  - true prints names instead of arrows
+ * @param {object}      argObj
+ * @param {string}      argObj.displayid        - id of display to attach rose to
+ * @param {string}      argObj.entityid         - id of entity to track
+ * @param {string}      argObj.print_names      - true prints names instead of arrows
+ * @param {{
+ *      N   : ev.code,
+ *      E   : ev.code,
+ *      W   : ev.code,
+ *      S   : ev.code,
+ *      NW  : ev.code,
+ *      NE  : ev.code,
+ *      SE  : ev.code,
+ *      SW  : ev.code,
+ * }}                   argObj.keyboard_codes   - object that holds keyboard press codes
  * @returns {void}
  */
 function print_navrose(argObj) {
@@ -1250,8 +1321,9 @@ function print_navrose(argObj) {
     this.name   ??= argObj.id ?? "set_naventity";
     this.error  ??= function(error) { throw new Error(error) };
 
-    const { displayid, entityid, printnames } = {
-        print_names: def.nav.printnames,
+    const { displayid, entityid, print_names, keyboard_codes } = {
+        print_names     : def.nav.print_names,
+        keyboard_codes  : def.nav.keyboard_codes,
         ...argObj,
     };
 
@@ -1275,16 +1347,23 @@ function print_navrose(argObj) {
     const { diagonal } = map;
 
     const $rose = $(document.createElement('div'));
+    const navsn = crypto.randomUUID();
 
     // create rose
     try {
         // rose properties
         $rose
             .addClass('Navrose')
-            .attr('data-mapid', mapid)
-            .attr('data-displayid', displayid)
-            .attr('data-entityid', entityid)
-            .attr('data-printnames', printnames);
+            .attr('data-mapid',         mapid)
+            .data('mapid',              mapid)
+            .attr('data-displayid',     displayid)
+            .data('displayid',          displayid)
+            .attr('data-print_names',   print_names)
+            .data('print_names',        print_names)
+            .attr('data-entityid',      entityid)
+            .data('entityid',           entityid)
+            .attr('data-navsn',         navsn)
+            .data('navsn',              navsn);
     }
     catch (error) {
         console.error(`${this.name} - failed to initialize nav rose for display "${displayid}" (print_navrose)`);
@@ -1318,7 +1397,35 @@ function print_navrose(argObj) {
         }, 40)
     }
     catch (error) {
-        console.error(`${this.name} - failed to assign navrose listeners (print_navrose)`);
+        console.error(`${this.name} - failed to assign navrose listeners for navrose with displayid "${displayid}" (print_navrose)`);
+        console.error(error);
+    }
+
+    // keydown listeners
+    try {
+        const dirs = diagonal 
+                        ? dirs_8
+                        : dirs_4;
+        setTimeout( function() {
+            $(document).on(`keydown.${navsn}`, function(ev) {
+                console.log(ev.code);
+                // remove listener if no nav with navsn found
+                if ($(`[data-navsn="${navsn}"]`).length === 0) {
+                    $(document).off(`keydown.${navsn}`);
+                    console.log('off!');
+                }
+                else {
+                    for (const dirid in dirs) {
+                        if (ev.code === keyboard_codes[dirid]) {
+                            $(`[data-navsn="${navsn}"] .Navdir[data-dirid="${dirid}"]`).trigger('click');
+                        }
+                    }
+                }
+            });
+        }, 40)
+    }
+    catch (error) {
+        console.error(`${this.name} - failed to create key press listeners for navrose with displayid "${displayid}"`);
         console.error(error);
     }
 
@@ -1346,9 +1453,10 @@ function update_navrose(argObj) {
     if ((! def.skipcheck.common) && ($rose.length === 0 )) {
         return this.error(`${this.name} - empty jQuery object, no navrose provided`)
     }
-    const mapid         = $rose.attr('data-mapid');
-    const entityid      = $rose.attr('data-entityid');
-    const printnames    = $rose.attr('data-printnames');
+    const mapid         = $rose.data('mapid');
+    const displayid     = $rose.data('displayid');
+    const entityid      = $rose.data('entityid');
+    const print_names   = $rose.data('print_names');
 
     const map = get_navmap(mapid);
     const { diagonal } = map;
@@ -1356,13 +1464,16 @@ function update_navrose(argObj) {
 
     try {
         // create & append direction buttons
-        const dirs = diagonal ? dirs_8 : dirs_4;
+        const dirs = diagonal 
+                        ? { ...dirs_0, ...dirs_8 }
+                        : { ...dirs_0, ...dirs_4 };
         for (const dirid in dirs) {
             const $dir = print_navdir.call(this, {
+                displayid,
                 mapid,
                 dir     : dirs[dirid],
                 entity,
-                printnames,
+                print_names,
             });
             $dir.appendTo($rose);
         }
@@ -1387,15 +1498,16 @@ function click_navrose(argObj) {
     const { displayid, mapid, entityid, ev } = argObj;
     const $target = $(ev.target);
     if ($target.hasClass('Navdir')) {
-        const dirid = $target.attr('data-dirid');
-        const disabled = $target.attr('data-disabled') === 'true';
+        const dirid = $target.data('dirid');
+        const disabled = $target.data('disabled');
         if (! disabled) {
-            const delta = dirs_8[dirid].delta;
+            const delta = dirs[dirid].delta;
             // move entity
             mov_naventity.call(this, {
                 entityid,
                 mapid,
                 delta,
+                trigger_update  : false,    // suppress update from mov_naventity
             });
             // check if need to update display view
             const map = get_navmap(mapid);
@@ -1417,11 +1529,13 @@ function click_navrose(argObj) {
                                 rows - rows_view + 1, 
                                 y - Math.floor(rows_view / 2)
                             );
-            // update display
-            $(`.Navdisplay[data-mapid="${mapid}"]`).trigger(":update_navdisplay", {
+            // update this display
+            $(`.Navdisplay[data-displayid="${displayid}"]`).trigger(":update_navdisplay", {
                 x   : x0_new - x0_old,
                 y   : y0_new - y0_old,
             });
+            // update other displays
+            $(`.Navdisplay[data-mapid="${mapid}"]:not([data-displayid="${displayid}"])`).trigger(":update_navdisplay");
             // update rose
             $(`.Navrose[data-mapid="${mapid}"]`).trigger(":update_navrose");
         }

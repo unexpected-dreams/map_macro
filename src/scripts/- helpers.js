@@ -10,7 +10,17 @@ const config = {nav:{},wall:{},floor:{},map:{},entity:{},skipcheck:{}};
 
 // map configurations
 config.nav.diagonal         = false;        // true enables diagonal movement by default
-config.nav.printnames       = false;        // true uses tile names instead of arrows
+config.nav.print_names      = false;        // true uses tile names instead of arrows
+config.nav.keyboard_codes   = {             // default keyboard navigation keys
+                                N   : 'Numpad8',
+                                E   : 'Numpad6',
+                                S   : 'Numpad2',
+                                W   : 'Numpad4',
+                                NW  : 'Numpad7',
+                                NE  : 'Numpad9',
+                                SE  : 'Numpad3',
+                                SW  : 'Numpad1',
+                            };
 config.map.fenced           = true;         // true means map is fenced by invisible walls
 config.entity.solid         = true;         // true means entity blocks movement into their cell
 
@@ -25,10 +35,10 @@ config.skipcheck.unused     = false;        // true will suppress & ignore error
 
 // global object, setup setup namespace, State namespace
 // can't be set via setup settings
-config.disableglobal        = false;        // true removes the global object
-config.setupname            = '@navmap';    // default, setup['@navmap']
-config.globalname           = 'Navmap';     // default, navmap
-config.Statename            = '@navmap';    // default, State.variables['@navmap']
+config.disable_global       = false;        // true removes the global object
+config.setup_name           = '@navmap';    // default, setup['@navmap']
+config.global_name          = 'Navmap';     // default, navmap
+config.State_name           = '@navmap';    // default, State.variables['@navmap']
 
 
 
@@ -43,10 +53,10 @@ config.Statename            = '@navmap';    // default, State.variables['@navmap
 //////////////////////////////////////////////////
 //////////////////////////////////////////////////
 // init setup & State namespaces
-setup[config.setupname] ??= {};
-State.variables[config.Statename] ??= {};
+setup[config.setup_name] ??= {};
+State.variables[config.State_name] ??= {};
 // proxy for setup settings
-const def = new Proxy(config, get_controller(setup[config.setupname]));
+const def = new Proxy(config, get_controller(setup[config.setup_name]));
 function get_controller(control) {
     return {
         get(t,p) {
@@ -118,7 +128,7 @@ setup.navdisplays = navdisplays;
 //////////////////////////////////////////////////
 //////////////////////////////////////////////////
 // init requisite namespace in State
-State.variables[config.Statename].navmaps ??= {};
+State.variables[config.State_name].navmaps ??= {};
 // Navmap class object
 class Navmap {
     /**
@@ -145,7 +155,7 @@ class Navmap {
         navmaps[String(mapid)] = this;
         this.mapid = String(mapid);
         // create State store if non-extant
-        State.variables[config.Statename].navmaps[this.mapid] ??= {};
+        State.variables[config.State_name].navmaps[this.mapid] ??= {};
 
         //////////////////////////////////////////////////
         // assign data
@@ -236,30 +246,30 @@ class Navmap {
     }
     // arr
     set arr(val) {
-        State.variables[config.Statename].navmaps[this.mapid].arr = val;
+        State.variables[config.State_name].navmaps[this.mapid].arr = val;
     }
     get arr() {
-        return State.variables[config.Statename].navmaps[this.mapid].arr
+        return State.variables[config.State_name].navmaps[this.mapid].arr
     }
     // cols
     set cols(val) {
-        State.variables[config.Statename].navmaps[this.mapid].cols = val;
+        State.variables[config.State_name].navmaps[this.mapid].cols = val;
     }
     get cols() {
-        return State.variables[config.Statename].navmaps[this.mapid].cols
+        return State.variables[config.State_name].navmaps[this.mapid].cols
     }
     // rows
     set rows(val) {
-        State.variables[config.Statename].navmaps[this.mapid].rows = val;
+        State.variables[config.State_name].navmaps[this.mapid].rows = val;
     }
     get rows() {
-        return State.variables[config.Statename].navmaps[this.mapid].rows
+        return State.variables[config.State_name].navmaps[this.mapid].rows
     }
 }
 //////////////////////////////////////////////////
 //////////////////////////////////////////////////
 // init requisite namespace in State
-State.variables[config.Statename].navtiles ??= {};
+State.variables[config.State_name].navtiles ??= {};
 // Navtile class
 class Navtile {
     /**
@@ -308,7 +318,7 @@ class Navtile {
 //////////////////////////////////////////////////
 //////////////////////////////////////////////////
 // init requisite namespace in State
-State.variables[config.Statename].naventities ??= {};
+State.variables[config.State_name].naventities ??= {};
 // Naventity class
 class Naventity {
     /**
@@ -335,7 +345,7 @@ class Naventity {
         naventities[String(entityid)] = this;
         this.entityid = String(entityid);
         // create State store if non-extant
-        State.variables[config.Statename].naventities[this.entityid] ??= {};
+        State.variables[config.State_name].naventities[this.entityid] ??= {};
 
         //////////////////////////////////////////////////
         // assign data
@@ -363,17 +373,17 @@ class Naventity {
     }
     // coords
     set coords(val) {
-        State.variables[config.Statename].naventities[this.entityid].coords = val;
+        State.variables[config.State_name].naventities[this.entityid].coords = val;
     }
     get coords() {
-        return State.variables[config.Statename].naventities[this.entityid].coords
+        return State.variables[config.State_name].naventities[this.entityid].coords
     }
 }
 //////////////////////////////////////////////////
 //////////////////////////////////////////////////
 // set global
-if (! config.disableglobal) {
-    Object.defineProperty(window, config.globalname, {
+if (! config.disable_global) {
+    Object.defineProperty(window, config.global_name, {
         value: Navmap,
     });
 }
@@ -688,10 +698,11 @@ function print_navtile(argObj) {
                             : tileid;
         $t
             .addClass(`Navtile`)
-            .attr('title', tilename)
-            .attr('data-tileid', tileid)
-            .attr('data-tilename', tilename)
-            .attr('data-wall', wall)
+            .attr('title',          tilename)
+            .attr('data-tileid',    tileid)
+            .data('tileid',         tileid)
+            .attr('data-wall',      wall)
+            .data('wall',           wall)
             .css({
                 "grid-column"   : `${col} / span 1`,
                 "grid-row"      : `${row} / span 1`,
@@ -730,9 +741,9 @@ function print_naventity(argObj) {
                             : entityid;
         $e
             .addClass(`Naventity`)
-            .attr('title', entityname)
-            .attr('data-entityid', entityid)
-            .attr('data-entityname', entityname)
+            .attr('title',          entityname)
+            .attr('data-entityid',  entityid)
+            .data('entityid',       entityid)
             .css({
                 "grid-column"   : `${col} / span 1`,
                 "grid-row"      : `${row} / span 1`,
@@ -757,7 +768,7 @@ function print_naventity(argObj) {
  * @returns {$dir}      jQuery object
  */
 function print_navdir(argObj) {
-    const { mapid, dir, entity, printnames } = argObj;
+    const { displayid, mapid, dir, entity, print_names } = argObj;
 
     const map = get_navmap(mapid);
     const { arr, rows, cols, actors } = map;
@@ -767,9 +778,12 @@ function print_navdir(argObj) {
     try {
         $dir
             .addClass(`Navdir`)
-            .attr('data-dirid', dirid)
-            .attr('data-dirname', dirname)
-            .attr('data-mapid', mapid);
+            .attr('data-dirid',     dirid)
+            .data('dirid',          dirid)
+            .attr('data-mapid',     mapid)
+            .data('mapid',          mapid)
+            .attr('data-displayid', displayid)
+            .data('dsplayid',       displayid)
 
         // no map coordiante, eject
         if (typeof entity.coords[mapid] === 'undefined') {
@@ -779,7 +793,6 @@ function print_navdir(argObj) {
         const x = entity.coords[mapid].x + delta.x;
         const y = entity.coords[mapid].y + delta.y;
         const i = convert_xy2i({x,y}, mapid);
-        console.log(dirid, x, y, i);
 
         if (
             (i >= 0)        &&
@@ -795,18 +808,22 @@ function print_navdir(argObj) {
                                     ? tilename ?? tileid
                                 : disabled
                                     ? ""
-                                : printnames
+                                : print_names
                                     ? tilename ?? tileid
                                 : dirhtml;
             $dir
-                .attr('data-disabled', disabled)
-                .attr('data-tileid', tileid)
+                .attr('data-disabled',  disabled)
+                .data('disabled',       disabled)
+                .attr('data-tileid',    tileid)
+                .data('tileid',         tileid)
                 .wiki(displayhtml);
         }
         else {
             $dir
-                .attr('data-disabled', true)
-                .attr('data-tileid', null)
+                .attr('data-disabled',  true)
+                .data('disabled',       true)
+                .attr('data-tileid',    null)
+                .data('tileid',         null)
         }
 
         return $dir
@@ -880,7 +897,7 @@ function convert_xy2i(xy, mapid) {
 // SECTION: reference values
 //////////////////////////////////////////////////
 //////////////////////////////////////////////////
-const dirs_4 = {
+const dirs_0 = {
     C: {
         dirid   : 'C',
         dirname : 'center',
@@ -890,6 +907,8 @@ const dirs_4 = {
             y  :  0,
         },
     },
+};
+const dirs_4 = {
     N: {
         dirid   : 'N',
         dirname : 'north',
@@ -927,8 +946,6 @@ const dirs_4 = {
         },
     },
 };
-//////////////////////////////////////////////////
-//////////////////////////////////////////////////
 const dirs_8 = {
     ...dirs_4,
     NW: {
@@ -967,4 +984,8 @@ const dirs_8 = {
             y  :  1,
         },
     },
-};    
+};
+const dirs = {
+    ...dirs_0,
+    ...dirs_8,
+};
