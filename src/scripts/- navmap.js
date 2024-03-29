@@ -23,10 +23,10 @@ function calculate_actors(argObj) {
     // calculate walls using tiles
     try {
         for (let i = 0; i < arr.length; i++) {
-            const tileid    = arr[i];
-            const tile      = get_navtile(tileid);
-            actors[i]       ??= {};
-            actors[i].wall  = tile.wall;
+            const tileid        = arr[i];
+            const tile          = get_navtile(tileid);
+            actors[i]           ??= {};
+            actors[i].blocked   = tile.blocked;
         }
     }
     catch (error) {
@@ -51,11 +51,11 @@ function calculate_actors(argObj) {
                 y   : entity.coords[mapid].y,
             }, mapid);
             // if already wall or out of bounds, skip
-            if ( i < 0 || actors[i]?.wall) {
+            if ( i < 0 || actors[i]?.blocked) {
                 continue;
             }
             // set wall status
-            actors[i].wall = entity.solid;
+            actors[i].blocked = entity.solid;
         }
     }
     catch (error) {
@@ -198,7 +198,7 @@ Macro.add(["newnavtile", "new_navtile"], {
                     type        : 'string',
                     alias       : 'name',
                 },
-                wall: {
+                blocked: {
                     type        : 'boolean',
                 },
             },
@@ -244,7 +244,7 @@ Macro.add(["newnavtile", "new_navtile"], {
  *      default     : HTML,
  *      displayid   : HTML,
  * }}                           tilehtml    - HTML representations
- * @param {boolean}             wall        - whether the tile is a wall
+ * @param {boolean}             blocked     - whether the tile is traversable / blocked
  * @returns {void}
  */
 function new_navtile(argObj) {
@@ -254,18 +254,19 @@ function new_navtile(argObj) {
     this.error  ??= function(error) { throw new Error(error) };
 
     // extract from argObj
-    const { tileid, tilename, tilehtml, wall} = argObj;
+    const { tileid, tilename, tilehtml, blocked} = argObj;
 
     // ERROR: required
     check_required.call(this, {tileid});
-    check_required.call(this, {wall});
+    check_required.call(this, {blocked});
 
     //////////////////////////////////////////////////
     // assign tile data
     try {
+        // write if not new
         const tile  = get_navtile(tileid);
         if (typeof tile !== 'undefined') {
-            tile.wall = wall;
+            tile.blocked = blocked;
             if (tilename) {
                 tile.tilename = tilename;
             }
@@ -281,8 +282,9 @@ function new_navtile(argObj) {
                 tile.tilehtml.default ??= tileid;
             }
         }
+        // create if new
         else {
-            new Navtile(tileid, tilename, tilehtml, wall);
+            new Navtile(tileid, tilename, tilehtml, blocked);
         }
     }
     catch (error) {
@@ -857,8 +859,9 @@ function new_naventity(argObj) {
     // assign entity data
     try {
         const entity    = get_naventity(entityid);
+        // write if not new
         if (typeof entity !== 'undefined') {
-            entity.wall = wall;
+            entity.solid = solid;
             if (entityname) {
                 entity.entityname = entityname;
             }
@@ -874,6 +877,7 @@ function new_naventity(argObj) {
                 entity.entityhtml.default ??= entityid;
             }
         }
+        // create if new
         else {
             new Naventity(entityid, entityname, entityhtml, solid);
         }
@@ -1184,7 +1188,7 @@ function mov_naventity(argObj) {
             y: y_new,
         }, mapid);
         // check for collision, update position
-        if (! actors[i_new]?.wall || ignore_walls) {
+        if (! actors[i_new]?.blocked || ignore_walls) {
             entity.coords[mapid].x  = x_new;
             entity.coords[mapid].y  = y_new;
         }

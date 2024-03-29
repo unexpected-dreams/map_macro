@@ -6,7 +6,7 @@
 // SECTION:
 //////////////////////////////////////////////////
 //////////////////////////////////////////////////
-const config = {nav:{},wall:{},floor:{},map:{},entity:{},skipcheck:{}};
+const config = {nav:{},hole:{},floor:{},map:{},entity:{},skipcheck:{}};
 
 // map configurations
 config.nav.diagonal         = false;        // true enables diagonal movement by default
@@ -25,7 +25,7 @@ config.map.fenced           = true;         // true means map is fenced by invis
 config.entity.solid         = true;         // true means entity blocks movement into their cell
 
 // tile definitions, can also be specified using <<maptile>>
-config.wall.tileid          = ".";          // default map input character for walls
+config.hole.tileid          = ".";          // default map input character for holes
 config.floor.tileid         = "x";          // default map input character for floors
 
 // guardrails
@@ -81,13 +81,13 @@ function get_controller(control) {
 const navmaps = {};
 const naventities = {};
 const navtiles = {
-    [String(def.wall.tileid)]: {
-        tileid      : String(def.wall.tileid),
-        tilename    : def.wall.tileid,
+    [String(def.hole.tileid)]: {
+        tileid      : String(def.hole.tileid),
+        tilename    : def.hole.tileid,
         tilehtml    : {
-            default : def.wall.tileid,
+            default : def.hole.tileid,
         },
-        wall        : true,
+        blocked     : true,
     },
     [String(def.floor.tileid)]: {
         tileid      : String(def.floor.tileid),
@@ -95,7 +95,7 @@ const navtiles = {
         tilehtml    : {
             default : def.floor.tileid,
         },
-        wall        : false,
+        blocked     : false,
     },
 };
 const navdisplays = {};
@@ -280,10 +280,10 @@ class Navtile {
      *      default     : HTML,
      *      displayid   : HTML,
      * }}                           tilehtml    - HTML representations
-     * @param {boolean}             wall        - whether the tile is a wall
+     * @param {boolean}             blocked     - whether the tile is a traversable / blocked
      * @returns {void}
      */
-    constructor(tileid, tilename, tilehtml, wall) {
+    constructor(tileid, tilename, tilehtml, blocked) {
 
         this.error = function(error) { throw new Error(error) };
 
@@ -297,7 +297,7 @@ class Navtile {
         navtiles[String(tileid)] = this;
         this.tileid     = String(tileid);
         this.tilename   = tilename ?? tileid;
-        this.wall       = wall ?? false;
+        this.blocked    = blocked ?? false;
 
         // create empty
         this.tilehtml = {};
@@ -686,7 +686,7 @@ function check_ybound(argObj_in, options) {
  */
 function print_navtile(argObj) {
     const { displayid, tile, row, col } = argObj;
-    const { tileid, tilename, wall, tilehtml } = tile;
+    const { tileid, tilename, blocked, tilehtml } = tile;
     try {
         const $t = $(document.createElement('div'))
         const displayhtml   = typeof tilehtml === 'undefined'
@@ -701,8 +701,8 @@ function print_navtile(argObj) {
             .attr('title',          tilename)
             .attr('data-tileid',    tileid)
             .data('tileid',         tileid)
-            .attr('data-wall',      wall)
-            .data('wall',           wall)
+            .attr('data-blocked',   blocked)
+            .data('blocked',        blocked)
             .css({
                 "grid-column"   : `${col} / span 1`,
                 "grid-row"      : `${row} / span 1`,
@@ -803,7 +803,7 @@ function print_navdir(argObj) {
         ) {
             const tile = get_navtile(arr[i]);
             const { tileid, tilename } = tile;
-            const disabled = actors[i]?.wall;
+            const disabled = actors[i]?.blocked;
             const displayhtml   = dirid === "C"
                                     ? tilename ?? tileid
                                 : disabled
