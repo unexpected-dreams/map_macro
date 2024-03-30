@@ -62,7 +62,7 @@ demo map
     <<displayhtml 'demo2'>>
         <div></div>
 <</new_navtile>>
-<<new_navtile 'S' true>>
+<<new_navtile 'S' false `{E:true,W:true}`>>
     <img class="tile_png" src="./assets/S.png">
     <<displayhtml 'demo2'>>
         <div></div>

@@ -6,9 +6,10 @@
 // SECTION: debug
 const debug = {
     on: {
-        proxy   : false,
-        argObj  : false,
-        macro   : false,
+        proxy       : false,
+        argObj      : false,
+        macro       : false,
+        collision   : false,
     },
     log: function(groups,i) {
         groups = Array.isArray(groups)

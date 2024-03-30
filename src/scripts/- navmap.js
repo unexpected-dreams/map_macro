@@ -18,15 +18,22 @@ function calculate_actors(argObj) {
     check_required.call(this, {mapid});
 
     const map = get_navmap(mapid);
-    const { arr, rows, cols, actors } = map;
+    const { arr, rows, cols, actors, cells, vertices } = map;
 
     // calculate walls using tiles
     try {
         for (let i = 0; i < arr.length; i++) {
             const tileid        = arr[i];
             const tile          = get_navtile(tileid);
-            actors[i]           ??= {};
-            actors[i].blocked   = tile.blocked;
+            // actors[i]           ??= {};
+            // actors[i].vacant    = tile.vacant;
+            // actors[i].walls     = { ...tile.walls };
+            
+            const xy = convert_i2xy(i,mapid);
+            const { x, y } = xy;
+            cells[x]            ??= [];
+            cells[x][y]         ??= {};
+            cells[x][y].blocked = tile.vacant;
         }
     }
     catch (error) {
@@ -46,16 +53,19 @@ function calculate_actors(argObj) {
             if (typeof entity.coords[mapid] === 'undefined') {
                 continue;
             }
-            const i = convert_xy2i({
-                x   : entity.coords[mapid].x,
-                y   : entity.coords[mapid].y,
-            }, mapid);
-            // if already wall or out of bounds, skip
-            if ( i < 0 || actors[i]?.blocked) {
+            const { x, y } = entity.coords[mapid];
+            // const i = convert_xy2i({x,y}, mapid);
+            // // if already wall or out of bounds, skip
+            // if ( i < 0 || actors[i]?.vacant) {
+            //     continue;
+            // }
+            // // set wall status
+            // actors[i].vacant = true;
+
+            if (cells[x][y].blocked) {
                 continue;
             }
-            // set wall status
-            actors[i].blocked = entity.solid;
+            cells[x][y].blocked = true;
         }
     }
     catch (error) {
@@ -198,8 +208,11 @@ Macro.add(["newnavtile", "new_navtile"], {
                     type        : 'string',
                     alias       : 'name',
                 },
-                blocked: {
+                vacant: {
                     type        : 'boolean',
+                },
+                walls: {
+                    type        : 'object',
                 },
             },
         });
@@ -244,7 +257,7 @@ Macro.add(["newnavtile", "new_navtile"], {
  *      default     : HTML,
  *      displayid   : HTML,
  * }}                           tilehtml    - HTML representations
- * @param {boolean}             blocked     - whether the tile is traversable / blocked
+ * @param {boolean}             vacant     - whether the tile is traversable / vacant
  * @returns {void}
  */
 function new_navtile(argObj) {
@@ -254,11 +267,11 @@ function new_navtile(argObj) {
     this.error  ??= function(error) { throw new Error(error) };
 
     // extract from argObj
-    const { tileid, tilename, tilehtml, blocked} = argObj;
+    const { tileid, tilename, tilehtml, vacant, walls } = argObj;
 
     // ERROR: required
     check_required.call(this, {tileid});
-    check_required.call(this, {blocked});
+    check_required.call(this, {vacant});
 
     //////////////////////////////////////////////////
     // assign tile data
@@ -266,12 +279,12 @@ function new_navtile(argObj) {
         // write if not new
         const tile  = get_navtile(tileid);
         if (typeof tile !== 'undefined') {
-            tile.blocked = blocked;
+            tile.vacant = vacant;
             if (tilename) {
                 tile.tilename = tilename;
             }
-            // ERROR: empty payload
             for (const displayid in tilehtml) {
+                // ERROR: empty payload
                 if (
                     (! def.skipcheck.unused)        && 
                     (typeof tilehtml[displayid] === 'undefined')
@@ -281,10 +294,17 @@ function new_navtile(argObj) {
                 tile.tilehtml[displayid] = tilehtml[displayid];
                 tile.tilehtml.default ??= tileid;
             }
+            if (typeof walls !== 'undefined') {
+                for (const dirid in dirs_8) {
+                    if (typeof walls[dirid] !== 'undefined') {
+                        tile.walls[dirid] = walls[dirid];
+                    }
+                }
+            }
         }
         // create if new
         else {
-            new Navtile(tileid, tilename, tilehtml, blocked);
+            new Navtile(tileid, tilename, tilehtml, vacant);
         }
     }
     catch (error) {
@@ -398,7 +418,7 @@ function new_navdisplay(argObj) {
         // ERROR: no coordinates for selected entity
         const entity_view = get_naventity(entityid_view);
         if (typeof entity_view.coords[mapid] === 'undefind') {
-            return this.error(`${this.name} - no coordinates set for entity "${entityid_view}" on map "${mapid}" (new_navdisplay)`)
+            return this.error(`${this.name} - no coordinates set for entity "${entityid_view}" on map "${mapid}"`)
         }
     }
 
@@ -1142,6 +1162,7 @@ function mov_naventity(argObj) {
     // extract from argObj
     const { entityid, mapid, delta, ignore_walls, trigger_update } = {
         trigger_update  : true,
+        ignore_walls    : false,
         ...argObj,
     };
 
@@ -1152,10 +1173,21 @@ function mov_naventity(argObj) {
     // ERROR: breaking
     check_extant.call(this, {entityid});
     check_extant.call(this, {mapid});
+    // ERROR: common but acceptable
+    if (
+        (! def.skipcheck.common)            &&
+        (typeof delta.x !== 'undefined')    && 
+        (typeof delta.y !== 'undefined')    &&
+        (delta.x !== 0)                     &&
+        (delta.y !== 0)                     &&
+        (Math.abs(delta.x) !== Math.abs(delta.y))
+    ) {
+        return this.error(`${this.name} - movement delta inputs for entity "${entityid}" on map "${mapid}" are not along one of 8 movement axes`)
+    }
 
     // extract from map
     const map = get_navmap(mapid);
-    const { fenced, rows, cols, actors } = map;
+    const { fenced, rows, cols, actors, cells } = map;
     const entity = get_naventity(entityid);
     const { x, y } = entity.coords[mapid];
 
@@ -1183,15 +1215,65 @@ function mov_naventity(argObj) {
         const y_new = fenced
                         ? Math.clamp(1, rows, y + (delta?.y ?? 0))
                         : y + (delta?.y ?? 0);
-        const i_new = convert_xy2i({
-            x: x_new,
-            y: y_new,
-        }, mapid);
-        // check for collision, update position
-        if (! actors[i_new]?.blocked || ignore_walls) {
+        // no collision
+        if (! cells[x_new][y_new].blocked) {
+            debug.log("collision",`moved entity "${entityid}" on map "${mapid}"!`);
             entity.coords[mapid].x  = x_new;
             entity.coords[mapid].y  = y_new;
         }
+        // collision
+        else {
+            debug.log("collision",`blocked entity "${entityid}" on map "${mapid}"!`);
+        }
+        // if (x_new !== x || y_new !== y) {
+        //     // check for collision, update position
+        //     let collided = false;
+        //     const dirid = (x_new - x < 0) && (y_new - y < 0)
+        //                     ? "NW"
+        //                 : (x_new - x === 0) && (y_new - y < 0)
+        //                     ? "N"
+        //                 : (x_new - x > 0) && (y_new - y < 0)
+        //                     ? "NE"
+        //                 : (x_new - x > 0) && (y_new - y === 0)
+        //                     ? "E"  
+        //                 : (x_new - x > 0) && (y_new - y > 0)
+        //                     ? "SE"
+        //                 : (x_new - x === 0) && (y_new - y >  0)
+        //                     ? "S"
+        //                 : (x_new - x < 0) && (y_new - y > 0)
+        //                     ? "SW"
+        //                 : (x_new - x < 0) && (y_new - y === 0)
+        //                     ? "W"
+        //                 : null;
+        //     // ERROR: unknown nav axis
+        //     if (! dirid) {
+        //         return this.error(`${this.name} - failed to parse navigation axis (mov_naventity)`)
+        //     }
+        //     console.log(dirid);
+        //     console.log(ignore_walls);
+        //     if (! ignore_walls) {
+        //         // for (let j = 0; j <= (x_new - x - 1); j++) {
+        //         //     for (let k = 0; k <= (y_new - y - 1); k++) {
+        //         //         let i = convert_xy2i({
+        //         //             x: x + j,
+        //         //             y: y + k,
+        //         //         }, mapid);
+        //         //         console.log(x+j,y+k,i)
+        //         //         if (actors[i].walls[dirid]) {
+        //         //             collided = true;
+        //         //             break;
+        //         //         }
+        //         //     }
+        //         //     if (collided) {
+        //         //         break;
+        //         //     }
+        //         // }
+        //     }
+        //     if (! collided) {
+        //         entity.coords[mapid].x  = x_new;
+        //         entity.coords[mapid].y  = y_new;
+        //     }
+        // }
     }
     catch (error) {
         console.error(`${this.name} - failed to move entity "${entityid}" on map "${mapid}" (mov_naventity)`);
@@ -1412,11 +1494,9 @@ function print_navrose(argObj) {
                         : dirs_4;
         setTimeout( function() {
             $(document).on(`keydown.${navsn}`, function(ev) {
-                console.log(ev.code);
                 // remove listener if no nav with navsn found
                 if ($(`[data-navsn="${navsn}"]`).length === 0) {
                     $(document).off(`keydown.${navsn}`);
-                    console.log('off!');
                 }
                 else {
                     for (const dirid in dirs) {
@@ -1503,24 +1583,26 @@ function click_navrose(argObj) {
     const $target = $(ev.target);
     if ($target.hasClass('Navdir')) {
         const dirid = $target.data('dirid');
-        const disabled = $target.data('disabled');
-        if (! disabled) {
-            const delta = dirs[dirid].delta;
-            // move entity
-            mov_naventity.call(this, {
-                entityid,
-                mapid,
-                delta,
-                trigger_update  : false,    // suppress update from mov_naventity
-            });
-            // check if need to update display view
-            const map = get_navmap(mapid);
-            const display = get_navdisplay(displayid);
-            const entity = get_naventity(entityid);
-            const { cols, rows } = map;
-            const { cols_view, rows_view } = display;
-            const { x, y } = entity.coords[mapid];
+        const dirs = { ...dirs_0, ...dirs_8 };
+        const delta = dirs[dirid].delta;
 
+        // move entity
+        mov_naventity.call(this, {
+            entityid,
+            mapid,
+            delta,
+            trigger_update  : false,    // suppress update from mov_naventity
+        });
+        // check if need to update display view
+        const map = get_navmap(mapid);
+        const display = get_navdisplay(displayid);
+        const entity = get_naventity(entityid);
+        const { cols, rows } = map;
+        const { cols_view, rows_view } = display;
+
+        //////////////////////////////////////////////////
+        try {
+            const { x, y } = entity.coords[mapid];
             const x0_old    = display.x0;
             const y0_old    = display.y0;
             const x0_new    = Math.clamp(
@@ -1538,10 +1620,15 @@ function click_navrose(argObj) {
                 x   : x0_new - x0_old,
                 y   : y0_new - y0_old,
             });
+
             // update other displays
             $(`.Navdisplay[data-mapid="${mapid}"]:not([data-displayid="${displayid}"])`).trigger(":update_navdisplay");
             // update rose
             $(`.Navrose[data-mapid="${mapid}"]`).trigger(":update_navrose");
+        }
+        catch (error) {
+            console.error(`${this.name} - failed to update displays after navrose navigation (click_navrose)`);
+            console.error(error);
         }
     }
 }

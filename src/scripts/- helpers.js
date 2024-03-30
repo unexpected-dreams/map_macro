@@ -87,7 +87,7 @@ const navtiles = {
         tilehtml    : {
             default : def.hole.tileid,
         },
-        blocked     : true,
+        vacant      : true,
     },
     [String(def.floor.tileid)]: {
         tileid      : String(def.floor.tileid),
@@ -95,7 +95,7 @@ const navtiles = {
         tilehtml    : {
             default : def.floor.tileid,
         },
-        blocked     : false,
+        vacant      : false,
     },
 };
 const navdisplays = {};
@@ -164,6 +164,8 @@ class Navmap {
         this.diagonal   = diagonal  ?? def.nav.diagonal;
         this.fenced     = fenced    ?? def.map.fenced;
         this.actors     = [];
+        this.cells      = [];
+        this.vertices   = [];
 
         //////////////////////////////////////////////////
         // parse mapinput into arr, rows, cols
@@ -280,10 +282,10 @@ class Navtile {
      *      default     : HTML,
      *      displayid   : HTML,
      * }}                           tilehtml    - HTML representations
-     * @param {boolean}             blocked     - whether the tile is a traversable / blocked
+     * @param {boolean}             vacant      - whether the tile is a traversable
      * @returns {void}
      */
-    constructor(tileid, tilename, tilehtml, blocked) {
+    constructor(tileid, tilename, tilehtml, vacant, walls) {
 
         this.error = function(error) { throw new Error(error) };
 
@@ -297,7 +299,20 @@ class Navtile {
         navtiles[String(tileid)] = this;
         this.tileid     = String(tileid);
         this.tilename   = tilename ?? tileid;
-        this.blocked    = blocked ?? false;
+        this.vacant     = vacant ?? false;
+
+        // assign walls
+        if (typeof walls !== 'undefined') {
+            this.walls = {};;
+            for (const dirid in dirs_8) {
+                this.walls[dirid] = walls[dirid] ?? false;
+            }
+        }
+        else {
+            this.walls  = this.vacant
+                            ? { N:true, E:true, S:true, W:true, NW:true, NE:true, SE:true, SW:true }
+                            : { N:false, E:false, S:false, W:false, NW:false, NE:false, SE:false, SW:false };
+        }
 
         // create empty
         this.tilehtml = {};
@@ -686,7 +701,7 @@ function check_ybound(argObj_in, options) {
  */
 function print_navtile(argObj) {
     const { displayid, tile, row, col } = argObj;
-    const { tileid, tilename, blocked, tilehtml } = tile;
+    const { tileid, tilename, vacant, tilehtml } = tile;
     try {
         const $t = $(document.createElement('div'))
         const displayhtml   = typeof tilehtml === 'undefined'
@@ -701,8 +716,8 @@ function print_navtile(argObj) {
             .attr('title',          tilename)
             .attr('data-tileid',    tileid)
             .data('tileid',         tileid)
-            .attr('data-blocked',   blocked)
-            .data('blocked',        blocked)
+            .attr('data-vacant',    vacant)
+            .data('vacant',         vacant)
             .css({
                 "grid-column"   : `${col} / span 1`,
                 "grid-row"      : `${row} / span 1`,
@@ -771,7 +786,7 @@ function print_navdir(argObj) {
     const { displayid, mapid, dir, entity, print_names } = argObj;
 
     const map = get_navmap(mapid);
-    const { arr, rows, cols, actors } = map;
+    const { arr, rows, cols, actors, cells } = map;
     const { dirid, dirname, delta, dirhtml } = dir;
 
     const $dir = $(document.createElement('div'));
@@ -803,7 +818,8 @@ function print_navdir(argObj) {
         ) {
             const tile = get_navtile(arr[i]);
             const { tileid, tilename } = tile;
-            const disabled = actors[i]?.blocked;
+            // const disabled = actors[i]?.vacant;
+            const disabled = cells[x][y].blocked;
             const displayhtml   = dirid === "C"
                                     ? tilename ?? tileid
                                 : disabled
@@ -984,8 +1000,4 @@ const dirs_8 = {
             y  :  1,
         },
     },
-};
-const dirs = {
-    ...dirs_0,
-    ...dirs_8,
 };
