@@ -162,8 +162,9 @@ function new_navmap(argObj) {
     const { cols } = argObj;
 
     // ERROR: breaking
-    check_integer.call(this, {cols}, {label:'columns'});
-    check_positive.call(this, {cols}, {label:'columns'});
+    if ((! Number.isInteger(cols)) || (cols < 1)) {
+        return this.error(`${this.name} - # of columns must be an integer greater than zero`)
+    }
     // ERROR: common, but permissible
     if (! def.skipcheck.common) {
         check_oneword.call(this, {mapid});
@@ -404,12 +405,14 @@ function new_navdisplay(argObj) {
     // ERROR: breaking
     check_extant.call(this, {mapid});
     if (cols_view) {
-        check_integer.call(this, {cols_view}, {label:'view columns'});
-        check_positive.call(this, {cols_view}, {label:'view columns'});
+        if ((! Number.isInteger(cols_view)) || (cols_view < 1)) {
+            return this.error(`${this.name} - # of columns must be an integer greater than zero`)
+        }
     }
     if (rows_view) {
-        check_integer.call(this, {rows_view}, {label:'view rows'});
-        check_positive.call(this, {rows_view}, {label:'view rows'});
+        if ((! Number.isInteger(rows_view)) || (rows_view < 1)) {
+            return this.error(`${this.name} - # of rows must be an integer greater than zero`)
+        }
     }
     if (entityid_view) {
         check_extant.call(this, {entityid:entityid_view}, {label:'id of entity to track'});
@@ -934,6 +937,9 @@ Macro.add(["setnaventity", "set_naventity"], {
                     type        : 'string',
                     alias       : 'map',
                 },
+                cell: {
+                    type        : 'array',
+                },
                 x: {
                     type        : 'number',
                 },
@@ -955,8 +961,9 @@ Macro.add(["setnaventity", "set_naventity"], {
  * @param {object}  argObj
  * @param {string}  argObj.entityid - id of entity
  * @param {string}  argObj.mapid    - id of map
- * @param {number}  argObj.x        - x coordinate of entity on map
- * @param {number}  argObj.y        - y coordinate of entity on map
+ * @param {string}  argObj.cell     - xy point 
+ * @param {number}  argObj.x        - optional x input
+ * @param {number}  argObj.y        - optional y input
  * @returns {void}
  */
 function set_naventity(argObj) {
@@ -966,22 +973,50 @@ function set_naventity(argObj) {
     this.error  ??= function(error) { throw new Error(error) };
 
     // extract from argObj
-    const { entityid, mapid, x, y } = argObj;
+    const { entityid, mapid, cell, } = argObj;
 
     // ERROR: required
     check_required.call(this, {entityid});
     check_required.call(this, {mapid});
-    check_required.call(this, {x});
-    check_required.call(this, {y});
-    // ERROR: breaking
+    // ERROR: extant
     check_extant.call(this, {entityid});
     check_extant.call(this, {mapid});
-    check_integer.call(this, {x});
-    check_integer.call(this, {y});
-    // ERROR: common but permissible
+    // ERROR: invalid cell input
+    if (typeof cell !== 'undefined' && cell.length !== 2) {
+        return this.error(`${this.name} - cell input for entity "${entityid}" on map "${mapid}" must be an array formatted [x,y]`)
+    }
+    
+    const map = get_navmap(mapid);
+    const { rows, cols } = map;
+    const x = typeof argObj.x !== 'undefined'
+                ? argObj.x
+            : typeof cell !== 'undefined'
+                ? cell[0]
+            : undefined;
+    const y = typeof argObj.y !== 'undefined'
+                ? argObj.y
+            : typeof cell !== 'undefined'
+                ? cell[1]
+            : undefined;
+
+    // ERROR: missing x or y
+    if (
+        (typeof x !== 'undefined' || typeof y !== 'undefined') &&
+        (typeof x === 'undefined' || typeof y === 'undefined')
+    ) {
+        return this.error(`${this.name} - both x and y are required to define a point for entity "${entityid}" on map "${mapid}"`)
+    }
+    // ERROR: non-integer x or y
+    if (! (Number.isInteger(x) && Number.isInteger(y))) {
+        return this.error(`${this.name} - both x and y must be integers for entity "${entityid}" on map "${mapid}"`)
+    }
     if (! def.skipcheck.common) {
-        check_xbound.call(this, {mapid, x});
-        check_ybound.call(this, {mapid, y});
+        if (x < 1 || x > cols) {
+            return this.error(`${this.name} - x for entity "${entityid}" is outside horizontal map cell boundaries [1 to ${cols}] inclusive, for map "${mapid}"`)
+        }
+        if (y < 1 || y > rows) {
+            return this.error(`${this.name} - y for entity "${entityid}" is outside vertical map cell boundaries [1 to ${rows}] inclusive, for map "${mapid}"`)
+        }
     }
 
     // set coordinates
@@ -1081,7 +1116,7 @@ function rem_naventity(argObj) {
         $(`.Navrose[data-mapid="${mapid}"]`).trigger(":update_navrose");
     }
     catch (error) {
-        console.error(`${this.name} - failed to update navdisplays while removing entity "${entityid}" on map "${mapid}" (set_naventity)`);
+        console.error(`${this.name} - failed to update navdisplays while removing entity "${entityid}" on map "${mapid}" (rem_naventity)`);
         console.error(error);
     }
 }
@@ -1124,14 +1159,11 @@ Macro.add(["movnaventity", "mov_naventity"], {
                 ignore_walls: {
                     type        : 'boolean',
                 },
+                trigger_update: {
+                    type        : 'boolean',
+                },
             },
         });
-        // parse deltax & deltay into delta
-        if (typeof argObj.deltax !== 'undefined' || typeof argObj.deltay !== 'undefined') {
-            argObj.delta    ??= {};
-            argObj.delta.x  =   argObj.deltax ?? 0;
-            argObj.delta.y  =   argObj.deltay ?? 0;
-        }
         argObj.source = "macro";
         debug.log('macro', `end - ${this.name} handler`);
         debug.log('macro', argObj);
@@ -1148,7 +1180,7 @@ Macro.add(["movnaventity", "mov_naventity"], {
  * @param {{
  *      x   : number,
  *      y   : number,
- * }}                   argObj.delta            - change to entity xy
+ * }}                   argObj.delta            - object rep. change to entity xy
  * @param {boolean}     argObj.ignore_walls     - ignores walls when calculating collisions
  * @param {boolean}     argObj.trigger_update   - true updates map
  * @returns {void}
@@ -1156,65 +1188,43 @@ Macro.add(["movnaventity", "mov_naventity"], {
 function mov_naventity(argObj) {
 
     // necessary definitions
-    this.name   ??= argObj.id ?? "set_naventity";
+    this.name   ??= argObj.id ?? "mov_naventity";
     this.error  ??= function(error) { throw new Error(error) };
 
     // extract from argObj
-    const { entityid, mapid, delta, ignore_walls, trigger_update } = {
+    const { entityid, mapid, delta, deltax, deltay, ignore_walls, trigger_update } = {
         trigger_update  : true,
         ignore_walls    : false,
+        delta           : {},
         ...argObj,
     };
 
     // ERROR: required
     check_required.call(this, {entityid});
     check_required.call(this, {mapid});
-    check_required.call(this, {delta});
-    // ERROR: breaking
+
+    if (typeof deltax !== 'undefined') {
+        delta.x = deltax;
+    }
+    if (typeof deltay !== 'undefined') {
+        delta.y = deltay;
+    }
+
+    // ERROR: extant
     check_extant.call(this, {entityid});
     check_extant.call(this, {mapid});
-    // ERROR: common but acceptable
-    if (
-        (! def.skipcheck.common)            &&
-        (typeof delta.x !== 'undefined')    && 
-        (typeof delta.y !== 'undefined')    &&
-        (delta.x !== 0)                     &&
-        (delta.y !== 0)                     &&
-        (Math.abs(delta.x) !== Math.abs(delta.y))
-    ) {
-        return this.error(`${this.name} - movement delta inputs for entity "${entityid}" on map "${mapid}" are not along one of 8 movement axes`)
-    }
 
     // extract from map
     const map = get_navmap(mapid);
-    const { fenced, rows, cols, actors, cells } = map;
+    const { fenced, rows, cols, cells } = map;
     const entity = get_naventity(entityid);
     const { x, y } = entity.coords[mapid];
 
-    // if fenced or skipping common, ignore
-    if (! (def.skipcheck.common || fenced)) {
-        check_xbound.call(this, {
-            mapid,
-            x: x + (delta?.x ?? 0),
-        }, {
-            label: "current x position + input delta x",
-        });
-        check_ybound.call(this, {
-            mapid,
-            y: y + (delta?.y ?? 0),
-        }, {
-            label: "current y position + input delta y",
-        });
-    }
-
     // move entity
     try {
-        const x_new = fenced
-                        ? Math.clamp(1, cols, x + (delta?.x ?? 0))
-                        : x + (delta?.x ?? 0);
-        const y_new = fenced
-                        ? Math.clamp(1, rows, y + (delta?.y ?? 0))
-                        : y + (delta?.y ?? 0);
+        const x_new = x + (delta?.x ?? 0);
+        const y_new = y + (delta?.y ?? 0);
+        // TODO: math for collisions
         // no collision
         if (! cells[x_new][y_new].blocked) {
             debug.log("collision",`moved entity "${entityid}" on map "${mapid}"!`);
@@ -1225,55 +1235,6 @@ function mov_naventity(argObj) {
         else {
             debug.log("collision",`blocked entity "${entityid}" on map "${mapid}"!`);
         }
-        // if (x_new !== x || y_new !== y) {
-        //     // check for collision, update position
-        //     let collided = false;
-        //     const dirid = (x_new - x < 0) && (y_new - y < 0)
-        //                     ? "NW"
-        //                 : (x_new - x === 0) && (y_new - y < 0)
-        //                     ? "N"
-        //                 : (x_new - x > 0) && (y_new - y < 0)
-        //                     ? "NE"
-        //                 : (x_new - x > 0) && (y_new - y === 0)
-        //                     ? "E"  
-        //                 : (x_new - x > 0) && (y_new - y > 0)
-        //                     ? "SE"
-        //                 : (x_new - x === 0) && (y_new - y >  0)
-        //                     ? "S"
-        //                 : (x_new - x < 0) && (y_new - y > 0)
-        //                     ? "SW"
-        //                 : (x_new - x < 0) && (y_new - y === 0)
-        //                     ? "W"
-        //                 : null;
-        //     // ERROR: unknown nav axis
-        //     if (! dirid) {
-        //         return this.error(`${this.name} - failed to parse navigation axis (mov_naventity)`)
-        //     }
-        //     console.log(dirid);
-        //     console.log(ignore_walls);
-        //     if (! ignore_walls) {
-        //         // for (let j = 0; j <= (x_new - x - 1); j++) {
-        //         //     for (let k = 0; k <= (y_new - y - 1); k++) {
-        //         //         let i = convert_xy2i({
-        //         //             x: x + j,
-        //         //             y: y + k,
-        //         //         }, mapid);
-        //         //         console.log(x+j,y+k,i)
-        //         //         if (actors[i].walls[dirid]) {
-        //         //             collided = true;
-        //         //             break;
-        //         //         }
-        //         //     }
-        //         //     if (collided) {
-        //         //         break;
-        //         //     }
-        //         // }
-        //     }
-        //     if (! collided) {
-        //         entity.coords[mapid].x  = x_new;
-        //         entity.coords[mapid].y  = y_new;
-        //     }
-        // }
     }
     catch (error) {
         console.error(`${this.name} - failed to move entity "${entityid}" on map "${mapid}" (mov_naventity)`);
@@ -1293,6 +1254,146 @@ function mov_naventity(argObj) {
     }
 }
 
+
+
+// █    █ █████ █     █     █    █  ███  █   █ █     █  ███  █     █
+// ██   █ █     █     █     ██   █ █   █ █   █ █     █ █   █ █     █
+// █ █  █ ███   █  █  █     █ █  █ █████ █   █ █  █  █ █████ █     █
+// █  █ █ █     █ █ █ █     █  █ █ █   █  █ █  █ █ █ █ █   █ █     █
+// █   ██ █████  █   █      █   ██ █   █   █    █   █  █   █ █████ █████
+// SECTION: new navwall
+//////////////////////////////////////////////////
+//////////////////////////////////////////////////
+Macro.add(["new_navwall", "newnavwall"], {
+
+    handler() {
+        debug.log('macro', `start - ${this.name} handler`);
+        const argObj = create_argObj.call(this, {
+            id: this.name,
+            args_in: this.args, 
+            template: {
+                wallid: {
+                    type        : 'string',
+                    alias       : 'entity',
+                },
+                mapid: {
+                    type        : 'string',
+                    alias       : 'map',
+                },
+                vertices: {
+                    type        : 'array',
+                    alias       : 'points',
+                },
+                x1: {
+                    type        : 'number',
+                },
+                y1: {
+                    type        : 'number',
+                },
+                x2: {
+                    type        : 'number',
+                },
+                y2: {
+                    type        : 'number',
+                },
+
+            },
+        });
+        argObj.source = "macro";
+        debug.log('macro', `end - ${this.name} handler`);
+        debug.log('macro', argObj);
+        new_navwall.call(this, argObj);
+    },
+});
+//////////////////////////////////////////////////
+//////////////////////////////////////////////////
+/**
+ * moves an entity on a map, must be set first
+ * @param {object}      argObj
+ * @param {string}      argObj.wallid           - id of wall
+ * @param {string}      argObj.mapid            - id of map
+ * @param {object}      argObj.vertices         - points to construct walls from
+ * @param {number}      argObj.x1               - optional x1
+ * @param {number}      argObj.x1               - optional y1
+ * @param {number}      argObj.x1               - optional x2
+ * @param {number}      argObj.x1               - optional y2
+ * @returns {void}
+ */
+function new_navwall(argObj) {
+
+    // necessary definitions
+    this.name   ??= argObj.id ?? "new_navwall";
+    this.error  ??= function(error) { throw new Error(error) };
+
+    const { wallid, mapid, vertices, x1, y1, x2, y2, } = {
+        vertices: [],
+        ...argObj,
+    };
+
+    // ERROR: required
+    check_required.call(this, {wallid});
+    check_required.call(this, {mapid});
+
+    try {
+        // ERROR: only one of x or y was provided
+        if (
+            ((typeof x1 !== 'undefined') || (typeof y1 !== 'undefined')) &&
+            ((typeof x1 === 'undefined') || (typeof y1 === 'undefined'))
+        ) {
+            return this.error(`${this.name} - both x1 and y1 are required to define a point`)
+        }
+        if (
+            ((typeof x2 !== 'undefined') || (typeof y2 !== 'undefined')) &&
+            ((typeof x2 === 'undefined') || (typeof y2 === 'undefined'))
+        ) {
+            return this.error(`${this.name} - both x2 and y2 are required to define a point`)
+        }
+        if (typeof x1 !== 'undefined') {
+            vertices.push([x1,y1]);
+        }
+        if (typeof x2 !== 'undefined') {
+            vertices.push([x2,y2]);
+        }
+
+        // ERROR: not enough points
+        if (vertices.length < 2) {
+            return this.error(`${this.nat} - at least two points are required to define a navwall`)
+        }
+
+        const map = get_navmap(mapid);
+        const { rows, cols, walls } = map;
+
+        for (const v of vertices) {
+            const x = v[0];
+            const y = v[1];
+            // ERROR: x or y is not an integer
+            if (! Number.isInteger(x)) {
+                return this.error(`${this.name} - encountered non-integer x "${x}" for point "[${x},${y}]" on wallid "${wallid}" for map "${mapid}"`)
+            }
+            if (! Number.isInteger(y)) {
+                return this.error(`${this.name} - encountered non-integer y "${y}" for point "[${x},${y}]" on wallid "${wallid}" for map "${mapid}"`)
+            }
+            // ERROR: x or y is out of bounds
+            if (! def.skipcheck.common){
+                if (x < 0 || x > cols + 1) {
+                    return this.error(`${this.name} - x for point "[${x},${y}]" on wallid "${wallid}" is outside horizontal map vertex boundaries [0 to ${cols+1}] inclusive, for map "${mapid}"`)
+                }
+                if (y < 0 || y > rows + 1) {
+                    return this.error(`${this.name} - y for point "[${x},${y}]" on wallid "${wallid}" is outside vertical map vertex boundaries [0 to ${rows+1}] inclusive, for map "${mapid}"`)
+                }
+            }
+        }
+
+        walls[wallid] ??= {
+            wallid      : wallid,
+            vertices    : vertices,
+        };
+    }
+    catch (error) {
+        console.error(`${this.name} - failed to add navwall "${wallid}" to map "${mapid}" (new_navwall)`);
+        console.error(error);
+    }
+}
 
 
 // █    █  ███  █   █ ████   ████   ████ █████
@@ -1404,7 +1505,7 @@ Macro.add(["print_navrose", "printnavrose"], {
 function print_navrose(argObj) {
 
     // necessary definitions
-    this.name   ??= argObj.id ?? "set_naventity";
+    this.name   ??= argObj.id ?? "print_navrose";
     this.error  ??= function(error) { throw new Error(error) };
 
     const { displayid, entityid, print_names, keyboard_codes } = {

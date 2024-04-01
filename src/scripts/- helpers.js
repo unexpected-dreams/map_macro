@@ -99,6 +99,7 @@ const navtiles = {
     },
 };
 const navdisplays = {};
+const navwalls = {};
 function get_navmap(args) {
     return navmaps[args]
 }
@@ -116,6 +117,7 @@ setup.navmaps = navmaps;
 setup.navtiles = navtiles;
 setup.naventities = naventities;
 setup.navdisplays = navdisplays;
+setup.navwalls = navwalls;
 
 
 
@@ -163,9 +165,11 @@ class Navmap {
         this.mapname    = mapname   ?? this.mapid;
         this.diagonal   = diagonal  ?? def.nav.diagonal;
         this.fenced     = fenced    ?? def.map.fenced;
-        this.actors     = [];
+        // this.actors     = [];
         this.cells      = [];
         this.vertices   = [];
+        this.walls      ??= {};
+
 
         //////////////////////////////////////////////////
         // parse mapinput into arr, rows, cols
@@ -245,6 +249,7 @@ class Navmap {
             console.error(`Navmap - failed to create default Navtiles for map "${this.mapid}"`);
             console.error(error);
         }
+
     }
     // arr
     set arr(val) {
@@ -266,6 +271,13 @@ class Navmap {
     }
     get rows() {
         return State.variables[config.State_name].navmaps[this.mapid].rows
+    }
+    // walls
+    set walls(val) {
+        State.variables[config.State_name].navmaps[this.mapid].walls = val;
+    }
+    get walls() {
+        return State.variables[config.State_name].navmaps[this.mapid].walls
     }
 }
 //////////////////////////////////////////////////
@@ -392,6 +404,31 @@ class Naventity {
     }
     get coords() {
         return State.variables[config.State_name].naventities[this.entityid].coords
+    }
+}
+class Navwall {
+    /**
+     * class that stores tile information
+     * @param {string}              wallid      - id of wall
+     * @param {string}              mapid       - id of map
+     * @param {number}              x1          - x of first vertex
+     * @param {number}              y1          - y of first vertex
+     * @param {number}              x2          - x of second vertex
+     * @param {number}              y2          - y of seoncd vertex
+     * @returns {void}
+     */
+    constructor(wallid, mapid, x1, y1, x2, y2) {
+
+        this.error = function(error) { throw new Error(error) };
+
+        // ERROR: clobbering
+        if (! def.skipcheck.clobbering && navwalls[wallid]) {
+            return this.error(`Naventity - clobbering, entity with id "${entityid}" already exists`)
+        }
+
+        navwalls[String(wallid)] = this;
+        this.wallid = String(wallid)
+
     }
 }
 //////////////////////////////////////////////////
@@ -530,152 +567,6 @@ function check_extant(argObj_in, options) {
     }
     catch (error) {
         console.error(`${this.name} - failed to check args for extant requirement`);
-        console.error(error);
-    }
-}
-//////////////////////////////////////////////////
-//////////////////////////////////////////////////
-/**
- * checks that a provided argument is an integer
- * @param {{argument: *}}   argObj_in   argument: value
- * @param {{key: *}}        options     label: printed name
- * @returns {void}
- */
-function check_integer(argObj_in, options) {
-    // ERROR: missing input
-    if (typeof argObj_in === 'undefined') {
-        return this.error(`${this.name} - failed, missing argObj_in (check_integer)`)
-    }
-    // ERROR: too many properties in argObj_in
-    if (Object.keys(argObj_in).length > 1) {
-        return this.error(`${this.name} - failed extra properties in argObj_in (check_integer)`)
-    }
-    try {
-        const key = Object.keys(argObj_in)[0];
-        const val = argObj_in[key];
-        // ERROR: non-integer number
-        if (! Number.isInteger(val)) {
-            return this.error(`${this.name} - argument "${options?.label ?? key}" must be an integer`)
-        }
-    }
-    catch (error) {
-        console.error(`${this.name} - failed to check args for integer requirement`);
-        console.error(error);
-    }
-}
-//////////////////////////////////////////////////
-//////////////////////////////////////////////////
-/**
- * checks that a provided argument is a positive
- * @param {{argument: *}}   argObj_in   argument: value
- * @param {{key: *}}        options     label: printed name
- * @returns {void}
- */
-function check_positive(argObj_in, options) {
-    // ERROR: missing input
-    if (typeof argObj_in === 'undefined') {
-        return this.error(`${this.name} - failed, missing argObj_in (check_positive)`)
-    }
-    // ERROR: too many properties in argObj_in
-    if (Object.keys(argObj_in).length > 1) {
-        return this.error(`${this.name} - failed extra properties in argObj_in (check_positive)`)
-    }
-    try {
-        const key = Object.keys(argObj_in)[0];
-        const val = argObj_in[key];
-        // ERROR: zero or negative number
-        if (val <= 0) {
-            return this.error(`${this.name} - argument "${options?.label ?? key}" must be greater than zero`)
-        }
-    }
-    catch (error) {
-        console.error(`${this.name} - failed to check args for positive requirement`);
-        console.error(error);
-    }
-}
-//////////////////////////////////////////////////
-//////////////////////////////////////////////////
-/**
- * checks if provided x is within map boundaries
- * @param {{
- *      mapid   : string, 
- *      x       : number,
- * }}                       argObj_in   value to check & map
- * @param {{key: *}}        options     label: printed name
- * @returns {void}
- */
-function check_xbound(argObj_in, options) {
-    // ERROR: missing input
-    if (typeof argObj_in === 'undefined') {
-        return this.error(`${this.name} - failed, missing argObj_in (check_xbound)`)
-    }
-    // ERROR: incorrect argObj format
-    if (Object.keys(argObj_in).length !== 2) {
-        return this.error(`${this.name} - failed incorrect # of properties in argObj_in (check_xbound)`)
-    }
-    if (typeof argObj_in.mapid === 'undefined') {
-        return this.error(`${this.name} - failed, missing required mapid in argObj_in (check_xbound)`);
-    }
-    if (typeof argObj_in.x === 'undefined') {
-        return this.error(`${this.name} - failed, missing required x in argObj_in (check_xbound)`);
-    }
-    const {x, mapid} = argObj_in;
-    const map = get_navmap(mapid);
-    const { cols } = map;
-    try {
-        // ERROR: zero or negative number
-        if (x < 1) {
-            return this.error(`${this.name} - argument "${options?.label ?? 'x'}" should have a value of one or greater`)
-        }
-        if (x > cols) {
-            return this.error(`${this.name} - argument "${options?.label ?? 'x'}" should have a value less than or equal to the total number of columns on map "${mapid}"`)
-        }
-    }
-    catch (error) {
-        console.error(`${this.name} - failed to check args for positive requirement`);
-        console.error(error);
-    }
-}
-//////////////////////////////////////////////////
-//////////////////////////////////////////////////
-/**
- * checks if provided y is within map boundaries
- * @param {{
- *      mapid   : string, 
- *      y       : number,
- * }}                       argObj_in   value to check & map
- * @param {{key: *}}        options     label: printed name
- * @returns {void}
- */
-function check_ybound(argObj_in, options) {
-    // ERROR: missing input
-    if (typeof argObj_in === 'undefined') {
-        return this.error(`${this.name} - failed, missing argObj_in (check_xbound)`)
-    }
-    // ERROR: incorrect argObj format
-    if (Object.keys(argObj_in).length !== 2) {
-        return this.error(`${this.name} - failed incorrect # of properties in argObj_in (check_xbound)`)
-    }
-    if (typeof argObj_in.mapid === 'undefined') {
-        return this.error(`${this.name} - failed, missing required mapid in argObj_in (check_xbound)`);
-    }
-    if (typeof argObj_in.y === 'undefined') {
-        return this.error(`${this.name} - failed, missing required y in argObj_in (check_xbound)`);
-    }
-    const {y, mapid} = argObj_in;
-    const map = get_navmap(mapid);
-    const { rows } = map;
-    try {
-        // ERROR: zero or negative number
-        if (y < 1) {
-            return this.error(`${this.name} - argument "${options?.label ?? 'y'}" should have a value of one or greater`)
-        }
-        if (y > rows) {
-            return this.error(`${this.name} - argument "${options?.label ?? 'y'}" should have a value less than or equal to the total number of rows on map "${mapid}"`)
-        }
-    }
-    catch (error) {
-        console.error(`${this.name} - failed to check args for positive requirement`);
         console.error(error);
     }
 }

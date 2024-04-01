@@ -113,3 +113,5 @@ sugarcube-2:
       name: set_naventity
     print_navrose:
       name: print_navrose
+    new_navwall:
+      name: new_navwall
