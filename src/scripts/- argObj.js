@@ -9,7 +9,7 @@ const debug = {
         proxy       : false,
         argObj      : false,
         macro       : false,
-        collision   : false,
+        collision   : true,
     },
     log: function(groups,i) {
         groups = Array.isArray(groups)

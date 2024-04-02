@@ -6,7 +6,7 @@
 // SECTION:
 //////////////////////////////////////////////////
 //////////////////////////////////////////////////
-const config = {nav:{},hole:{},floor:{},map:{},entity:{},skipcheck:{}};
+const config = {nav:{},hole:{},floor:{},display:{},entity:{},skipcheck:{}};
 
 // map configurations
 config.nav.diagonal         = false;        // true enables diagonal movement by default
@@ -21,8 +21,8 @@ config.nav.keyboard_codes   = {             // default keyboard navigation keys
                                 SE  : 'Numpad3',
                                 SW  : 'Numpad1',
                             };
-config.map.fenced           = true;         // true means map is fenced by invisible walls
 config.entity.solid         = true;         // true means entity blocks movement into their cell
+config.display.print_tiles  = false;        // print individual Navtiles
 
 // tile definitions, can also be specified using <<maptile>>
 config.hole.tileid          = ".";          // default map input character for holes
@@ -60,9 +60,11 @@ const def = new Proxy(config, get_controller(setup[config.setup_name]));
 function get_controller(control) {
     return {
         get(t,p) {
-            debug.log('proxy','entered proxy');
+            debug.log('proxy',`---- begin proxy ----`);
+            debug.log({t,p});
             if (typeof control === 'undefined' || typeof control[p] === 'undefined') {
-                debug.log('entered undefined');
+                debug.log('proxy','entered undefined');
+                debug.log('proxy',`---- end proxy ----`);
                 return t[p]
             }
             else {
@@ -72,6 +74,7 @@ function get_controller(control) {
                     control[p] = new Proxy(config[p], get_controller(control[p]))
                     control[p].isproxy = true;
                 }
+                debug.log('proxy',`---- end proxy ----`);
                 return control[p]
             }
         }
@@ -141,10 +144,13 @@ class Navmap {
      * @param {array}               inputmap    - map input
      * @param {number}              cols        - # cols, required if inputtype = "array"
      * @param {boolean}             diagonal    - diagonal movement
-     * @param {boolean}             fenced      - whether map boundaries are walls
+     * @param {{
+     *      default     : HTML,
+     *      displayid   : HTML,
+     * }}                           maphtml     - HTML representations
      * @returns {void}
      */
-    constructor(mapid, mapname, inputtype, inputmap, cols, diagonal, fenced) {
+    constructor(mapid, mapname, inputtype, inputmap, cols, diagonal, maphtml) {
 
         this.error = function(error) { throw new Error(error) };
 
@@ -164,8 +170,7 @@ class Navmap {
         // these don't save to State
         this.mapname    = mapname   ?? this.mapid;
         this.diagonal   = diagonal  ?? def.nav.diagonal;
-        this.fenced     = fenced    ?? def.map.fenced;
-        // this.actors     = [];
+        this.maphtml    = maphtml   ?? {};
         this.cells      = [];
         this.vertices   = [];
         this.walls      ??= {};
@@ -257,20 +262,6 @@ class Navmap {
     }
     get arr() {
         return State.variables[config.State_name].navmaps[this.mapid].arr
-    }
-    // cols
-    set cols(val) {
-        State.variables[config.State_name].navmaps[this.mapid].cols = val;
-    }
-    get cols() {
-        return State.variables[config.State_name].navmaps[this.mapid].cols
-    }
-    // rows
-    set rows(val) {
-        State.variables[config.State_name].navmaps[this.mapid].rows = val;
-    }
-    get rows() {
-        return State.variables[config.State_name].navmaps[this.mapid].rows
     }
     // walls
     set walls(val) {
@@ -677,7 +668,7 @@ function print_navdir(argObj) {
     const { displayid, mapid, dir, entity, print_names } = argObj;
 
     const map = get_navmap(mapid);
-    const { arr, rows, cols, actors, cells } = map;
+    const { arr, rows, cols, cells } = map;
     const { dirid, dirname, delta, dirhtml } = dir;
 
     const $dir = $(document.createElement('div'));
@@ -709,7 +700,6 @@ function print_navdir(argObj) {
         ) {
             const tile = get_navtile(arr[i]);
             const { tileid, tilename } = tile;
-            // const disabled = actors[i]?.vacant;
             const disabled = cells[x][y].blocked;
             const displayhtml   = dirid === "C"
                                     ? tilename ?? tileid

@@ -6,41 +6,53 @@ demo map
 <<new_navmap 
     mapid       'demo'
     mapname     'Demo Test Map'
-    cols        30
+    cols        42
     diagonal    false
-    fenced      false
 >>
-    SE	SS	SS	SS	SS	SS	SS	SS	SS	SS	SS	SS	SS	SS	SS	SS	SS	SS	SS	SS	SS	SS	SS	SS	SS	SS	SS	SS	SS	SW
-    E	S	S	EW	S	S	S	S	S	S	S	S	S	S	S	S	S	S	EW	S	S	S	S	S	S	S	EW	S	S	W
-    E	-	-	EW	-	-	-	-	-	-	-	-	-	-	-	-	-	-	EW	-	-	-	-	-	-	-	EW	-	-	W
-    E	-	-	EW	-	-	-	-	-	-	N	-	-	-	-	-	-	-	EW	-	-	-	-	-	-	-	EW	-	-	W
-    E	-	-	EW	-	-	-	-	-	-	EW	-	-	-	-	-	-	-	EW	-	-	-	-	-	-	-	EW	-	-	W
-    E	-	-	EW	N	N	N	N	N	N	EW	N	N	N	-	-	-	-	EW	-	-	N	N	N	-	-	EW	-	-	W
-    E	-	-	S	S	S	S	S	S	S	EW	S	S	S	-	-	-	-	S	-	-	S	S	S	-	-	S	-	-	W
-    E	-	-	-	-	-	-	-	-	-	EW	-	-	-	-	-	-	-	-	-	-	-	-	EW	-	-	-	-	-	W
-    E	-	EW	-	-	-	-	-	N	N	N	-	-	-	-	-	-	-	-	-	-	-	-	EW	-	-	-	-	-	W
-    E	-	EW	-	-	-	-	-	S	S	S	-	-	N	-	-	-	-	-	-	-	-	-	EW	-	-	-	-	-	W
-    E	-	EW	-	-	-	EW	-	-	-	-	-	-	EW	-	-	N	N	N	N	N	N	N	EW	N	N	N	N	-	W
-    E	-	EW	-	-	-	EW	-	-	-	-	-	-	EW	-	-	S	S	S	EW	S	S	S	EW	S	S	S	S	-	W
-    E	-	EW	-	-	-	EW	-	-	-	-	-	-	EW	-	-	-	-	-	EW	-	-	-	EW	-	-	-	-	-	W
-    E	-	EW	-	N	N	EW	N	N	N	N	N	N	EW	N	N	-	-	-	EW	-	-	-	EW	-	-	-	-	-	W
-    E	-	EW	-	S	S	S	S	S	S	S	S	S	S	S	S	-	-	-	EW	-	-	-	EW	-	N	N	N	-	W
-    E	-	S	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	EW	-	-	-	EW	-	S	S	S	-	W
-    E	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	EW	-	-	-	EW	-	-	-	-	-	W
-    E	-	N	N	N	N	N	-	N	N	N	N	N	N	-	-	-	-	-	S	-	-	-	EW	-	-	-	N	-	W
-    E	-	EW	S	S	S	S	-	S	S	S	S	S	S	-	-	-	-	-	-	-	-	-	EW	-	-	-	EW	-	W
-    E	-	EW	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	EW	-	-	-	EW	-	W
-    E	-	EW	N	N	N	-	-	-	N	N	EW	N	N	N	N	N	N	N	N	N	-	-	EW	-	-	-	EW	-	W
-    E	-	EW	S	S	S	-	-	-	S	S	EW	S	S	S	S	S	S	S	S	S	-	-	S	-	-	N	EW	N	W
-    E	-	EW	-	-	-	-	-	-	-	-	EW	-	-	-	-	-	-	-	-	-	-	-	-	-	-	S	S	S	W
-    E	-	EW	-	-	N	-	-	-	-	-	EW	-	-	-	-	-	-	-	-	-	-	-	-	N	-	-	-	-	W
-    E	-	EW	-	-	EW	-	-	-	-	-	EW	N	N	N	N	N	-	-	N	N	N	N	N	EW	N	-	-	-	W
-    E	-	S	-	-	EW	N	N	N	-	-	S	S	S	S	S	EW	-	-	S	S	-	-	-	EW	-	-	-	-	W
-    E	-	-	-	-	EW	S	S	S	-	-	-	-	-	-	-	EW	-	-	-	-	-	-	-	EW	-	-	-	-	W
-    E	-	N	-	-	S	-	-	-	-	-	-	-	-	-	-	S	-	-	-	-	-	-	-	S	-	-	-	-	W
-    E	-	EW	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	W
-    NE	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	NW
-
+    -	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-
+    -	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-
+    -	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-
+    -	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-
+    -	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-
+    -	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-
+    -	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-
+    -	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-
+    -	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-
+    -	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-
+    -	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-
+    -	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-
+    -	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-
+    -	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-
+    -	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-
+    -	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-
+    -	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-
+    -	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-
+    -	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-
+    -	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-
+    -	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-
+    -	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-
+    -	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-
+    -	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-
+    -	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-
+    -	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-
+    -	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-
+    -	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-
+    -	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-
+    -	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-
+    -	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-
+    -	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-
+    -	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-
+    -	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-
+    -	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-
+    -	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-
+    -	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-
+    -	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-
+    -	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-
+    -	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-
+    -	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-
+    -	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-
+<<displayhtml 'default'>>
+    <img src="./assets/map.jpg">
 <</new_navmap>>
 <<new_navtile "-" false>>
     <img class="tile_png" src="./assets/-.png">
@@ -95,7 +107,7 @@ demo map
 <<new_navtile 'SW' true>>
     <img class="tile_png" src="./assets/SW.png">
     <<displayhtml 'demo2'>>
-        <div></div>
+    
 <</new_navtile>>
 
 <<new_naventity 
@@ -121,32 +133,36 @@ demo map
 <<set_naventity
     entityid    'player2'
     mapid       'demo'
-    x           27
-    y           27
+    x           18
+    y           18
 >>
 
 <<new_navdisplay
     mapid           'demo'
     displayid       'demo1'
     entityid_view   'player1'
-    rows            9
-    cols            9
+    rows            15
+    cols            15
 >>
 <<new_navdisplay
     mapid           'demo'
     displayid       'demo2'
     entityid_view   'player2'
-    rows            30
-    cols            30
+    rows            42
+    cols            42
 >>
-<<new_navwall
+
+
+
+<<set $points to [
+    [31,0],
+    [0,31]
+]>>
+/* <<new_navwall
     wallid          'testwall',
     mapid           'demo'
-    x1              2
-    y1              2
-    x2              2
-    y2              20
->>
+    vertices        $points
+>> */
 
 :: Start [nobr]
 <div id='grid'>
@@ -211,6 +227,13 @@ demo map
             }
             .Navdisplay[data-displayid="demo2"] {
                 grid-column: 2;
+            }
+            .Navbg {
+                position: absolute;
+            }
+            .Navbg > img {
+                width: 100%;
+                height: 100%;
             }
         .Navrose {
             margin: 0 auto;
@@ -358,7 +381,6 @@ demo map
             position: relative;
             height: var(--mapheight);
             width: var(--mapwidth);
-            padding: 0.5rem;
             overflow: hidden;
             align-items: center;
             justify-content: center;

@@ -1,15 +1,126 @@
 //////////////////////////////////////////////////
 //////////////////////////////////////////////////
 /**
- * updates actors for a map
+ * @typedef {{x:number,y:number}} Point
+ */
+/**
+ * @param {Point}  A   - point1 of line segment1
+ * @param {Point}  B   - point2 of line segment1
+ * @param {Point}  C   - point1 of line segment2
+ * @param {Point}  D   - point2 of line segment2
+ * @return {void}
+ */
+function compare_segments(A,B,C,D) {
+    
+    const result = {};
+    const m1 = (B.y - A.y) / (B.x - A.x);
+    const m2 = (D.y - C.y) / (D.x - C.x);
+
+    // not vertical lines
+    if (Math.abs(m1) !== Infinity && Math.abs(m2) !== Infinity) {
+
+        // y-axis intersect
+        const b1 = A.y - (m1 * A.x);
+        const b2 = C.y - (m2 * C.x);
+
+        // collinear
+        if ((m1 === m2) && (b1 === b2)){
+            result.parallel  = true;
+            result.collinear = true;
+            // check if segments overlap
+            const seg1_x = [A.x, B.x].sort((a,b) => a - b);
+            result.intersect = 
+                ((seg1_x[0] <= C.x) && (C.x <= seg1_x[1]))    ||
+                ((seg1_x[0] <= D.x) && (D.x <= seg1_x[1]));
+            return result
+        }
+        // parallel
+        else if (m1 === m2) {
+            result.parallel  = true;
+            result.collinear = false;
+            result.intersect = false;
+            return result
+        }
+        // everything else
+        else {
+            result.parallel  = false;
+            result.collinear = false;
+            // calculate intersection point
+            // y = m1 * x + b1
+            // y = m2 * x + b2
+            // m1 * x + b1 = m2 * x + b2
+            // (m1 - m2) * x = b2 - b1
+            // x = (b2 - b1) / (m1 - m2)
+            const I = {};
+            I.x = (b2 - b1) / (m1 - m2);
+            // check if intersection is a point on both lines
+            const seg1_x = [A.x, B.x].sort((a,b) => a - b);
+            const seg2_x = [C.x, D.x].sort((a,b) => a - b);
+            result.intersect = 
+                (seg1_x[0] <= I.x) && (I.x <= seg1_x[1])    &&
+                (seg2_x[0] <= I.x) && (I.x <= seg2_x[1]);
+            return result
+        }
+    }
+
+    // vertical lines
+    else {
+
+        // collinear
+        if ((Math.abs(m1) === Math.abs(m2)) && (A.x === C.x)) {
+            result.parallel  = true;
+            result.collinear = true;
+            // check if segments overlap;
+            const seg1_y = [A.y, B,y].sort((a,b) => a - b);
+            result.intersect = 
+                ((seg1_y[0] <= C.y) && (C.y <= seg1_y[1]))  ||
+                ((seg1_y[0] <= D.y) && (D.y <= seg1_y[1]));
+            return result
+        }
+        // parallel
+        else if (Math.abs(m1) === Math.abs(m2)) {
+            result.parallel  = true;
+            result.collinear = false;
+            result.intersect = false;
+            return result
+        }
+        else {
+            result.parallel  = false;
+            result.collinear = false;
+            // AB is vertical
+            // which means it occupies all x's for it's x value
+            // check if it's x is betwen CD x's
+            if (Math.abs(m1) === Infinity) {
+                const seg2_x = [C.x, D.x].sort((a,b) => a - b);
+                result.intersect = 
+                    (seg2_x[0] <= A.x) && (A.x <= seg2_x[1]);
+                return result
+            }
+            // CD is vertical
+            else {
+                const seg1_x = [A.x, B.x].sort((a,b) => a - b);
+                result.intersect = 
+                    (seg1_x[0] <= C.x) && (C.x <= seg1_x[1]);
+                return result
+            }
+        }
+    }
+}
+
+
+
+//////////////////////////////////////////////////
+//////////////////////////////////////////////////
+/**
+ * updates cells for a map
  * @param {object}  argObj
  * @param {string}  argObj.mapid    - id of map
  * @return {void}
  */
-function calculate_actors(argObj) {
+function calculate_cells(argObj) {
 
     // necessary definitions
-    this.name   ??= argObj.id ?? "calculate_actors";
+    this.name   ??= argObj.id ?? "calculate_cells";
     this.error  ??= function(error) { throw new Error(error) };
 
     const { mapid } = argObj;
@@ -18,16 +129,13 @@ function calculate_actors(argObj) {
     check_required.call(this, {mapid});
 
     const map = get_navmap(mapid);
-    const { arr, rows, cols, actors, cells, vertices } = map;
+    const { arr, rows, cols, cells, vertices } = map;
 
     // calculate walls using tiles
     try {
         for (let i = 0; i < arr.length; i++) {
             const tileid        = arr[i];
             const tile          = get_navtile(tileid);
-            // actors[i]           ??= {};
-            // actors[i].vacant    = tile.vacant;
-            // actors[i].walls     = { ...tile.walls };
             
             const xy = convert_i2xy(i,mapid);
             const { x, y } = xy;
@@ -37,7 +145,7 @@ function calculate_actors(argObj) {
         }
     }
     catch (error) {
-        console.error(`${this.name} - failed to calculate actors (tiles) for map "${mapid}" (calculate_actors)`);
+        console.error(`${this.name} - failed to calculate tiles -> cells for map "${mapid}" (calculate_cells)`);
         console.error(error);
     }
 
@@ -54,13 +162,6 @@ function calculate_actors(argObj) {
                 continue;
             }
             const { x, y } = entity.coords[mapid];
-            // const i = convert_xy2i({x,y}, mapid);
-            // // if already wall or out of bounds, skip
-            // if ( i < 0 || actors[i]?.vacant) {
-            //     continue;
-            // }
-            // // set wall status
-            // actors[i].vacant = true;
 
             if (cells[x][y].blocked) {
                 continue;
@@ -69,7 +170,7 @@ function calculate_actors(argObj) {
         }
     }
     catch (error) {
-        console.error(`${this.name} - failed to calculate actors (entities) for map "${mapid}" (calculate_actors)`);
+        console.error(`${this.name} - failed to calculate entities -> cells for map "${mapid}" (calculate_cells)`);
         console.error(error);
     }
 }
@@ -85,10 +186,10 @@ function calculate_actors(argObj) {
 //////////////////////////////////////////////////
 Macro.add(["newnavmap", "new_navmap"], {
 
-    tags: null,
+    tags: ["displayhtml"],
 
     handler() {
-        debug.log('macro', `begin - ${this.name} handler`);
+        debug.log("macro", `---- start "${this.name}" handler ----`);
         // parse args
         const argObj = create_argObj.call(this, {
             id: this.name,
@@ -111,17 +212,43 @@ Macro.add(["newnavmap", "new_navmap"], {
                 diagonal: {
                     type        : 'boolean',
                 },
-                fenced: {
-                    type        : 'boolean',
-                },
             },
         });
         // parse macro payload into array
         argObj.inputtype = 'array';
         argObj.inputmap  = this.payload[0].contents.trim().split(/[\s\n]+/g);
+        // parse displayhtml
+        argObj.maphtml = {};
+        if (this.payload.length > 1) {
+            for (let i = 1; i < this.payload.length; i++) {
+                const argObj_p = create_argObj.call(this, {
+                    id: this.name,
+                    args_in: this.payload[i].args,
+                    template: {
+                        displayid: {
+                            type    : 'string',
+                            alias   : 'display',
+                        }
+                    },
+                });
+                const { displayid } = argObj_p;
+                // ERROR: missing displayid
+                if (typeof displayid === 'undefined') {
+                    return this.error(`${this.name} - missing displayid for child tag, required to identify HTML representation`)
+                }
+                // ERROR: tag clobbering
+                if (
+                    (! def.skipcheck.clobbering)    &&
+                    (typeof argObj.maphtml[displayid] !== 'undefined')
+                ) {
+                    return this.error(`${this.name} - clobbering, child tag with display id "${displayid}" already used in this macro call`)
+                }
+                argObj.maphtml[displayid] = this.payload[i]?.contents?.trim();
+            }
+        }
         argObj.source    = 'macro';
-        debug.log('macro', `end - ${this.name} handler`);
-        debug.log('macro', argObj);
+        debug.log("macro", argObj);
+        debug.log("macro", `---- end ${this.name} handler ----`);
         new_navmap.call(this, argObj);
     },
 });
@@ -136,7 +263,6 @@ Macro.add(["newnavmap", "new_navmap"], {
  * @param {array}               inputmap    - map input
  * @param {number}              cols        - # cols, required if inputtype is "array"
  * @param {boolean}             diagonal    - diagonal movement
- * @param {boolean}             fenced      - whether map boundaries are walls
  * @return {void}
  */
 function new_navmap(argObj) {
@@ -146,7 +272,7 @@ function new_navmap(argObj) {
     this.error  ??= function(error) { throw new Error(error) };
     
     // extract from argObj
-    const { source, mapid, mapname, diagonal, inputtype, inputmap, fenced } = {
+    const { source, mapid, mapname, diagonal, inputtype, inputmap, maphtml } = {
         diagonal        : def.nav.diagonal,
         ...argObj,
     };
@@ -173,7 +299,7 @@ function new_navmap(argObj) {
     //////////////////////////////////////////////////
     // create new Navmap
     try {
-        new Navmap(mapid, mapname, inputtype, inputmap, cols, diagonal, fenced);
+        new Navmap(mapid, mapname, inputtype, inputmap, cols, diagonal, maphtml);
     }
     catch (error) {
         console.error(`${this.name} - failed to create Navmap object for map "${mapid}" (new_navmap)`);
@@ -193,10 +319,10 @@ function new_navmap(argObj) {
 //////////////////////////////////////////////////
 Macro.add(["newnavtile", "new_navtile"], {
 
-    tags: ["displayhtml","display_html"],
+    tags: ["displayhtml"],
 
     handler() {
-        debug.log('macro', `begin - ${this.name} handler`);
+        debug.log("macro", `---- start "${this.name}" handler ----`);
         const argObj = create_argObj.call(this, {
             id: this.name,
             args_in: this.args,
@@ -232,19 +358,23 @@ Macro.add(["newnavtile", "new_navtile"], {
                     },
                 });
                 const { displayid } = argObj_p;
+                // ERROR: missing displayid
+                if (typeof displayid === 'undefined') {
+                    return this.error(`${this.name} - missing displayid for child tag, required to identify HTML representation`)
+                }
                 // ERROR: tag clobbering
                 if (
                     (! def.skipcheck.clobbering)    &&
                     (typeof argObj.tilehtml[displayid] !== 'undefined')
                 ) {
-                    return this.error(`${this.name} - clobbering, child tag with display id "${displayid}" already used in this macro call`)
+                    return this.error(`${this.name} - clobbering, child tag with displayid "${displayid}" already used in this macro call`)
                 }
                 argObj.tilehtml[displayid] = this.payload[i]?.contents?.trim();
             }
         }
         argObj.source = "macro";
-        debug.log('macro', `end - ${this.name} handler`);
-        debug.log('macro', argObj);
+        debug.log("macro", argObj);
+        debug.log("macro", `---- end ${this.name} handler ----`);
         new_navtile.call(this, argObj);
     },
 });
@@ -285,13 +415,6 @@ function new_navtile(argObj) {
                 tile.tilename = tilename;
             }
             for (const displayid in tilehtml) {
-                // ERROR: empty payload
-                if (
-                    (! def.skipcheck.unused)        && 
-                    (typeof tilehtml[displayid] === 'undefined')
-                ) {
-                    return this.error(`${this.name} - empty html element / macro payload for tileid "${tileid}" on displayid "${displayid}"`)
-                }
                 tile.tilehtml[displayid] = tilehtml[displayid];
                 tile.tilehtml.default ??= tileid;
             }
@@ -327,7 +450,7 @@ function new_navtile(argObj) {
 Macro.add(["new_navdisplay","newnavdisplay"], {
 
     handler() {
-        debug.log(`macro`,`begin - ${this.name} handler`);
+        debug.log("macro", `---- start "${this.name}" handler ----`);
         // parse args
         const argObj = create_argObj.call(this, {
             id: this.name,
@@ -362,8 +485,8 @@ Macro.add(["new_navdisplay","newnavdisplay"], {
             },
         });
         argObj.source = "macro";
-        debug.log(`macro`,`end - ${this.name} handler`);
-        debug.log('macro', argObj);
+        debug.log("macro", `---- end ${this.name} handler ----`);
+        debug.log("macro", argObj);
         new_navdisplay.call(this, argObj);
     },
 });
@@ -502,7 +625,7 @@ function new_navdisplay(argObj) {
 Macro.add(["print_navdisplay","printnavdisplay"], {
 
     handler() {
-        debug.log(`macro`,`start - ${this.name} handler`);
+        debug.log("macro", `---- start "${this.name}" handler ----`);
         // parse args
         const argObj = create_argObj.call(this, {
             id: this.name,
@@ -512,11 +635,15 @@ Macro.add(["print_navdisplay","printnavdisplay"], {
                     type        : 'string',
                     alias       : 'display',
                 },
+                print_tiles: {
+                    type        : 'boolean',
+                    alias       : ['print_tiles',],
+                },
             },
         });
         argObj.source = "macro";
-        debug.log(`macro`,`end - ${this.name} handler`);
-        debug.log('macro', argObj);
+        debug.log("macro", `---- end ${this.name} handler ----`);
+        debug.log("macro", argObj);
         const $display = print_navdisplay.call(this, argObj);    
         $display.appendTo(this.output);
     },
@@ -536,7 +663,10 @@ function print_navdisplay(argObj) {
     this.error  ??= function(error) { throw new Error(error) };
 
     // extract from argObj
-    const { displayid } = argObj;
+    const { displayid, print_tiles } = {
+        print_tiles  : def.display.print_tiles,
+        ...argObj,
+    };
 
     // ERROR: required
     check_required.call(this, {displayid});
@@ -574,6 +704,7 @@ function print_navdisplay(argObj) {
     // print tiles
     update_navdisplay.call(this, {
         $display,
+        print_tiles,
     });
     
     //////////////////////////////////////////////////
@@ -585,6 +716,7 @@ function print_navdisplay(argObj) {
                 $(this).children().remove();
                 update_navdisplay.call(this, {
                     $display,
+                    print_tiles,
                     delta,
                 });
             });
@@ -617,7 +749,7 @@ function update_navdisplay(argObj) {
     this.name   ??= argObj.id ?? "update_navdisplay";
     this.error  ??= function(error) { throw new Error(error) };
 
-    const { $display, delta } = argObj;
+    const { $display, print_tiles, delta } = argObj;
 
     // ERROR: required
     check_required.call(this, {$display}, {label:"jQuery object holding display to update"});
@@ -631,10 +763,10 @@ function update_navdisplay(argObj) {
     const display = get_navdisplay(displayid);
     const { mapid } = display;
     const map = get_navmap(mapid);
-    const { arr, rows, cols } = map;
+    const { arr, rows, cols, walls, maphtml } = map;
 
-    // update actors
-    calculate_actors.call(this, {mapid});
+    // update cells
+    calculate_cells.call(this, {mapid});
     // update display values with delta
     calculate_navdisplay.call(this, {
         displayid,
@@ -667,20 +799,22 @@ function update_navdisplay(argObj) {
                 const i = i0 + (c-1) + (cols * (r-1));
                 const t = arr[i];
                 // print tile
-                const $t = print_navtile.call(this, {
-                    displayid,
-                    tile        : get_navtile(t),
-                    col         : c,
-                    row         : r,
-                });
-                $t.appendTo($display);
-                // assign xy coordinates & track
-                const { x, y } = convert_i2xy(i, mapid);
-                $t
-                    .attr('data-x', x)
-                    .data('x',      x)
-                    .attr('data-y', y)
-                    .data('y',      y);
+                if (print_tiles) {
+                    const $t = print_navtile.call(this, {
+                        displayid,
+                        tile        : get_navtile(t),
+                        col         : c,
+                        row         : r,
+                    });
+                    $t.appendTo($display);
+                    // assign xy coordinates & track
+                    const { x, y } = convert_i2xy(i, mapid);
+                    $t
+                        .attr('data-x', x)
+                        .data('x',      x)
+                        .attr('data-y', y)
+                        .data('y',      y);
+                }
                 printed_navtiles.push(i);
             }
         }
@@ -716,6 +850,41 @@ function update_navdisplay(argObj) {
     }
     catch (error) {
         console.error(`${this.name} - failed to print entities for map display "${displayid}" (refresh_navdisplay)`);
+        console.error(error);
+    }
+    
+    //////////////////////////////////////////////////
+    // print walls
+    // try {
+    //     for (const wall of walls) {
+    //         const vertices = wall.vertices;
+
+    //     }
+    // }
+    // catch (error) {
+    //     console.error(`${this.name} - failed to print walls for map display "${displayid}"`);
+    //     console.error(error);
+    // }
+
+    //////////////////////////////////////////////////
+    // attach background
+    try {
+        const displayhtml = maphtml[displayid] ?? maphtml.default;
+                                
+        if (typeof displayhtml !== 'undefined') {
+            const $bg = $(document.createElement('div')).wiki(displayhtml);
+            $bg.addClass('Navbg')
+            $bg.css({
+                width       : (cols / cols_view * 100) + '%',
+                height      : (rows / rows_view * 100) + '%',
+                left        : (-1 * (x0-1) / cols_view * 100) + '%',
+                top         : (-1 * (y0-1) / rows_view * 100) + '%',
+            });
+            $bg.appendTo($display);
+        }
+    }
+    catch (error) {
+        console.error(`${this.name} - failed to attach background image for map display "${displayid}"`);
         console.error(error);
     }
 }
@@ -799,10 +968,10 @@ function calculate_navdisplay(argObj) {
 //////////////////////////////////////////////////
 Macro.add(["newnaventity", "new_naventity"], {
 
-    tags: ['displayhtml','display_html'],
+    tags: ["displayhtml"],
 
     handler() {
-        debug.log('macro', `start - ${this.name} handler`);
+        debug.log("macro", `---- start ${this.name} handler ----`);
         const argObj = create_argObj.call(this, {
             id: this.name,
             args_in: this.args, 
@@ -835,6 +1004,10 @@ Macro.add(["newnaventity", "new_naventity"], {
                     },
                 });
                 const { displayid } = argObj_p;
+                // ERROR: missing displayid
+                if (typeof displayid === 'undefined') {
+                    return this.error(`${this.name} - missing displayid for child tag, required to identify HTML representation`)
+                }
                 // ERROR: tag clobbering
                 if (
                     (! def.skipcheck.clobbering)    &&
@@ -846,8 +1019,8 @@ Macro.add(["newnaventity", "new_naventity"], {
             }
         }
         argObj.source = "macro";
-        debug.log('macro', `end - ${this.name} handler`);
-        debug.log('macro', argObj);
+        debug.log("macro", argObj);
+        debug.log("macro", `---- end ${this.name} handler ----`);
         new_naventity.call(this, argObj);
     },
 });
@@ -888,14 +1061,7 @@ function new_naventity(argObj) {
             if (entityname) {
                 entity.entityname = entityname;
             }
-            // ERROR: empty payload
             for (const displayid in entityhtml) {
-                if (
-                    (! def.skipcheck.unused)        && 
-                    (typeof entityhtml[displayid] === 'undefined')
-                ) {
-                    return this.error(`${this.name} - empty html element / macro payload for entityid "${entityid}" on displayid "${displayid}"`)
-                }
                 entity.entityhtml[displayid] = entityhtml[displayid];
                 entity.entityhtml.default ??= entityid;
             }
@@ -924,7 +1090,7 @@ function new_naventity(argObj) {
 Macro.add(["setnaventity", "set_naventity"], {
 
     handler() {
-        debug.log('macro', `start - ${this.name} handler`);
+        debug.log("macro", `---- start ${this.name} handler ----`);
         const argObj = create_argObj.call(this, {
             id: this.name,
             args_in: this.args, 
@@ -949,8 +1115,8 @@ Macro.add(["setnaventity", "set_naventity"], {
             },
         });
         argObj.source = "macro";
-        debug.log('macro', `end - ${this.name} handler`);
-        debug.log('macro', argObj);
+        debug.log("macro", argObj);
+        debug.log("macro", `---- end ${this.name} handler ----`);
         set_naventity.call(this, argObj);
     },
 });
@@ -1052,7 +1218,7 @@ function set_naventity(argObj) {
 Macro.add(["remnaventity", "rem_naventity"], {
 
     handler() {
-        debug.log('macro', `start - ${this.name} handler`);
+        debug.log("macro", `---- start ${this.name} handler ----`);
         const argObj = create_argObj.call(this, {
             id: this.name,
             args_in: this.args, 
@@ -1068,8 +1234,8 @@ Macro.add(["remnaventity", "rem_naventity"], {
             },
         });
         argObj.source = "macro";
-        debug.log('macro', `end - ${this.name} handler`);
-        debug.log('macro', argObj);
+        debug.log("macro", argObj);
+        debug.log("macro", `---- end ${this.name} handler ----`);
         rem_naventity.call(this, argObj);
     },
 });
@@ -1134,7 +1300,7 @@ function rem_naventity(argObj) {
 Macro.add(["movnaventity", "mov_naventity"], {
 
     handler() {
-        debug.log('macro', `start - ${this.name} handler`);
+        debug.log("macro", `---- start ${this.name} handler ----`);
         const argObj = create_argObj.call(this, {
             id: this.name,
             args_in: this.args, 
@@ -1165,8 +1331,8 @@ Macro.add(["movnaventity", "mov_naventity"], {
             },
         });
         argObj.source = "macro";
-        debug.log('macro', `end - ${this.name} handler`);
-        debug.log('macro', argObj);
+        debug.log("macro", argObj);
+        debug.log("macro", `---- end ${this.name} handler ----`);
         mov_naventity.call(this, argObj);
     },
 });
@@ -1216,24 +1382,116 @@ function mov_naventity(argObj) {
 
     // extract from map
     const map = get_navmap(mapid);
-    const { fenced, rows, cols, cells } = map;
+    const { rows, cols, cells, walls } = map;
     const entity = get_naventity(entityid);
-    const { x, y } = entity.coords[mapid];
 
-    // move entity
+    const x_old = entity.coords[mapid].x;
+    const y_old = entity.coords[mapid].y;
+    const x_new = x_old + (delta?.x ?? 0);
+    const y_new = y_old + (delta?.y ?? 0);
+    debug.log('collision', `---- begin check for entity "${entityid}" ----`);
+    debug.log('collision', {x_old, y_old, x_new, y_new});
+
+    let collided = false;
+    let within_bounds = true;
+
+    // collsion against map boundaries
     try {
-        const x_new = x + (delta?.x ?? 0);
-        const y_new = y + (delta?.y ?? 0);
-        // TODO: math for collisions
+        debug.log('collision', 'checking map boundaries');
+        if (  
+            (x_new < 1)     ||
+            (y_new < 1)     ||
+            (x_new > cols)  ||
+            (y_new > rows)
+         ) {
+            within_bounds = false;
+            if (! ignore_walls) {
+                collided = true;
+            }
+        }
+        debug.log('collision', {collided});
+    }
+    catch (error) {
+        console.error(`${this.name} - failed to calculate collisions against map boundaries`);
+        console.error(error);
+    }
+
+    // collision against entities / vacant tiles
+    try {
+        debug.log('collision', 'checking blocked');
+        if (within_bounds) {
+            if ((! ignore_walls) && (cells[x_new][y_new].blocked)) {
+                collided = true;
+            }
+        }
+        debug.log('collision', {collided});
+    }
+    catch (error) {
+        console.error(`${this.name} - failed to calculate collisions against map tiles and entities`);
+        console.error(error);
+    }
+
+    // collision against walls
+    const A = {
+        x   : x_old * 2, 
+        y   : y_old * 2
+    };
+    const B = {
+        x   : x_new * 2,
+        y   : y_new * 2,
+    };
+    for (const wallid in walls) {
+        debug.log('collision', `checking wall "${wallid}"`);
+        const wall = walls[wallid];
+        const vertices = wall.vertices;
+        try {
+            for (let v = 0; v < vertices.length - 1; v++) {
+                debug.log('collision', `checking wall "${wallid}", points ${v} to ${v+1}`);
+                const C = {
+                    x   : vertices[v][0] * 2 - 1,
+                    y   : vertices[v][1] * 2 - 1,
+                };
+                const D = {
+                    x   : vertices[v+1][0] * 2 - 1,
+                    y   : vertices[v+1][1] * 2 - 1,
+                };
+                const result = compare_segments(A, B, C, D);
+                debug.log('collision', result);
+                if (result.intersect) {
+                    collided = true;
+                }
+                debug.log('collision', {collided});
+                if (collided) {
+                    break;
+                }
+            }
+            debug.log('collision', {collided});
+            if (collided) {
+                break;
+            }
+        }
+        catch (error) {
+            console.error(`${this.name} - failed to calculate collisions for entity "${entityid}" against wall "${wallid}" on map "${mapid}" (mov_naventity)`);
+            console.error(error);
+        }
+    }
+
+    // update
+    try {
+        debug.log('collision', `finished checking`);
+        debug.log('collision', {collided});
+
         // no collision
-        if (! cells[x_new][y_new].blocked) {
+        if (! collided) {
             debug.log("collision",`moved entity "${entityid}" on map "${mapid}"!`);
             entity.coords[mapid].x  = x_new;
             entity.coords[mapid].y  = y_new;
+            debug.log('collision', `---- end check for entity "${entityid}" ----`);
         }
         // collision
         else {
             debug.log("collision",`blocked entity "${entityid}" on map "${mapid}"!`);
+            debug.log('collision', `---- end check for entity "${entityid}" ----`);
         }
     }
     catch (error) {
@@ -1267,7 +1525,7 @@ function mov_naventity(argObj) {
 Macro.add(["new_navwall", "newnavwall"], {
 
     handler() {
-        debug.log('macro', `start - ${this.name} handler`);
+        debug.log("macro", `---- start ${this.name} handler ----`);
         const argObj = create_argObj.call(this, {
             id: this.name,
             args_in: this.args, 
@@ -1300,8 +1558,8 @@ Macro.add(["new_navwall", "newnavwall"], {
             },
         });
         argObj.source = "macro";
-        debug.log('macro', `end - ${this.name} handler`);
-        debug.log('macro', argObj);
+        debug.log("macro", argObj);
+        debug.log("macro", `---- end ${this.name} handler ----`);
         new_navwall.call(this, argObj);
     },
 });
@@ -1348,11 +1606,12 @@ function new_navwall(argObj) {
         ) {
             return this.error(`${this.name} - both x2 and y2 are required to define a point`)
         }
-        if (typeof x1 !== 'undefined') {
-            vertices.push([x1,y1]);
-        }
+        // add xy1 & xy2 to vertices array
         if (typeof x2 !== 'undefined') {
-            vertices.push([x2,y2]);
+            vertices.unshift([x2,y2]);
+        }
+        if (typeof x1 !== 'undefined') {
+            vertices.unshift([x1,y1]);
         }
 
         // ERROR: not enough points
@@ -1363,6 +1622,7 @@ function new_navwall(argObj) {
         const map = get_navmap(mapid);
         const { rows, cols, walls } = map;
 
+        // check vertice xy's are all integers and within bounds
         for (const v of vertices) {
             const x = v[0];
             const y = v[1];
@@ -1384,6 +1644,7 @@ function new_navwall(argObj) {
             }
         }
 
+        // assign
         walls[wallid] ??= {
             wallid      : wallid,
             vertices    : vertices,
@@ -1407,7 +1668,7 @@ function new_navwall(argObj) {
 Macro.add(["print_navrose", "printnavrose"], {
 
     handler() {
-        debug.log('macro', `start - ${this.name} handler`);
+        debug.log("macro", `---- start ${this.name} handler ----`);
         const argObj = create_argObj.call(this, {
             id: this.name,
             args_in: this.args, 
@@ -1476,8 +1737,8 @@ Macro.add(["print_navrose", "printnavrose"], {
             console.error(error);
         }
         argObj.source = "macro";
-        debug.log('macro', `end - ${this.name} handler`);
-        debug.log('macro', argObj);
+        debug.log("macro", argObj);
+        debug.log("macro", `---- end ${this.name} handler ----`);
         const $rose = print_navrose.call(this, argObj);
         $rose.appendTo(this.output);
     },
