@@ -869,6 +869,7 @@ function update_navdisplay(argObj) {
     try {
         for (const wallid in navwalls) {
             const wall = navwalls[wallid];
+            const wallname = wall.wallname
             if (typeof wall.points[mapid] === 'undefined') {
                 continue;
             }
@@ -885,9 +886,12 @@ function update_navdisplay(argObj) {
             $wall
                 .wiki(displayhtml)
                 .addClass('Navwall')
+                .attr('title',              wallname)
+                .attr('data-wallid',        wallid)
+                .data('wallid',             wallid)
                 .css({
-                    width   : ((x_max - x_min) / cols_view * 100) + '%',
-                    height  : ((y_max - y_min) / rows_view * 100) + '%',
+                    width   : `max(${(x_max - x_min) / cols_view * 100}%, ${100 / cols_view * 0.2}%)`,
+                    height  : `max(${(y_max - y_min) / rows_view * 100}%, ${100 / rows_view * 0.2}%)`,
                     left    : ((x_min - (x0 - 1)) / cols_view * 100) + '%',
                     top     : ((y_min - (y0 - 1)) / rows_view * 100) + '%',
                 });
@@ -1784,7 +1788,6 @@ function set_navwall(argObj) {
             });
         }
 
-        console.log(vertices);
         // ERROR: not enough points
         if (vertices.length < 2) {
             return this.error(`${this.name} - at least two points are required to set a navwall`)

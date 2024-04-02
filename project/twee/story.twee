@@ -159,16 +159,16 @@ demo map
     { x : 42,  y : 0 },
 ]>>
 <<new_navwall
-    wallid          'testwall',
+    wallid          'wall1',
 >>
-    <img src="./assets/wall.png">
+    <img src="./assets/wall1.png">
 <</new_navwall>>
 <<set_navwall
-    wallid          'testwall',
+    wallid          'wall1',
     mapid           'demo'
     points          $points
 >>
-<<new_navwall "wall2">><</new_navwall>>
+<<new_navwall "wall2">><img src="./assets/wall2.png"><</new_navwall>>
 <<set_navwall "wall2" "demo" 21 0 21 42>>
 
 :: Start [nobr]
