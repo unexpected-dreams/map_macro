@@ -115,3 +115,6 @@ sugarcube-2:
       name: print_navrose
     new_navwall:
       name: new_navwall
+      container: true
+    set_navwall:
+      name: set_navwall

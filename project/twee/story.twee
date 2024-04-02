@@ -74,7 +74,7 @@ demo map
     <<displayhtml 'demo2'>>
         <div></div>
 <</new_navtile>>
-<<new_navtile 'S' false `{E:true,W:true}`>>
+<<new_navtile 'S' false>>
     <img class="tile_png" src="./assets/S.png">
     <<displayhtml 'demo2'>>
         <div></div>
@@ -133,8 +133,8 @@ demo map
 <<set_naventity
     entityid    'player2'
     mapid       'demo'
-    x           18
-    y           18
+    x           30
+    y           5
 >>
 
 <<new_navdisplay
@@ -155,14 +155,21 @@ demo map
 
 
 <<set $points to [
-    [31,0],
-    [0,31]
+    { x : 0,   y : 42 },
+    { x : 42,  y : 0 },
 ]>>
-/* <<new_navwall
+<<new_navwall
+    wallid          'testwall',
+>>
+    <img src="./assets/wall.png">
+<</new_navwall>>
+<<set_navwall
     wallid          'testwall',
     mapid           'demo'
-    vertices        $points
->> */
+    points          $points
+>>
+<<new_navwall "wall2">><</new_navwall>>
+<<set_navwall "wall2" "demo" 21 0 21 42>>
 
 :: Start [nobr]
 <div id='grid'>
@@ -227,13 +234,6 @@ demo map
             }
             .Navdisplay[data-displayid="demo2"] {
                 grid-column: 2;
-            }
-            .Navbg {
-                position: absolute;
-            }
-            .Navbg > img {
-                width: 100%;
-                height: 100%;
             }
         .Navrose {
             margin: 0 auto;
@@ -308,72 +308,6 @@ demo map
     .Navdisplay * {
         box-sizing: border-box;
     }
-    /*
-    .macro-newdisplay-container {
-        display: grid;
-        grid-template-columns: auto 1fr auto;
-        grid-template-rows: auto auto 1fr auto;
-        height: fit-content;
-        width: fit-content;
-        gap: 0.2rem;
-    }
-        .macro-newdisplay-title {
-            font-size: 1.5rem;
-            font-weight: bold;
-            grid-row: 1;
-            grid-column: 1 / span 2;
-            text-shadow: 0 0 0.8rem #0040ff;
-            color: #fdfdff;
-        }
-        .macro-newdisplay-topbuttons {
-            grid-column: 2 / span 2;
-            grid-row: 1;
-            display: flex;
-            align-content: center;
-            justify-content: flex-end;
-            gap: 0.2rem;
-        }
-            .macro-newdisplay-recenter {
-                height: 2rem;
-                width: 2rem;
-                margin: 0 0.25rem;
-                border-radius: 1rem;
-            }
-            .macro-newdisplay-zoombutton {
-                height: 2rem;
-                width: 2rem;
-            }
-        .macro-newdisplay-panbutton {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin: auto;
-        }
-            .macro-newdisplay-panbutton[data-mode="up"] {
-                grid-row: 2;
-                grid-column: 2;
-                height: 1.5rem;
-                width: 7rem;
-            }
-            .macro-newdisplay-panbutton[data-mode="down"] {
-                grid-row: 4;
-                grid-column: 2;
-                height: 1.5rem;
-                width: 7rem;
-            }
-            .macro-newdisplay-panbutton[data-mode="left"] {
-                grid-row: 3;
-                grid-column: 1;
-                height: 7rem;
-                width: 1.5rem;
-            }
-            .macro-newdisplay-panbutton[data-mode="right"] {
-                grid-row: 3;
-                grid-column: 3;
-                height: 7rem;
-                width: 1.5rem;
-            }
-    */
         .Navdisplay {
             grid-row: 3;
             grid-column: 2;
@@ -397,7 +331,6 @@ demo map
             align-items: center;
             justify-content: center;
             text-align: center;
-            /* border: 1px dashed #80808087; */
         }
             .Navtile img {
                 width: 100%;
@@ -405,7 +338,7 @@ demo map
             }
         .Naventity {
             position: absolute;
-            z-index: 2;
+            z-index: 3;
             width: 100%;
             height: 100%;
             transition: all 0.5s;
@@ -423,7 +356,21 @@ demo map
                 text-align: center;
                 line-height: 1;
             }
-    
+        .Navwall {
+            position: absolute;
+            z-index: 2;
+        }
+            .Navwall > img {
+                width: 100%;
+                height: 100%;
+            }
+        .Navbg {
+            position: absolute;
+        }
+            .Navbg > img {
+                width: 100%;
+                height: 100%;
+            }
     .Navrose,
     .Navrose * {
         box-sizing: border-box;

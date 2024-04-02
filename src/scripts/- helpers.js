@@ -60,7 +60,7 @@ const def = new Proxy(config, get_controller(setup[config.setup_name]));
 function get_controller(control) {
     return {
         get(t,p) {
-            debug.log('proxy',`---- begin proxy ----`);
+            debug.log('proxy',`---- start proxy ----`);
             debug.log({t,p});
             if (typeof control === 'undefined' || typeof control[p] === 'undefined') {
                 debug.log('proxy','entered undefined');
@@ -114,6 +114,9 @@ function get_naventity(args) {
 }
 function get_navdisplay(args) {
     return navdisplays[args]
+}
+function get_navwall(args) {
+    return navwalls[args]
 }
 
 setup.navmaps = navmaps;
@@ -173,7 +176,6 @@ class Navmap {
         this.maphtml    = maphtml   ?? {};
         this.cells      = [];
         this.vertices   = [];
-        this.walls      ??= {};
 
 
         //////////////////////////////////////////////////
@@ -262,13 +264,6 @@ class Navmap {
     }
     get arr() {
         return State.variables[config.State_name].navmaps[this.mapid].arr
-    }
-    // walls
-    set walls(val) {
-        State.variables[config.State_name].navmaps[this.mapid].walls = val;
-    }
-    get walls() {
-        return State.variables[config.State_name].navmaps[this.mapid].walls
     }
 }
 //////////////////////////////////////////////////
@@ -371,7 +366,7 @@ class Naventity {
         this.entityname = entityname ?? entityid;
         this.solid      = solid ?? def.entity.solid;
         // these save to State
-        this.coords     ??= {};
+        this.points     ??= {};
 
         //////////////////////////////////////////////////
         // create empty
@@ -389,26 +384,31 @@ class Naventity {
         // assign default
         this.entityhtml.default ??= entityid;
     }
-    // coords
-    set coords(val) {
-        State.variables[config.State_name].naventities[this.entityid].coords = val;
+    // points
+    set points(val) {
+        State.variables[config.State_name].naventities[this.entityid].points = val;
     }
-    get coords() {
-        return State.variables[config.State_name].naventities[this.entityid].coords
+    get points() {
+        return State.variables[config.State_name].naventities[this.entityid].points
     }
 }
+//////////////////////////////////////////////////
+//////////////////////////////////////////////////
+// init requisite namespace in State
+State.variables[config.State_name].navwalls ??= {};
+// Navwall class
 class Navwall {
     /**
      * class that stores tile information
      * @param {string}              wallid      - id of wall
-     * @param {string}              mapid       - id of map
-     * @param {number}              x1          - x of first vertex
-     * @param {number}              y1          - y of first vertex
-     * @param {number}              x2          - x of second vertex
-     * @param {number}              y2          - y of seoncd vertex
+     * @param {string}              wallname    - name of wall
+     * @param {{
+     *      default     : HTML,
+     *      displayid   : HTML,
+     * }}                           wallhtml   - HTML representations
      * @returns {void}
      */
-    constructor(wallid, mapid, x1, y1, x2, y2) {
+    constructor(wallid, mapid, wallhtml) {
 
         this.error = function(error) { throw new Error(error) };
 
@@ -417,9 +417,23 @@ class Navwall {
             return this.error(`Naventity - clobbering, entity with id "${entityid}" already exists`)
         }
 
+        // create
         navwalls[String(wallid)] = this;
-        this.wallid = String(wallid)
+        this.wallid = String(wallid);
+        // create State store if non-extant
+        State.variables[config.State_name].navwalls[this.wallid] ??= {};
 
+        // assign data
+        this.wallhtml   = wallhtml
+        // gets saved to State
+        this.points     ??= {};
+    }
+    // vertices
+    set points(val) {
+        State.variables[config.State_name].navwalls[this.wallid].points = val;
+    }
+    get points() {
+        return State.variables[config.State_name].navwalls[this.wallid].points
     }
 }
 //////////////////////////////////////////////////
@@ -683,12 +697,12 @@ function print_navdir(argObj) {
             .data('dsplayid',       displayid)
 
         // no map coordiante, eject
-        if (typeof entity.coords[mapid] === 'undefined') {
+        if (typeof entity.points[mapid] === 'undefined') {
             return $dir
         }
 
-        const x = entity.coords[mapid].x + delta.x;
-        const y = entity.coords[mapid].y + delta.y;
+        const x = entity.points[mapid].x + delta.x;
+        const y = entity.points[mapid].y + delta.y;
         const i = convert_xy2i({x,y}, mapid);
 
         if (
