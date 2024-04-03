@@ -14,40 +14,79 @@ function compare_segments(A,B,C,D) {
     
     debug.log("collision", {A,B,C,D});
     const result = {};
-    const m1 = (B.y - A.y) / (B.x - A.x);
-    const m2 = (D.y - C.y) / (D.x - C.x);
 
-    // not vertical lines
-    if (Math.abs(m1) !== Infinity && Math.abs(m2) !== Infinity) {
+    // check if sharing end points
+    if (
+        ((A.x === C.x) && (A.y === C.y))    ||
+        ((A.x === D.x) && (A.y === D.y))    ||
+        ((B.x === C.x) && (B.y === C.y))    ||
+        ((B.x === D.x) && (B.y === D.y))
+    ) {
+        debug.log("collision", 'end point shared');
+        result.touch = true;
+        result.intersect = false;
+        return result
+    }
 
-        debug.log("collision", "entered not-vertical");
+    // check x range
+    const AB_x = [A.x, B.x].sort((a,b) => a - b);       // sort
+    const CD_x = [C.x, D.x].sort((c,d) => c - d);
+    if (
+        (CD_x[1] < AB_x[0]) ||  (AB_x[1] < CD_x[0]) ||  // entirety of CD outside AB span
+        (AB_x[1] < CD_x[0]) ||  (CD_x[1] < AB_x[0])     // entirety of AB outside CD span
+    ) {
+        debug.log("collision", 'ranged out - x');
+        result.touch = false;
+        result.intersect = false;
+        return result
+    }
+    // check y range
+    const AB_y = [A.y, B.y].sort((a,b) => a - b);       // sort
+    const CD_y = [C.y, D.y].sort((c,d) => c - d);
+    if (
+        (CD_y[1] < AB_y[0]) ||  (AB_y[1] < CD_y[0]) ||  // entirety of CD outside AB span
+        (AB_y[1] < CD_y[0]) ||  (CD_y[1] < AB_y[0])     // entirety of AB outside CD span
+    ) {
+        debug.log("collision", 'ranged out - y');
+        result.touch = false;
+        result.intersect = false;
+        return result
+    }
+
+    // get slope
+    const m_AB = (B.y - A.y) / (B.x - A.x);
+    const m_CD = (D.y - C.y) / (D.x - C.x);
+
+    // no vertical lines
+    if (Math.abs(m_AB) !== Infinity && Math.abs(m_CD) !== Infinity) {
+
+        debug.log("collision", "no vertical lines");
 
         // y-axis intersect
-        const b1 = A.y - (m1 * A.x);
-        const b2 = C.y - (m2 * C.x);
+        const b_AB = A.y - (m_AB * A.x);
+        const b_CD = C.y - (m_CD * C.x);
 
         // collinear
-        if ((m1 === m2) && (b1 === b2)){
-            result.parallel  = true;
-            result.collinear = true;
-            // check if segments overlap
-            const seg1_x = [A.x, B.x].sort((a,b) => a - b);
-            result.intersect = 
-                ((seg1_x[0] <= C.x) && (C.x <= seg1_x[1]))    ||
-                ((seg1_x[0] <= D.x) && (D.x <= seg1_x[1]));
+        if ((m_AB === m_CD) && (b_AB === b_CD)){
+            debug.log("collision", "collinear");
+            // skipped calculations because we already know
+            //  1. they're in range of each other
+            //  2. they aren't sharing an end point
+            // which means they MUST overlap
+            result.touch = false;
+            result.intersect = true;
             return result
         }
         // parallel
-        else if (m1 === m2) {
-            result.parallel  = true;
-            result.collinear = false;
+        else if (m_AB === m_CD) {
+            debug.log("collision", "parallel");
+            result.touch = false;
             result.intersect = false;
             return result
         }
         // everything else
         else {
-            result.parallel  = false;
-            result.collinear = false;
+            debug.log("collision", "everything else");
             // calculate intersection point
             // y = m1 * x + b1
             // y = m2 * x + b2
@@ -55,13 +94,17 @@ function compare_segments(A,B,C,D) {
             // (m1 - m2) * x = b2 - b1
             // x = (b2 - b1) / (m1 - m2)
             const I = {};
-            I.x = (b2 - b1) / (m1 - m2);
+            I.x = (b_CD - b_AB) / (m_AB - m_CD);
             // check if intersection is a point on both lines
-            const seg1_x = [A.x, B.x].sort((a,b) => a - b);
-            const seg2_x = [C.x, D.x].sort((a,b) => a - b);
-            result.intersect = 
-                (seg1_x[0] <= I.x) && (I.x <= seg1_x[1])    &&
-                (seg2_x[0] <= I.x) && (I.x <= seg2_x[1]);
+            result.touch
+                = (I.x === AB_x[0]) || (I.x === AB_x[1])    // if I is AB end point
+                    ? (CD_x[0] < I.x) && (I.x < CD_x[1])    //  then check between CD
+                : (I.x === CD_x[0]) || (I.x === CD_x[1])    // if I is CD end point
+                    ? (AB_x[0] < I.x) && (I.x < AB_x[1])    //  then check between AB
+                : false;
+            result.intersect
+                = ((AB_x[0] < I.x) && (I.x < AB_x[1]))  &&  // I between AB
+                  ((CD_x[0] < I.x) && (I.x < CD_x[1]));     // I between CD
             return result
         }
     }
@@ -69,59 +112,55 @@ function compare_segments(A,B,C,D) {
     // vertical lines
     else {
 
-        debug.log("collision", "entered vertical");
+        debug.log("collision", "vertical lines");
 
         // collinear
-        if ((Math.abs(m1) === Math.abs(m2)) && (A.x === C.x)) {
-            result.parallel  = true;
-            result.collinear = true;
-            // check if segments overlap;
-            const seg1_y = [A.y, B,y].sort((a,b) => a - b);
-            result.intersect = 
-                ((seg1_y[0] <= C.y) && (C.y <= seg1_y[1]))  ||
-                ((seg1_y[0] <= D.y) && (D.y <= seg1_y[1]));
+        if ((Math.abs(m_AB) === Math.abs(m_CD)) && (A.x === C.x)) {
+            debug.log("collision", "collinear");
+            // skipped calculations because we already know
+            //  1. they're in range of each other
+            //  2. they aren't sharing an end point
+            // which means they MUST overlap
+            result.touch = false;
+            result.intersect = true;
             return result
         }
         // parallel
-        else if (Math.abs(m1) === Math.abs(m2)) {
-            result.parallel  = true;
-            result.collinear = false;
+        else if (Math.abs(m_AB) === Math.abs(m_CD)) {
+            debug.log("collision", "parallel");
+            result.touch = false;
             result.intersect = false;
             return result
         }
         else {
-            result.parallel  = false;
-            result.collinear = false;
             // AB is vertical
             const I = {};
-            if (Math.abs(m1) === Infinity) {
-                const b2 = C.y - (m2 * C.x);
+            if (Math.abs(m_AB) === Infinity) {
+                debug.log("collision", "AB is vertical");
                 I.x = A.x;
-                I.y = m2 * I.x + b2;
-                // check whether I.X lies on CD && I.y lies on AB
-                const seg2_x = [C.x, D.x].sort((a,b) => a - b);
-                const seg1_y = [A.y, B.y].sort((a,b) => a - b);
-                result.intersect = 
-                    ((seg2_x[0] <= I.x) && (I.x <= seg2_x[1]))  &&
-                    ((seg1_y[0] <= I.y) && (I.y <= seg1_y[1]));
-                return result
+                I.y = m_CD * (I.x - C.x) + C.y;
             }
             // CD is vertical
             else {
-                const b1 = A.y - (m1 * A.x);
+                debug.log("collision", "CD is vertical");
                 I.x = C.x;
-                I.y = m1 * I.x + b1;
-                // check whether I.x lies on AB && I.y lies on CD
-                const seg1_x = [A.x, B.x].sort((a,b) => a -b);
-                const seg2_y = [C.y, D.y].sort((a,b) => a - b);
-                result.intersect = 
-                    ((seg1_x[0] <= I.x) && (I.x <= seg1_x[1]))  &&
-                    ((seg2_y[0] <= I.y) && (I.y <= seg2_y[1]));
-                return result
+                I.y = m_AB * (I.x - A.x) + A.y;
             }
+            // check if intersection is a point on both lines
+            result.touch
+                = (I.y === AB_y[0]) || (I.y === AB_y[1])    // if I is AB end point
+                    ? (CD_y[0] < I.y) && (I.y < CD_y[1])    //  then check between CD
+                : (I.y === CD_y[0]) || (I.y === CD_y[1])    // if I is CD end point
+                    ? (AB_y[0] < I.y) && (I.y < AB_y[1])    //  then check between AB
+                : false;
+            result.intersect
+                = (AB_y[0] < I.y) && (I.y < AB_y[1])    &&  // I between AB
+                  (CD_y[0] < I.y) && (I.y < CD_y[1]);       // I between CD
+            return result
         }
     }
 }
+window.compare_segments = compare_segments;
 
 
 
