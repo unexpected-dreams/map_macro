@@ -97,14 +97,15 @@ function compare_segments(A,B,C,D) {
             I.x = (b_CD - b_AB) / (m_AB - m_CD);
             // check if intersection is a point on both lines
             result.touch
-                = (I.x === AB_x[0]) || (I.x === AB_x[1])    // if I is AB end point
-                    ? (CD_x[0] < I.x) && (I.x < CD_x[1])    //  then check between CD
-                : (I.x === CD_x[0]) || (I.x === CD_x[1])    // if I is CD end point
-                    ? (AB_x[0] < I.x) && (I.x < AB_x[1])    //  then check between AB
+                = (I.x === A.x) || (I.x === B.x)            // if I is A or B
+                    ? (CD_x[0] <= I.x) && (I.x <= CD_x[1])    //  then check between CD
+                : (I.x === C.x) || (I.x === D.x)            // if I is C or D
+                    ? (AB_x[0] <= I.x) && (I.x <= AB_x[1])    //  then check between AB
                 : false;
             result.intersect
-                = ((AB_x[0] < I.x) && (I.x < AB_x[1]))  &&  // I between AB
-                  ((CD_x[0] < I.x) && (I.x < CD_x[1]));     // I between CD
+                = ((AB_x[0] <= I.x) && (I.x <= AB_x[1]))  &&  // I between AB
+                  ((CD_x[0] <= I.x) && (I.x <= CD_x[1]));     // I between CD
+            debug.log("collision",{I});
             return result
         }
     }
@@ -139,28 +140,34 @@ function compare_segments(A,B,C,D) {
                 debug.log("collision", "AB is vertical");
                 I.x = A.x;
                 I.y = m_CD * (I.x - C.x) + C.y;
+                result.touch
+                    = (I.y === A.y) || (I.y === B.y)            // if I is A or B
+                        ? (CD_x[0] <= I.x) && (I.x <= CD_x[1])    //  then check between CD
+                    : (I.x === C.x) || (I.x === D.x)            // if I is CD end point
+                        ? (AB_y[0] <= I.y) && (I.y <= AB_y[1])    //  then check between AB
+                    : false;
             }
             // CD is vertical
             else {
                 debug.log("collision", "CD is vertical");
                 I.x = C.x;
                 I.y = m_AB * (I.x - A.x) + A.y;
+                result.touch
+                    = (I.y === C.y) || (I.y === D.y)            // if I is C or D
+                        ? (AB_x[0] <= I.x) && (I.x <= AB_x[1])    //  then check between AB
+                    : (I.x === A.x) || (I.x === B.x)            // if I is A or B
+                        ? (CD_y[0] <= I.y) && (I.y <= CD_y[1])    //  then check between CD
+                    : false;
             }
             // check if intersection is a point on both lines
-            result.touch
-                = (I.y === AB_y[0]) || (I.y === AB_y[1])    // if I is AB end point
-                    ? (CD_y[0] < I.y) && (I.y < CD_y[1])    //  then check between CD
-                : (I.y === CD_y[0]) || (I.y === CD_y[1])    // if I is CD end point
-                    ? (AB_y[0] < I.y) && (I.y < AB_y[1])    //  then check between AB
-                : false;
             result.intersect
-                = (AB_y[0] < I.y) && (I.y < AB_y[1])    &&  // I between AB
-                  (CD_y[0] < I.y) && (I.y < CD_y[1]);       // I between CD
+                = (AB_y[0] <= I.y) && (I.y <= AB_y[1])    &&  // I between AB
+                  (CD_y[0] <= I.y) && (I.y <= CD_y[1]);       // I between CD
+            debug.log("collision",{I});
             return result
         }
     }
 }
-window.compare_segments = compare_segments;
 
 
 
