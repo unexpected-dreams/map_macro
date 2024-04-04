@@ -12,164 +12,139 @@
  */
 function compare_segments(A,B,C,D) {
     
-    debug.log("collision", {A,B,C,D});
+    debug.log("segment", {A,B,C,D});
     const result = {};
 
-    // check if sharing end points
+    // check if AB & CD share an end points
     if (
         ((A.x === C.x) && (A.y === C.y))    ||
         ((A.x === D.x) && (A.y === D.y))    ||
         ((B.x === C.x) && (B.y === C.y))    ||
         ((B.x === D.x) && (B.y === D.y))
     ) {
-        debug.log("collision", 'end point shared');
+        debug.log("segment", 'end point shared');
         result.touch = true;
         result.intersect = false;
         return result
     }
 
-    // check x range
+    // check AB & CD are within range or each other, via x
     const AB_x = [A.x, B.x].sort((a,b) => a - b);       // sort
-    const CD_x = [C.x, D.x].sort((c,d) => c - d);
+    const CD_x = [C.x, D.x].sort((c,d) => c - d);       // sort
     if (
         (CD_x[1] < AB_x[0]) ||  (AB_x[1] < CD_x[0]) ||  // entirety of CD outside AB span
         (AB_x[1] < CD_x[0]) ||  (CD_x[1] < AB_x[0])     // entirety of AB outside CD span
     ) {
-        debug.log("collision", 'ranged out - x');
+        debug.log("segment", 'ranged out - x');
         result.touch = false;
         result.intersect = false;
         return result
     }
-    // check y range
+    // check AB & CD are within range or each other, via y
     const AB_y = [A.y, B.y].sort((a,b) => a - b);       // sort
-    const CD_y = [C.y, D.y].sort((c,d) => c - d);
+    const CD_y = [C.y, D.y].sort((c,d) => c - d);       // sort
     if (
         (CD_y[1] < AB_y[0]) ||  (AB_y[1] < CD_y[0]) ||  // entirety of CD outside AB span
         (AB_y[1] < CD_y[0]) ||  (CD_y[1] < AB_y[0])     // entirety of AB outside CD span
     ) {
-        debug.log("collision", 'ranged out - y');
+        debug.log("segment", 'ranged out - y');
         result.touch = false;
         result.intersect = false;
         return result
     }
 
-    // get slope
-    const m_AB = (B.y - A.y) / (B.x - A.x);
-    const m_CD = (D.y - C.y) / (D.x - C.x);
+    const dy_AB = B.y - A.y;
+    const dx_AB = B.x - A.x;
+    const dy_CD = D.y - C.y;
+    const dx_CD = D.x - C.x;
 
-    // no vertical lines
-    if (Math.abs(m_AB) !== Infinity && Math.abs(m_CD) !== Infinity) {
-
-        debug.log("collision", "no vertical lines");
-
-        // y-axis intersect
-        const b_AB = A.y - (m_AB * A.x);
-        const b_CD = C.y - (m_CD * C.x);
-
+    // parallel
+    // dot product is zero, or that rise / run for both are the same
+    // m_AB === m_CD
+    // dy_AB / dx_AB === dy_CD / dx_CD
+    // dy_AB * dx_CD === dy_CD * dx_AB
+    if (dy_AB * dx_CD === dy_CD * dx_AB) {
+        debug.log("segment", 'parallel');
         // collinear
-        if ((m_AB === m_CD) && (b_AB === b_CD)){
-            debug.log("collision", "collinear");
-            // skipped calculations because we already know
-            //  1. they're in range of each other
-            //  2. they aren't sharing an end point
-            // which means they MUST overlap
+        // plug point A into line equation of CD and see if it's a match
+        // (y - C.y) === (dy_CD / dx_CD) * (x - C.x)
+        // (A.y - C.y) === (dy_CD / dx_CD) * (A.x - C.x)
+        // (A.y - C.y) * dx_CD === (A.x - C.x) * dy_CD
+        if ((A.y - C.y) * dx_CD === (A.x - C.x) * dy_CD) {
+            debug.log("segment", 'collinear');
             result.touch = false;
             result.intersect = true;
             return result
         }
-        // parallel
-        else if (m_AB === m_CD) {
-            debug.log("collision", "parallel");
+        // not collinear
+        // failed match
+        else {
+            debug.log("segment", 'not collinear');
             result.touch = false;
             result.intersect = false;
-            return result
-        }
-        // everything else
-        else {
-            debug.log("collision", "everything else");
-            // calculate intersection point
-            // y = m1 * x + b1
-            // y = m2 * x + b2
-            // m1 * x + b1 = m2 * x + b2
-            // (m1 - m2) * x = b2 - b1
-            // x = (b2 - b1) / (m1 - m2)
-            const I = {};
-            I.x = (b_CD - b_AB) / (m_AB - m_CD);
-            // check if intersection is a point on both lines
-            result.touch
-                = (I.x === A.x) || (I.x === B.x)            // if I is A or B
-                    ? (CD_x[0] <= I.x) && (I.x <= CD_x[1])    //  then check between CD
-                : (I.x === C.x) || (I.x === D.x)            // if I is C or D
-                    ? (AB_x[0] <= I.x) && (I.x <= AB_x[1])    //  then check between AB
-                : false;
-            result.intersect
-                = ((AB_x[0] <= I.x) && (I.x <= AB_x[1]))  &&  // I between AB
-                  ((CD_x[0] <= I.x) && (I.x <= CD_x[1]));     // I between CD
-            debug.log("collision",{I});
             return result
         }
     }
-
-    // vertical lines
     else {
-
-        debug.log("collision", "vertical lines");
-
-        // collinear
-        if ((Math.abs(m_AB) === Math.abs(m_CD)) && (A.x === C.x)) {
-            debug.log("collision", "collinear");
-            // skipped calculations because we already know
-            //  1. they're in range of each other
-            //  2. they aren't sharing an end point
-            // which means they MUST overlap
-            result.touch = false;
-            result.intersect = true;
-            return result
+        // not parallel
+        debug.log("segment", 'not parallel');
+        const I = {};
+        // CD is vertical
+        // set x to C.x, solve for I.y
+        if (dx_CD === 0) {
+            debug.log("segment", 'CD is vertical');
+            I.x = C.x;
+            // intersection point
+            // (I.y - A.y) === (dy_AB / dx_AB) * (I.x - A.x)
+            // I.y === (dy_AB / dx_AB) * (I.x - A.x) + A.y
+            I.y = (dy_AB / dx_AB) * (I.x - A.x) + A.y;
         }
-        // parallel
-        else if (Math.abs(m_AB) === Math.abs(m_CD)) {
-            debug.log("collision", "parallel");
-            result.touch = false;
-            result.intersect = false;
-            return result
+        // AB is vertical
+        // set x to A.x, solve for I.y
+        else if (dx_AB === 0) {
+            debug.log("segment", 'AB is vertical');
+            // inverse of above
+            I.x = A.x;
+            I.y = (dy_CD / dy_CD) * (I.x - C.x) + C.y;
         }
+        // neither is vertical
+        // use equations for AB & CD to solve for I.x & I.y
         else {
-            // AB is vertical
-            const I = {};
-            if (Math.abs(m_AB) === Infinity) {
-                debug.log("collision", "AB is vertical");
-                I.x = A.x;
-                I.y = m_CD * (I.x - C.x) + C.y;
-                result.touch
-                    = (I.y === A.y) || (I.y === B.y)            // if I is A or B
-                        ? (CD_x[0] <= I.x) && (I.x <= CD_x[1])    //  then check between CD
-                    : (I.x === C.x) || (I.x === D.x)            // if I is CD end point
-                        ? (AB_y[0] <= I.y) && (I.y <= AB_y[1])    //  then check between AB
-                    : false;
-            }
-            // CD is vertical
-            else {
-                debug.log("collision", "CD is vertical");
-                I.x = C.x;
-                I.y = m_AB * (I.x - A.x) + A.y;
-                result.touch
-                    = (I.y === C.y) || (I.y === D.y)            // if I is C or D
-                        ? (AB_x[0] <= I.x) && (I.x <= AB_x[1])    //  then check between AB
-                    : (I.x === A.x) || (I.x === B.x)            // if I is A or B
-                        ? (CD_y[0] <= I.y) && (I.y <= CD_y[1])    //  then check between CD
-                    : false;
-            }
-            // check if intersection is a point on both lines
-            result.intersect
-                = (AB_y[0] <= I.y) && (I.y <= AB_y[1])    &&  // I between AB
-                  (CD_y[0] <= I.y) && (I.y <= CD_y[1]);       // I between CD
-            debug.log("collision",{I});
-            return result
+            debug.log("segment", 'neither is vertical');
+            // two equations
+            // (y - C.y) === (dy_CD / dx_CD) * (x - C.x)
+            // (y - A.y) === (dy_AB / dx_AB) * (x - A.x)
+            //
+            // y === (dy_CD / dx_CD) * (x - C.x) + C.y
+            // y === (dy_AB / dx_AB) * (x - A.x) + A.y
+            //
+            // (dy_CD / dx_CD) * (x - C.x) + C.y === (dy_AB / dx_AB) * (x - A.x) + A.y
+            // (dy_CD / dx_CD) * (x - C.x) - (dy_AB / dx_AB) * (x - A.x) === A.y - C.y
+            // x * (dy_CD / dx_CD) - C.x * (dy_CD / dx_CD) - x * (dy_AB / dx_AB) + A.x * (dy_AB / dx_AB) === A.y - C.y
+            // x * (dy_CD / dx_CD) - x * (dy_AB / dx_AB) === A.y - C.y + C.x * (dy_CD / dx_CD) - A.x * (dy_AB / dx_AB)
+            // x * ((dy_CD / dx_CD) - (dy_AB / dx_AB)) === A.y - C.y + C.x * (dy_CD / dx_CD) - A.x * (dy_AB / dx_AB)
+            // x === (A.y - C.y + C.x * (dy_CD / dx_CD) - A.x * (dy_AB / dx_AB)) / ((dy_CD / dx_CD) - (dy_AB / dx_AB))
+            //          
+            I.x = (A.y - C.y + C.x * (dy_CD / dx_CD) - A.x * (dy_AB / dx_AB)) / ((dy_CD / dx_CD) - (dy_AB / dx_AB));
+            I.y = (dy_CD / dy_CD) * (I.x - C.x) + C.y;
         }
+        debug.log("segment", {I});
+
+        result.touch
+            = (I.x === A.x) || (I.x === B.x)            // if I is A or B
+                ? (CD_x[0] <= I.x) && (I.x <= CD_x[1])    //  then check between CD
+            : (I.x === C.x) || (I.x === D.x)            // if I is C or D
+                ? (AB_x[0] <= I.x) && (I.x <= AB_x[1])    //  then check between AB
+            : false;
+        result.intersect
+            = ((AB_x[0] < I.x) && (I.x < AB_x[1]))  &&  // I between AB
+              ((CD_x[0] < I.x) && (I.x < CD_x[1]));     // I between CD
+
+            
+        return result
+
     }
 }
-
-
 
 //////////////////////////////////////////////////
 //////////////////////////////////////////////////
@@ -182,7 +157,7 @@ function compare_segments(A,B,C,D) {
 function calculate_cells(argObj) {
 
     // necessary definitions
-    this.name   ??= argObj.id ?? "calculate_cells";
+    this.name   ??= argObj.id ?? "init_cells";
     this.error  ??= function(error) { throw new Error(error) };
 
     const { mapid } = argObj;
@@ -193,7 +168,7 @@ function calculate_cells(argObj) {
     const map = get_navmap(mapid);
     const { arr, cells } = map;
 
-    // calculate walls using tiles
+    // calculate tiles
     try {
         for (let i = 0; i < arr.length; i++) {
             const tileid        = arr[i];
@@ -203,11 +178,11 @@ function calculate_cells(argObj) {
             const { x, y } = xy;
             cells[x]            ??= [];
             cells[x][y]         ??= {};
-            cells[x][y].blocked = tile.vacant;
-            cells[x][y].tile    = tileid;
+            cells[x][y].tileid  = tileid;
+            cells[x][y].vacant  = tile.vacant;
 
             // reset entities
-            cells[x][y].entities = [];
+            cells[x][y].entities = {};
         }
     }
     catch (error) {
@@ -215,31 +190,19 @@ function calculate_cells(argObj) {
         console.error(error);
     }
 
-    // calculate walls using entities
+    // calculate entities
     try {
         for (const entityid in naventities) {
             const entity = naventities[entityid];
-            // if not solid, skip
-            if (! entity.solid) {
-                continue;
-            }
             // no coordinate on this map, skip
             if (typeof entity.points[mapid] === 'undefined') {
                 continue;
             }
-            const { x, y } = entity.points[mapid];
-
-            if (cells[x][y].blocked) {
-                continue;
-            }
-            cells[x][y].blocked = true;
-            cells[x][y].entities.push(entityid);
-
-            // calculate sight lines
-            if (typeof entity.sight !== 'undefined') {
-                const sight = entity.sight;
-                
-            }
+            update_cell_entity.call(this, {
+                mapid,
+                entityid,
+                action: "write",
+            });
         }
     }
     catch (error) {
@@ -247,6 +210,54 @@ function calculate_cells(argObj) {
         console.error(error);
     }
 }
+function update_cell_entity(argObj) {
+
+    // necessary definitions
+    this.name   ??= argObj.id ?? "update_cell_entity";
+    this.error  ??= function(error) { throw new Error(error) };
+
+    const { mapid, entityid, action } = argObj;
+
+    // ERROR: required
+    check_required.call(this, {mapid, entityid});
+    // ERROR: invalid action
+    if (
+        (action !== "scrub")    &&
+        (action !== "write")
+    ) {
+        return this.error(`${this.name} - failed to update cells, invalid action request on map "${mapid}" for entity "${entityid}" (update_cell_entity)`)
+    }
+
+    const map = get_navmap(mapid);
+    const entity = get_naventity(entityid);
+
+    const { rows, cols, cells } = map;
+    const { x, y } = entity.points[mapid];
+
+    for (const dirid in dirs_8) {
+        const dir = dirs_8[dirid];
+        if (
+            (x + dir.delta.x >= 1)      &&
+            (x + dir.delta.x <= cols)   &&
+            (y + dir.delta.y >= 1)      &&
+            (y + dir.delta.y <= rows)
+        ) {
+            if (action === "scrub") {
+                delete cells[x + dir.delta.x][y + dir.delta.y].entities[entityid];
+            }
+            else if (action === "write") {
+                cells[x + dir.delta.x][y + dir.delta.y].entities[entityid] = {
+                    entityid,
+                    solid: entity.solid,
+                    delta: dir.delta,
+                }
+            }
+        }
+    }
+}
+
+
+
 
 
 // █    █ █████ █     █     █    █  ███  █   █ █    █  ███  ████
