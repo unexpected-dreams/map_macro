@@ -105,7 +105,7 @@ function compare_segments(A,B,C,D) {
             debug.log("segment", 'AB is vertical');
             // inverse of above
             I.x = A.x;
-            I.y = (dy_CD / dy_CD) * (I.x - C.x) + C.y;
+            I.y = (dy_CD / dx_CD) * (I.x - C.x) + C.y;
         }
         // neither is vertical
         // use equations for AB & CD to solve for I.x & I.y
@@ -126,7 +126,7 @@ function compare_segments(A,B,C,D) {
             // x === (A.y - C.y + C.x * (dy_CD / dx_CD) - A.x * (dy_AB / dx_AB)) / ((dy_CD / dx_CD) - (dy_AB / dx_AB))
             //          
             I.x = (A.y - C.y + C.x * (dy_CD / dx_CD) - A.x * (dy_AB / dx_AB)) / ((dy_CD / dx_CD) - (dy_AB / dx_AB));
-            I.y = (dy_CD / dy_CD) * (I.x - C.x) + C.y;
+            I.y = (dy_CD / dx_CD) * (I.x - C.x) + C.y;
         }
         debug.log("segment", {I});
 
@@ -145,6 +145,7 @@ function compare_segments(A,B,C,D) {
 
     }
 }
+window.compare_segments = compare_segments;
 
 //////////////////////////////////////////////////
 //////////////////////////////////////////////////
@@ -179,7 +180,7 @@ function calculate_cells(argObj) {
             cells[x]            ??= [];
             cells[x][y]         ??= {};
             cells[x][y].tileid  = tileid;
-            cells[x][y].vacant  = tile.vacant;
+            cells[x][y].hole  = tile.hole;
 
             // reset entities
             cells[x][y].entities = {};
@@ -222,7 +223,7 @@ function update_cell_entity(argObj) {
     check_required.call(this, {mapid, entityid});
     // ERROR: invalid action
     if (
-        (action !== "scrub")    &&
+        (action !== "delete")    &&
         (action !== "write")
     ) {
         return this.error(`${this.name} - failed to update cells, invalid action request on map "${mapid}" for entity "${entityid}" (update_cell_entity)`)
@@ -242,7 +243,7 @@ function update_cell_entity(argObj) {
             (y + dir.delta.y >= 1)      &&
             (y + dir.delta.y <= rows)
         ) {
-            if (action === "scrub") {
+            if (action === "delete") {
                 delete cells[x + dir.delta.x][y + dir.delta.y].entities[entityid];
             }
             else if (action === "write") {
@@ -254,6 +255,66 @@ function update_cell_entity(argObj) {
             }
         }
     }
+}
+function check_collision(argObj) {
+
+    // necessary definitions
+    this.name   ??= argObj.id ?? "check_collision";
+    this.error  ??= function(error) { throw new Error(error) };
+
+    const { mapid, entityid, delta, ignore } = {
+        delta   : {},
+        ignore  : { holes:false, walls:false, entities:false },
+        ...argObj,
+    };
+
+    // ERROR: required
+    check_required.call(this, {mapid, entityid});
+
+    const map = get_navmap(mapid);
+    const entity = get_naventity(entityid);
+
+    // ERROR: no coordinates on map
+    if (typeof entity.points[mapid] === 'undefined') {
+        console.error(`${this.name} - no entity "${entityid}" found on map "${mapid}"`);
+        return
+    }
+    
+    const { cols, rows, cells } = map;
+    const { x, y } = entity.points[mapid];
+
+    const x_new = x + (delta.x ?? 0);
+    const y_new = y + (delta.y ?? 0);
+
+    // check map boundaries
+    try {
+        if (
+            (x_new < 1)     ||
+            (x_new > cols)  ||
+            (y_new < 1)     ||
+            (y_new > rows)
+        ) {
+            return {
+                collision: true,
+                type: "map_boundary"
+            }
+        }
+    }
+    catch (error) {
+        console.error(`${this.name} - failed to check collisions against map boundaries for entity "${entityid}" on map "${mapid}" (check_collision)`);
+        console.error(error);
+    }
+
+    // check tiles
+    // try {
+    //     if (
+    //         (! ignore.holes)    &&
+    //         cells[x_new][y_new].hole 
+    //     ) {
+
+    //     }
+        
+
 }
 
 
@@ -419,7 +480,7 @@ Macro.add(["newnavtile", "new_navtile"], {
                     type        : 'string',
                     alias       : 'name',
                 },
-                vacant: {
+                hole: {
                     type        : 'boolean',
                 },
             },
@@ -475,7 +536,7 @@ Macro.add(["newnavtile", "new_navtile"], {
  *      default     : HTML,
  *      displayid   : HTML,
  * }}                           tilehtml    - HTML representations
- * @param {boolean}             vacant     - whether the tile is traversable / vacant
+ * @param {boolean}             hole        - whether the tile is ground / hole
  * @returns {void}
  */
 function new_navtile(argObj) {
@@ -485,11 +546,10 @@ function new_navtile(argObj) {
     this.error  ??= function(error) { throw new Error(error) };
 
     // extract from argObj
-    const { tileid, tilename, tilehtml, vacant } = argObj;
+    const { tileid, tilename, tilehtml, hole } = argObj;
 
     // ERROR: required
     check_required.call(this, {tileid});
-    check_required.call(this, {vacant});
 
     //////////////////////////////////////////////////
     // assign tile data
@@ -497,8 +557,10 @@ function new_navtile(argObj) {
         // write if not new
         const tile  = get_navtile(tileid);
         if (typeof tile !== 'undefined') {
-            tile.vacant = vacant;
-            if (tilename) {
+            if (typeof hole !== 'undefined') {
+                tile.hole = hole;
+            }
+            if (typeof tilename !== 'undefined') {
                 tile.tilename = tilename;
             }
             for (const displayid in tilehtml) {
@@ -508,7 +570,7 @@ function new_navtile(argObj) {
         }
         // create if new
         else {
-            new Navtile(tileid, tilename, tilehtml, vacant);
+            new Navtile(tileid, tilename, tilehtml, hole);
         }
     }
     catch (error) {
@@ -1530,7 +1592,7 @@ function mov_naventity(argObj) {
         console.error(error);
     }
 
-    // collision against entities / vacant tiles
+    // collision against entities / hole tiles
     try {
         debug.log("collision", 'checking blocked');
         if (within_bounds) {

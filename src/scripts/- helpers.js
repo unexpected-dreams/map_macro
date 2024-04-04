@@ -6,7 +6,7 @@
 // SECTION:
 //////////////////////////////////////////////////
 //////////////////////////////////////////////////
-const config = {nav:{},hole:{},floor:{},display:{},entity:{},skipcheck:{}};
+const config = {nav:{},empty:{},floor:{},display:{},entity:{},skipcheck:{}};
 
 // map configurations
 config.nav.diagonal         = false;        // true enables diagonal movement by default
@@ -25,8 +25,8 @@ config.entity.solid         = true;         // true means entity blocks movement
 config.display.print_tiles  = false;        // print individual Navtiles
 
 // tile definitions, can also be specified using <<maptile>>
-config.hole.tileid          = ".";          // default map input character for holes
-config.floor.tileid         = "x";          // default map input character for floors
+config.empty.tileid          = ".";         // default map input character for holes
+config.floor.tileid         = "x";          // default map input character for ground
 
 // guardrails
 config.skipcheck.clobbering = false;        // true allows clobbering maps and entities
@@ -84,13 +84,13 @@ function get_controller(control) {
 const navmaps = {};
 const naventities = {};
 const navtiles = {
-    [String(def.hole.tileid)]: {
-        tileid      : String(def.hole.tileid),
-        tilename    : def.hole.tileid,
+    [String(def.empty.tileid)]: {
+        tileid      : String(def.empty.tileid),
+        tilename    : def.empty.tileid,
         tilehtml    : {
-            default : def.hole.tileid,
+            default : def.empty.tileid,
         },
-        vacant      : true,
+        hole        : true,
     },
     [String(def.floor.tileid)]: {
         tileid      : String(def.floor.tileid),
@@ -98,7 +98,7 @@ const navtiles = {
         tilehtml    : {
             default : def.floor.tileid,
         },
-        vacant      : false,
+        hole        : false,
     },
 };
 const navdisplays = {};
@@ -280,10 +280,10 @@ class Navtile {
      *      default     : HTML,
      *      displayid   : HTML,
      * }}                           tilehtml    - HTML representations
-     * @param {boolean}             vacant      - whether the tile is a traversable
+     * @param {boolean}             hole        - whether the tile is a traversable
      * @returns {void}
      */
-    constructor(tileid, tilename, tilehtml, vacant, walls) {
+    constructor(tileid, tilename, tilehtml, hole) {
 
         this.error = function(error) { throw new Error(error) };
 
@@ -297,20 +297,7 @@ class Navtile {
         navtiles[String(tileid)] = this;
         this.tileid     = String(tileid);
         this.tilename   = tilename ?? tileid;
-        this.vacant     = vacant ?? false;
-
-        // assign walls
-        if (typeof walls !== 'undefined') {
-            this.walls = {};;
-            for (const dirid in dirs_8) {
-                this.walls[dirid] = walls[dirid] ?? false;
-            }
-        }
-        else {
-            this.walls  = this.vacant
-                            ? { N:true, E:true, S:true, W:true, NW:true, NE:true, SE:true, SW:true }
-                            : { N:false, E:false, S:false, W:false, NW:false, NE:false, SE:false, SW:false };
-        }
+        this.hole       = hole ?? false;
 
         // create empty
         this.tilehtml = {};
@@ -597,7 +584,7 @@ function check_extant(argObj_in, options) {
  */
 function print_navtile(argObj) {
     const { displayid, tile, row, col } = argObj;
-    const { tileid, tilename, vacant, tilehtml } = tile;
+    const { tileid, tilename, hole, tilehtml } = tile;
     try {
         const $t = $(document.createElement('div'))
         const displayhtml   = typeof tilehtml === 'undefined'
@@ -612,8 +599,8 @@ function print_navtile(argObj) {
             .attr('title',          tilename)
             .attr('data-tileid',    tileid)
             .data('tileid',         tileid)
-            .attr('data-vacant',    vacant)
-            .data('vacant',         vacant)
+            .attr('data-hole',      hole)
+            .data('hole',           hole)
             .css({
                 "grid-column"   : `${col} / span 1`,
                 "grid-row"      : `${row} / span 1`,
