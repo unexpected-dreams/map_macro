@@ -191,7 +191,7 @@ function calculate_cells(argObj) {
     check_required.call(this, {mapid});
 
     const map = get_navmap(mapid);
-    const { arr, rows, cols, cells, vertices } = map;
+    const { arr, cells } = map;
 
     // calculate walls using tiles
     try {
@@ -204,6 +204,10 @@ function calculate_cells(argObj) {
             cells[x]            ??= [];
             cells[x][y]         ??= {};
             cells[x][y].blocked = tile.vacant;
+            cells[x][y].tile    = tileid;
+
+            // reset entities
+            cells[x][y].entities = [];
         }
     }
     catch (error) {
@@ -229,6 +233,13 @@ function calculate_cells(argObj) {
                 continue;
             }
             cells[x][y].blocked = true;
+            cells[x][y].entities.push(entityid);
+
+            // calculate sight lines
+            if (typeof entity.sight !== 'undefined') {
+                const sight = entity.sight;
+                
+            }
         }
     }
     catch (error) {
@@ -1553,7 +1564,7 @@ function mov_naventity(argObj) {
                 };
                 const result = compare_segments(A, B, C, D);
                 debug.log("collision", result);
-                if (result.intersect) {
+                if (result.intersect || result.touch) {
                     collided = true;
                 }
                 debug.log("collision", {collided});
