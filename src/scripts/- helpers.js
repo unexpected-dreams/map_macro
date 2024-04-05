@@ -11,16 +11,21 @@ const config = {nav:{},empty:{},floor:{},display:{},entity:{},skipcheck:{}};
 // map configurations
 config.nav.diagonal         = false;        // true enables diagonal movement by default
 config.nav.print_names      = false;        // true uses tile names instead of arrows
-config.nav.keyboard_codes   = {             // default keyboard navigation keys
-                                N   : 'Numpad8',
-                                E   : 'Numpad6',
-                                S   : 'Numpad2',
-                                W   : 'Numpad4',
-                                NW  : 'Numpad7',
-                                NE  : 'Numpad9',
-                                SE  : 'Numpad3',
-                                SW  : 'Numpad1',
-                            };
+config.nav.codes            = {             // default keyboard navigation keys
+    N   : 'Numpad8',
+    E   : 'Numpad6',
+    S   : 'Numpad2',
+    W   : 'Numpad4',
+    NW  : 'Numpad7',
+    NE  : 'Numpad9',
+    SE  : 'Numpad3',
+    SW  : 'Numpad1',
+};
+config.nav.ignore           = {             // used to check collisions when moving entities
+    holes       : false,                    // holes from tiles
+    walls       : false,                    // walls
+    entities    : false,                    // solid entities
+}
 config.entity.solid         = true;         // true means entity blocks movement into their cell
 config.display.print_tiles  = false;        // print individual Navtiles
 
@@ -159,7 +164,7 @@ class Navmap {
 
         // ERROR: clobbering
         if (! def.skipcheck.clobbering && navmaps[mapid]) {
-            return this.error(`Navmap - clobbering, map with id "${mapid}" already exists`)
+            console.error(`Navmap - clobbering, map with id "${mapid}" already exists`)
         }
 
         // create
@@ -174,8 +179,6 @@ class Navmap {
         this.mapname    = mapname   ?? this.mapid;
         this.diagonal   = diagonal  ?? def.nav.diagonal;
         this.maphtml    = maphtml   ?? {};
-        this.cells      = [];
-        this.vertices   = [];
 
 
         //////////////////////////////////////////////////
@@ -248,7 +251,7 @@ class Navmap {
             for (const tileid of new Set(this.arr)) {
                 const tile = get_navtile(tileid);
                 if (typeof tile === 'undefined') {
-                    new Navtile(tileid)
+                    console.error(`Navmap - tile "${tileid}" is undefined — navtile definitions should come before maps that use them`);
                 }
             }
         }
@@ -256,6 +259,10 @@ class Navmap {
             console.error(`Navmap - failed to create default Navtiles for map "${this.mapid}"`);
             console.error(error);
         }
+
+        // init cells
+        this.cells      = [];
+        init_cells.call({}, {mapid});
 
     }
     // arr
@@ -289,7 +296,7 @@ class Navtile {
 
         // ERROR: clobbering
         if (! def.skipcheck.clobbering && navtiles[tileid]) {
-            return this.error(`Navtile - clobbering, tile with id "${tileid}" already exists`)
+            console.error(`Navtile - clobbering, tile with id "${tileid}" already exists`)
         }
 
         // assign data
@@ -303,12 +310,6 @@ class Navtile {
         this.tilehtml = {};
         // iterate through tilehtml
         for (const displayid in tilehtml) {
-            if (
-                (! def.skipcheck.unused)        && 
-                (typeof tilehtml[displayid] === 'undefined')
-            ) {
-                return this.error(`${this.name} - empty display html for tileid "${tileid}" on displayid "${displayid}"`)
-            }
             this.tilehtml[displayid] = tilehtml[displayid];
         }
         // assign default
@@ -338,7 +339,7 @@ class Naventity {
 
         // ERROR: clobbering
         if (! def.skipcheck.clobbering && naventities[entityid]) {
-            return this.error(`Naventity - clobbering, entity with id "${entityid}" already exists`)
+            console.error(`Naventity - clobbering, entity with id "${entityid}" already exists`)
         }
 
         // create
@@ -360,12 +361,6 @@ class Naventity {
         this.entityhtml = {};
         // iterate through entityhtml
         for (const displayid in entityhtml) {
-            if (
-                (! def.skipcheck.unused)        && 
-                (typeof entityhtml[displayid] === 'undefined')
-            ) {
-                return this.error(`${this.name} - empty display html for entityid "${entityid}" on displayid "${displayid}"`)
-            }
             this.entityhtml[displayid] = entityhtml[displayid];
         }
         // assign default
@@ -401,7 +396,7 @@ class Navwall {
 
         // ERROR: clobbering
         if (! def.skipcheck.clobbering && navwalls[wallid]) {
-            return this.error(`Naventity - clobbering, entity with id "${entityid}" already exists`)
+            console.error(`Naventity - clobbering, entity with id "${entityid}" already exists`)
         }
 
         // create
@@ -473,36 +468,6 @@ function check_required(argObj_in, options) {
 //////////////////////////////////////////////////
 //////////////////////////////////////////////////
 /**
- * checks that an argument consists only of one word
- * @param {{argument: *}}   argObj_in   argument: value
- * @param {{key: *}}        options     label: printed name
- * @returns {void}
- */
-function check_oneword(argObj_in, options) {
-    // ERROR: missing input
-    if (typeof argObj_in === 'undefined') {
-        return this.error(`${this.name} - failed, missing argObj_in (check_oneword)`)
-    }
-    // ERROR: too many properties in argObj_in
-    if (Object.keys(argObj_in).length > 1) {
-        return this.error(`${this.name} - failed extra properties in argObj_in (check_oneword)`)
-    }
-    try {
-        const key = Object.keys(argObj_in)[0];
-        const val = argObj_in[key];
-        // ERROR: word contains spaces
-        if (val.includes(" ")) {
-            return this.error(`${this.name} - argument "${options?.label ?? key}" must be one word, no spaces`)
-        }
-    }
-    catch (error) {
-        console.error(`${this.name} - failed to check args for oneword requirement`);
-        console.error(error);
-    }
-}
-//////////////////////////////////////////////////
-//////////////////////////////////////////////////
-/**
  * checks that a map, tile, or entity has been defined
  * @param {{argument: *}}   argObj_in   mapid | tileid | entityid
  * @param {{key: *}}        options     label: printed name
@@ -556,6 +521,14 @@ function check_extant(argObj_in, options) {
                 return this.error(`${this.name} - no display with id "${val}" found`)
             }
         }
+        // FAILSAFE: wall doesnt exist, create
+        if (
+            (key === "wallid")      &&
+            (typeof get_navwall(val) === 'undefined')
+        ) {
+            new_navwall.call(this, {wallid:val});
+        }
+
     }
     catch (error) {
         console.error(`${this.name} - failed to check args for extant requirement`);

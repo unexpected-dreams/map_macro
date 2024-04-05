@@ -1,0 +1,136 @@
+:root {
+    --mapwidth: 35rem;
+    --mapheight: 35rem;
+    --rosewidth: 12rem;
+    --roseheight: 12rem;
+}
+#xinput, #yinput {
+    display: inline-block; 
+    min-width:2rem; 
+    width:2rem
+}
+.Navdisplay,
+.Navdisplay * {
+    box-sizing: border-box;
+}
+    .Navdisplay {
+        grid-row: 3;
+        grid-column: 2;
+        display: grid;
+        position: relative;
+        height: var(--mapheight);
+        width: var(--mapwidth);
+        overflow: hidden;
+        align-items: center;
+        justify-content: center;
+    }
+        .Navdisplay > * {
+            width: 100%;
+            height: 100%;
+        }
+    .Navtile {
+        width: 100%;
+        height: 100%;
+        line-height: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+    }
+        .Navtile img {
+            width: 100%;
+            height: 100%;
+        }
+    .Naventity {
+        position: absolute;
+        z-index: 3;
+        width: 100%;
+        height: 100%;
+        transition: all 0.5s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+    }
+        .Naventity > * {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            line-height: 1;
+        }
+    .Navwall {
+        position: absolute;
+        z-index: 2;
+    }
+        .Navwall > img {
+            width: 100%;
+            height: 100%;
+        }
+    .Navbg {
+        position: absolute;
+    }
+        .Navbg > img {
+            width: 100%;
+            height: 100%;
+        }
+.Navrose,
+.Navrose * {
+    box-sizing: border-box;
+}
+.Navrose {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    grid-template-rows: repeat(3, 1fr);
+    width: var(--rosewidth);
+    height: var(--roseheight);
+    gap: 0.5rem;
+}
+    .Navdir {
+        user-select: none;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+    }
+        .Navdir:not([data-disabled="true"]):not([data-dirid="C"]) {
+            cursor: pointer;
+        }
+    .Navdir[data-dirid="C"] {
+        grid-row:       2;
+        grid-column:    2;
+    }
+    .Navdir[data-dirid="N"] {
+        grid-row:       1;
+        grid-column:    2;
+    }
+    .Navdir[data-dirid="E"] {
+        grid-row:       2;
+        grid-column:    3;
+    }
+    .Navdir[data-dirid="S"] {
+        grid-row:       3;
+        grid-column:    2;
+    }
+    .Navdir[data-dirid="W"] {
+        grid-row:       2;
+        grid-column:    1;
+    }
+    .Navdir[data-dirid="NW"] {
+        grid-row:       1;
+        grid-column:    1;
+    }
+    .Navdir[data-dirid="NE"] {
+        grid-row:       1;
+        grid-column:    3;
+    }
+    .Navdir[data-dirid="SE"] {
+        grid-row:       3;
+        grid-column:    3;
+    }
+    .Navdir[data-dirid="SW"] {
+        grid-row:       3;
+        grid-column:    1;
+    }

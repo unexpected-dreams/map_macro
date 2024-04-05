@@ -10,7 +10,7 @@ const debug = {
         argObj      : false,
         macro       : false,
         collision   : false,
-        segment     : true,
+        segment     : false,
     },
     log: function(groups,i) {
         groups = Array.isArray(groups)
