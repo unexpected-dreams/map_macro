@@ -48,5 +48,8 @@
     "last 10 Firefox versions",
     "IE >= 9",
     "Opera >= 12"
-  ]
+  ],
+  "dependencies": {
+    "howler": "^2.2.4"
+  }
 }

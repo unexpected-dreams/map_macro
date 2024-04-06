@@ -26,11 +26,11 @@ config.nav.ignore           = {             // used to check collisions when mov
     walls       : false,                    // walls
     entities    : false,                    // solid entities
 }
-config.entity.solid         = true;         // true means entity blocks movement into their cell
+config.entity.solid         = true;         // true means entities blocks movement into their cell
 config.display.print_tiles  = false;        // print individual Navtiles
 
 // tile definitions, can also be specified using <<maptile>>
-config.empty.tileid          = ".";         // default map input character for holes
+config.empty.tileid         = ".";          // default map input character for holes
 config.floor.tileid         = "x";          // default map input character for ground
 
 // guardrails

@@ -1019,7 +1019,7 @@ function print_navdisplay(argObj) {
     //////////////////////////////////////////////////
     // fill in static data for $display
     try {
-        const { mapid, entityid_view, x0, y0, cols_view, rows_view } = display;
+        const { mapid, entityid_view } = display;
 
         $display
             .addClass(`Navdisplay`)
@@ -1412,7 +1412,10 @@ function new_naventity(argObj) {
     this.error  ??= function(error) { throw new Error(error) };
 
     // extract from argObj
-    const { entityid, entityname, entityhtml, solid } = argObj;
+    const { entityid, entityname, entityhtml, solid } = {
+        solid: def.entity.solid,
+        ...argObj,
+    };
 
     // ERROR: required
     check_required.call(this, {entityid});
@@ -1762,42 +1765,66 @@ function mov_naventity(argObj) {
     const { cells } = map;
     const entity = get_naventity(entityid);
 
+    const x_old = entity.points[mapid].x;
+    const y_old = entity.points[mapid].y;
+    const x_new = entity.points[mapid].x + delta.x;
+    const y_new = entity.points[mapid].y + delta.y;
+
     const collision = check_collision.call(this, {
         mapid,
         entityid,
         delta,
         ignore,
     });
-
-    // collided, do nothing
-    if (collision.detected) {
-        return
-    }
-
-    const x_new = entity.points[mapid].x + delta.x;
-    const y_new = entity.points[mapid].y + delta.y;
+    
     // update
     try {
-        update_cell_entity.call(this, {
-            mapid,
-            entityid,
-            action  : "delete",
-        });
+        // collided, do nothing
+        if (! collision.detected) {
+            update_cell_entity.call(this, {
+                mapid,
+                entityid,
+                action  : "delete",
+            });
 
-        entity.points[mapid].x = x_new;
-        entity.points[mapid].y = y_new;
+            entity.points[mapid].x = x_new;
+            entity.points[mapid].y = y_new;
 
-        update_cell_entity.call(this, {
-            mapid,
-            entityid,
-            action  : "write",
-        });
-
+            update_cell_entity.call(this, {
+                mapid,
+                entityid,
+                action  : "write",
+            });
+        }
     }
     catch (error) {
         console.error(`${this.name} - failed to move entity "${entityid}" on map "${mapid}" (mov_naventity)`);
         console.error(error)
     }
+
+    // send out movement event
+    $(`.Navrose[data-entityid="${entityid}"]`).trigger(":entity_move", {
+        mapid,
+        entityid,
+        collisions  : collision.detected
+                        ? collision.types
+                        : null,
+        start       : {
+                        x : x_old, 
+                        y : y_old
+                    },
+        stop        : collision.detected
+                        ? {
+                            x : x_old, 
+                            y : y_old,
+                        }
+                        : {
+                            x : x_new, 
+                            y : y_new,
+                        },
+        attempt     : delta,
+        success     : collision.detected,
+    });
 
     // trigger actors
     // trigger_cell.call(this, {
@@ -1810,7 +1837,7 @@ function mov_naventity(argObj) {
 
     // update displays
     try {
-        if (trigger_update) {
+        if (trigger_update && ! collision.detected) {
             $(`.Navdisplay[data-mapid="${mapid}"]`).trigger(":update_navdisplay");
             $(`.Navrose[data-mapid="${mapid}"]`).trigger(":update_navrose");
         }
