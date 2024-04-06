@@ -2,7 +2,8 @@
 :: Start [nobr]
 <<link "Play music">>
     <<run 
-        setup.heart.start();
+        setup.DeepSeaBass.start();
+
     >>
 <</link>>
 

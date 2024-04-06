@@ -165,10 +165,12 @@ Beat Bashers
     <div class="title" id="title1">Player 1</div>
     <div class="subtitle" id="subtitle1">WASD</div>
     <div class="display" id="display1"></div>
+    <div class="meter" id="meter1"></div>
     <div class="nav" id="nav1"></div>
     <div class="title" id="title2">Player 2</div>
     <div class="subtitle" id="subtitle2">Arrow Keys</div>
     <div class="display" id="display2"></div>
+    <div class="meter" id="meter2"></div>
     <div class="nav" id="nav2"></div>
     <div id="passages"></div>
 </div>
