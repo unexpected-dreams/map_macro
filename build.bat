@@ -1,2 +1,2 @@
 @echo off
-call npm run build
+call tweego src -o dist/index.html
