@@ -110,7 +110,11 @@
                 border: 1px dashed yellow;
             }
 
-
+#passages {
+    grid-column: 1 / span 2;
+    display: grid;
+    place-content: center;
+}
 
 
 

@@ -4,17 +4,165 @@ const songs = {
         bpm: 125,
         src: "./assets/Oxide.m4a",
         length: 10000,
+        howl_delay: 300,
         beats: [
-            1000,
-            1000,
-            1000,
-            1000,
-            1000,
-            1000,
-            1000,
-            1000,
-            1000,
-            1000,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
+            480,
         ],
     },
     DeepSeaBass: {
@@ -102,11 +250,84 @@ const songs = {
             476,
         ],
     },
+    Magnetize: {
+        src: "./assets/Magnetize.mp3",
+        howl_delay: -150,
+        interval: 401,
+        beats: [
+            0,
+            1720,
+            1700,
+            1604,
+            1554,
+            1604,
+            1604,
+            3204,
+            401,
+            401,
+            401,
+            401,
+            401,
+            401,
+            401,
+            401,
+            401,
+            401,
+            401,
+            401,
+            401,
+            401,
+            401,
+            401,
+            401,
+            401,
+            401,
+            401,
+            401,
+            401,
+            401,
+            401,
+            401,
+            401,
+            401,
+            401,
+            401,
+            401,
+            401,
+            401,
+            401,
+            401,
+            401,
+            401,
+            401,
+            401,
+            401,
+            401,
+            401,
+            401,
+            401,
+            401,
+            401,
+            401,
+            401,
+            401,
+            401,
+            401,
+            401,
+            401,
+            401,
+            401,
+            401,
+        ],
+    },
 };
 const hearts = {};
 const howls = {};
+setup.hearts = hearts;
+setup.howls = howls;
 
-const meter_interval = 476;
+const meter_interval = 700;
+const nav_interval = 0;
 class heart {
     constructor(heartid, songid) {
 
@@ -114,12 +335,12 @@ class heart {
         this.heartid = heartid;
         this.songid = songid;
         this.running = false;
-        this.c_interval = 30;
+        this.check_interval = 30;
 
         const song = songs[this.songid];
-        this.b_interval = song.interval ?? (60000 / song.bpm);
+        this.beat_interval = song.interval ?? (60000 / song.bpm);
         $('.nav').css({
-            '--animDur': this.b_interval + "ms",
+            '--animDur': this.beat_interval + "ms",
         });
         $('.meter').css({
             '--animDur': meter_interval + "ms",
@@ -129,67 +350,92 @@ class heart {
             html5: true,
             autoloop: true,
         });
+        this.queue = [{
+            t: song.howl_delay,
+            pump: "pump_howl"
+        }];
+        let t = 0;
+        for (const b of song.beats) {
+            t +=b;
+            this.queue.push({
+                t: t - nav_interval,
+                pump: "pump_nav",
+            });
+            this.queue.push({
+                t: t - meter_interval,
+                pump: "pump_meter",
+            });
+        }
+        this.queue.sort( (a,b) => a.t - b.t );
+        const t_lowest = this.queue[0].t * -1;
+        this.queue.forEach( i => i.t += t_lowest );
+        console.log(this.queue);
     }
     start() {
         this.running = true;
         this.t_start = Date.now();
         this.c = 0;
-        this.b = 0;
+        this.i = 0;
 
         this.check();
-
-        const howl = howls[this.heartid];
-        setTimeout( function() {
-            howl.play();
-        }, 300)
     }
     stop() {
         this.running = false;
-        this.howl.stop();
+        howls[this.heartid].stop();
     }
     check() {
         if (this.running) {
 
-            if (Date.now() > this.t_start + this.b * this.b_interval) {
-                this.beat_meter();
-                this.beat_nav();
-                this.b++;
+            this.c++;
+            console.log(this.c, Date.now() - this.t_start);
+            const q_this = {...this.queue[this.i]};
+            if ((Date.now() - this.t_start) > q_this.t) {
+                this.pump();
             }
 
-            const t_expected = this.t_start + this.c * this.c_interval;
+            const t_expected = this.t_start + this.c * this.check_interval;
             const t_drift = Date.now() - t_expected;
 
             const check = this.check.bind(this);
             setTimeout( function() {
                 check();
-            }, Math.max(this.c_interval - t_drift, 0))
+            }, Math.max(this.check_interval - t_drift, 0))
             
             this.c++;
         }
     }
-    beat_meter() {
-        const beat_number = this.b;
+    pump() {
+        const q_this = {...this.queue[this.i]};
+        this[q_this.pump]();
+        console.log(q_this);
+        this.i++;
+    }
+    pump_howl() {
+        howls[this.heartid].play();
+    }
+    pump_meter() {
+        const i = this.i;
         $(document.createElement('div'))
                 .addClass('meterBar left')
-                .attr('data-beat',beat_number)
+                .attr('data-i',i)
                 .appendTo('#meter1');
         $(document.createElement('div'))
                 .addClass('meterBar right')
-                .attr('data-beat',beat_number)
+                .attr('data-i',i)
                 .appendTo('#meter1');
         $(document.createElement('div'))
                 .addClass('meterBar left')
-                .attr('data-beat',beat_number)
+                .attr('data-i',i)
                 .appendTo('#meter2');
         $(document.createElement('div'))
                 .addClass('meterBar right')
-                .attr('data-beat',beat_number)
+                .attr('data-i',i)
                 .appendTo('#meter2');
         setTimeout( function() {
-            $(`.meterBar[data-beat=${beat_number}]`).remove();
+            $(`.meterBar[data-i="${i}"]`).remove();
         }, meter_interval);
     }
-    beat_nav() {
+    pump_nav() {
         $('.nav').removeClass('beat');
         setTimeout( function() {
             $('.nav').addClass('beat');
@@ -221,6 +467,7 @@ class heart {
         });
     }
 }
-setup.Oxide = new heart('oxide','Oxide');
-setup.DeepSeaBass = new heart('deapseabass','DeepSeaBass');
-// heart.record("Numpad3","Numpad6","KeyZ");
+// setup.Oxide = new heart('oxide','Oxide');
+// setup.DeepSeaBass = new heart('deapseabass','DeepSeaBass');
+setup.Magnetize = new heart('magnetize','Magnetize');
+window.heart = heart;

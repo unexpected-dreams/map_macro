@@ -1,9 +1,13 @@
 
 :: Start [nobr]
 <<link "Play music">>
-    <<run 
-        setup.DeepSeaBass.start();
-
-    >>
+    <<run setup.Magnetize.start()>>
 <</link>>
-
+/
+<<link "Stop music">>
+    <<run setup.Magnetize.stop()>>
+<</link>>
+/* / 
+<<link "Record beats">>
+    <<run window.heart.record("Numpad3","Numpad6","KeyZ")>>
+<</link>> */
